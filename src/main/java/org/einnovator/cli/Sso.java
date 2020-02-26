@@ -19,6 +19,7 @@ import org.einnovator.sso.client.modelx.ClientFilter;
 import org.einnovator.sso.client.modelx.ClientOptions;
 import org.einnovator.sso.client.modelx.GroupFilter;
 import org.einnovator.sso.client.modelx.InvitationFilter;
+import org.einnovator.sso.client.modelx.InvitationOptions;
 import org.einnovator.sso.client.modelx.RoleFilter;
 import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.MappingUtils;
@@ -355,7 +356,7 @@ public class Sso {
 		User user = convert(args, User.class);
 		printLine("Creating User...");
 		print(user);
-		URI uri = ssoClient.createUser(user, null);
+		URI uri = ssoClient.createUser(user, null, null);
 		printLine("URI:", uri);
 		print("Created User:");
 		String id = UriUtils.extractId(uri);
@@ -370,7 +371,7 @@ public class Sso {
 		User user = convert(args, User.class);
 		printLine("Updating User...");
 		print(user);
-		ssoClient.updateUser(user, null);
+		ssoClient.updateUser(user, null, null);
 		print("Updated User:");
 		User user2 = ssoClient.getUser(userId, null);
 		print(user2);
@@ -380,7 +381,7 @@ public class Sso {
 		String userId = get(new String[] {"id", "username"}, args, null);
 		printLine("Deleting User...");
 		printLine("ID:", userId);		
-		ssoClient.deleteUser(userId, null);	
+		ssoClient.deleteUser(userId, null, null);	
 	}
 
 	//
@@ -411,7 +412,7 @@ public class Sso {
 		Group group = convert(args, Group.class);
 		printLine("Creating Group...");
 		print(group);
-		URI uri = ssoClient.createGroup(group, null);
+		URI uri = ssoClient.createGroup(group, null, null);
 		printLine("URI:", uri);
 		String groupId = UriUtils.extractId(uri);
 		Group group2 = ssoClient.getGroup(groupId, null);
@@ -424,7 +425,7 @@ public class Sso {
 		Group group = convert(args, Group.class);
 		printLine("Updating Group...");
 		print(group);
-		ssoClient.updateGroup(group, null);
+		ssoClient.updateGroup(group, null, null);
 		Group group2 = ssoClient.getGroup(groupId, null);
 		print("Updated Group:");
 		print(group2);
@@ -435,7 +436,7 @@ public class Sso {
 		String groupId = get(new String[] {"id", "uuid"}, args, null);
 		printLine("Deleting Group...");
 		printLine("ID:", groupId);		
-		ssoClient.deleteGroup(groupId, null);		
+		ssoClient.deleteGroup(groupId, null, null);		
 	}
 
 
@@ -450,7 +451,7 @@ public class Sso {
 		printLine("Adding Member...");
 		printLine("User:", userId);		
 		printLine("Group:", groupId);		
-		ssoClient.addMemberToGroup(userId, groupId, null);
+		ssoClient.addMemberToGroup(userId, groupId, null, null);
 	}
 
 	
@@ -460,7 +461,7 @@ public class Sso {
 		printLine("Removing Member...");
 		printLine("User:", userId);		
 		printLine("Group:", groupId);		
-		ssoClient.removeMemberFromGroup(userId, groupId, null);
+		ssoClient.removeMemberFromGroup(userId, groupId, null, null);
 	}
 	
 	public void listGroupMembers(Map<String, Object> args) {
@@ -483,14 +484,14 @@ public class Sso {
 		Boolean sendMail = get("sendMail", args, null);
 		printLine(Boolean.TRUE.equals(sendMail) ? "Sending Invitation..." : "Creating Invitation...");
 		printLine("Invitation", invitation);
-		URI uri = ssoClient.invite(invitation, Boolean.TRUE.equals(sendMail), null);
+		URI uri = ssoClient.invite(invitation, new InvitationOptions().withSendMail(sendMail), null);
 		printLine("URI:", uri);
 		String id = UriUtils.extractId(uri);
 		Invitation invitation2 = ssoClient.getInvitation(id, null, null);
 		print("Created Invitation:");
 		print(invitation2);
 		print("Token URI:");
-		URI tokenUri = ssoClient.getInvitationToken(id, false, null);
+		URI tokenUri = ssoClient.getInvitationToken(id, new InvitationOptions().withSendMail(false), null);
 		print(tokenUri);
 	}
 	
@@ -522,7 +523,7 @@ public class Sso {
 		Invitation invitation = convert(args, Invitation.class);
 		printLine("Updating Invitation...");
 		print(invitation);
-		ssoClient.updateInvitation(invitation, null);
+		ssoClient.updateInvitation(invitation, null, null);
 		print("Updated Invitation:");
 		Invitation invitation2 = ssoClient.getInvitation(invitationId, null, null);
 		print(invitation2);
@@ -532,7 +533,7 @@ public class Sso {
 		String invitationId = get(new String[] {"id", "uuid"}, args, null);
 		printLine("Deleting Invitation...");
 		printLine("ID:", invitationId);		
-		ssoClient.deleteInvitation(invitationId, null);	
+		ssoClient.deleteInvitation(invitationId, null, null);	
 	}
 
 
@@ -553,7 +554,7 @@ public class Sso {
 	
 	public void getRole(Map<String, Object> args) {
 		String roleId = get(new String[] {"id", "uuid"}, args, null);
-		Role role = ssoClient.getRole(roleId, null);
+		Role role = ssoClient.getRole(roleId, null, null);
 		printLine("Get Role...");
 		printLine("ID:", roleId);
 		printLine("Role:");
@@ -564,10 +565,10 @@ public class Sso {
 		Role role = convert(args, Role.class);
 		printLine("Creating Role...");
 		print(role);
-		URI uri = ssoClient.createRole(role, null);
+		URI uri = ssoClient.createRole(role, null, null);
 		printLine("URI:", uri);
 		String roleId = UriUtils.extractId(uri);
-		Role role2 = ssoClient.getRole(roleId, null);
+		Role role2 = ssoClient.getRole(roleId, null, null);
 		print("Created Role:");
 		print(role2);
 	}
@@ -577,8 +578,8 @@ public class Sso {
 		Role role = convert(args, Role.class);
 		printLine("Updating Role...");
 		print(role);
-		ssoClient.updateRole(role, null);
-		Role role2 = ssoClient.getRole(roleId, null);
+		ssoClient.updateRole(role, null, null);
+		Role role2 = ssoClient.getRole(roleId, null, null);
 		print("Updated Role:");
 		print(role2);
 
@@ -588,7 +589,7 @@ public class Sso {
 		String roleId = get(new String[] {"id", "uuid"}, args, null);
 		printLine("Deleting Role...");
 		printLine("ID:", roleId);		
-		ssoClient.deleteRole(roleId, null);		
+		ssoClient.deleteRole(roleId, null, null);		
 	}
 
 
@@ -622,7 +623,7 @@ public class Sso {
 		Client client = convert(args, Client.class);
 		printLine("Creating Client...");
 		print(client);
-		URI uri = ssoClient.createClient(client, null);
+		URI uri = ssoClient.createClient(client, null, null);
 		printLine("URI:", uri);
 		print("Created Client:");
 		String id = UriUtils.extractId(uri);
@@ -637,7 +638,7 @@ public class Sso {
 		Client client = convert(args, Client.class);
 		printLine("Updating Client...");
 		print(client);
-		ssoClient.updateClient(client, null);
+		ssoClient.updateClient(client, null, null);
 		print("Updated Client:");
 		Client client2 = ssoClient.getClient(clientId, null, null);
 		print(client2);
@@ -647,7 +648,7 @@ public class Sso {
 		String clientId = get(new String[] {"id", "uuid"}, args, null);
 		printLine("Deleting Client...");
 		printLine("ID:", clientId);		
-		ssoClient.deleteClient(clientId, null);	
+		ssoClient.deleteClient(clientId, null, null);	
 	}
 
 	
