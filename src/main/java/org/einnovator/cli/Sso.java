@@ -345,7 +345,7 @@ public class Sso {
 
 	public void getUser(Map<String, Object> args) {
 		String userId = get(new String[] {"id", "uuid", "username", "email"}, args, null);
-		User user = ssoClient.getUser(userId, null);
+		User user = ssoClient.getUser(userId, null, null);
 		printLine("Get User...");
 		printLine("ID:", userId);
 		printLine("User:");
@@ -360,7 +360,7 @@ public class Sso {
 		printLine("URI:", uri);
 		print("Created User:");
 		String id = UriUtils.extractId(uri);
-		User user2 = ssoClient.getUser(id, null);
+		User user2 = ssoClient.getUser(id, null, null);
 		print(user2);
 
 	}
@@ -373,7 +373,7 @@ public class Sso {
 		print(user);
 		ssoClient.updateUser(user, null, null);
 		print("Updated User:");
-		User user2 = ssoClient.getUser(userId, null);
+		User user2 = ssoClient.getUser(userId, null, null);
 		print(user2);
 	}
 
@@ -401,7 +401,7 @@ public class Sso {
 	
 	public void getGroup(Map<String, Object> args) {
 		String groupId = get(new String[] {"id", "uuid"}, args, null);
-		Group group = ssoClient.getGroup(groupId, null);
+		Group group = ssoClient.getGroup(groupId, null, null);
 		printLine("Get Group...");
 		printLine("ID:", groupId);
 		printLine("Group:");
@@ -415,7 +415,7 @@ public class Sso {
 		URI uri = ssoClient.createGroup(group, null, null);
 		printLine("URI:", uri);
 		String groupId = UriUtils.extractId(uri);
-		Group group2 = ssoClient.getGroup(groupId, null);
+		Group group2 = ssoClient.getGroup(groupId, null, null);
 		print("Created Group:");
 		print(group2);
 	}
@@ -426,7 +426,7 @@ public class Sso {
 		printLine("Updating Group...");
 		print(group);
 		ssoClient.updateGroup(group, null, null);
-		Group group2 = ssoClient.getGroup(groupId, null);
+		Group group2 = ssoClient.getGroup(groupId, null, null);
 		print("Updated Group:");
 		print(group2);
 
