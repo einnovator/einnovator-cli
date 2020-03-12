@@ -1,8 +1,12 @@
 package org.einnovator.cli;
 
 import static  org.einnovator.util.MappingUtils.convert;
-import static  org.einnovator.util.MappingUtils.updateObjectFrom;
+import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,7 +20,6 @@ import org.einnovator.sso.client.model.Member;
 import org.einnovator.sso.client.model.Role;
 import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
-import org.einnovator.sso.client.modelx.ClientOptions;
 import org.einnovator.sso.client.modelx.GroupFilter;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
@@ -25,10 +28,6 @@ import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
@@ -37,10 +36,19 @@ import org.springframework.security.oauth2.client.token.grant.password.ResourceO
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 @Component
-public class Sso {
+public class Sso extends CommandRunnerBase {
 
+	
+	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
+	
+	public static String CONFIG_FOLDER = ".ei";
+	public static String CONFIG_FILE = "config.json";
+	public static String KEY_TOKEN = "token";
+	
 	public String DEFAULT_CLIENT = "application";
 	public String DEFAULT_SECRET = "application$123";
 
@@ -58,63 +66,72 @@ public class Sso {
 	String tokenUsername = DEFAULT_USERNAME;
 	String tokenPassword = DEFAULT_PASSWORD;
 	
-	public static void main(String[] args) {
-		new SpringApplicationBuilder(Sso.class).web(false).run(args);
-	}
+	boolean init;
 	
-	@Component
-	public class CommandLiner implements CommandLineRunner {
-
-		@Autowired
-		Sso sso;
-	
-		@Override
-		public void run(String... args) throws Exception {
-			sso.run(args);
-		}
-
+	@Override
+	public String getPrefix() {
+		return "sso";
 	}
 
-	void init(Map<String, Object> args) {
-		updateObjectFrom(config, convert(args, SsoClientConfiguration.class));
-		String tokenUsername = get("u", args, DEFAULT_USERNAME);
-		String tokenPassword = get("p", args, DEFAULT_PASSWORD);
-		if (config.getClientId()==null) {
-			config.setClientId(DEFAULT_CLIENT);
-		}
-		if (config.getClientSecret()==null) {
-			config.setClientSecret(DEFAULT_SECRET);
-		}
+	String[] SSO_COMMANDS = new String[] { 
+		"login",
+		"api",
+		"token", "tk", "t",
+		"users", "user", "u",
+		"groups", "group", "g",
+		"member", "members", "m",
+		"role", "roles", "r",
+		"invitation", "invitations", "invites", "inv", "i",
+		"clients", "client", "c",
+		};
 
-		config.setServer("http://localhost:2001");
-		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
+	protected String[] getCommands() {
+		return SSO_COMMANDS;
+	}
+
+
+
+	public void init(Map<String, Object> args) {
+		config.setServer(SSO_DEFAULT_SERVER);
+		config.setClientId(DEFAULT_CLIENT);
+		config.setClientSecret(DEFAULT_SECRET);
+		updateObjectFromNonNull(config, convert(args, SsoClientConfiguration.class));
+
+		tokenUsername = get("u", args, DEFAULT_USERNAME);
+		tokenPassword = get("p", args, DEFAULT_PASSWORD);
+		
+		init = true;
+		ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
 		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-
 		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
 		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
 
 		ssoClient = new SsoClient(template, config, false);
 	}
 	
-	Map<String, Object> argsMap;
 
-	public void run(String[] args) {
-		if (args==null || args.length==0) {
-			System.out.println("usage: sso cmd");
-			return;
+
+	public ResourceOwnerPasswordResourceDetails getRequiredResourceDetails() {
+		if (!init) {
+			//TODO: read config file
+			init = true;
 		}
-		String type = args[0];
-		type = type.toLowerCase();
-		String op = args.length>1 && !args[1].startsWith("-")? args[1] : "";
-		argsMap = makeArgsMap(args);
-		
-		printLine("Args:", argsMap);
-		
-		init(argsMap);		
+		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
+		return resource;
+	}
+
+	
+	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
 
 		getToken(argsMap);
 		
 		switch (type) {
+		case "login": case "l":
+			login(argsMap);
+			break;
+		case "api": case "a":
+			api(argsMap);
+			break;
 		case "token": case "tk": case "t":
 			switch (op) {
 				case "show": case "s": case "":
@@ -260,68 +277,74 @@ public class Sso {
 			break;
 		default:
 			System.err.println("Invalid command: " + type + " " + op);
-			showUsage();
+			printUsage();
 			break;
 		}
 	}
 
-	void invalidOp(String type, String op) {
-		System.err.println(String.format("ERROR: invalid operation: %s %s", type, op));
-	}
 
-	void invalidType(String type) {
-		System.err.println(String.format("ERROR: invalid resource type: %s", type));
-	}
 
-	private Map<String, Object> makeArgsMap(String[] args) {
-		Map<String, Object> map = new LinkedHashMap<String, Object>();
-		int i0 = args.length>1 && !args[1].startsWith("-")? 2 : 1;
-		for (int i=i0; i<args.length; i++) {
-			String a = args[i];
-			if (a.startsWith("--")) {
-				if (a.length()>2) {
-					a = a.substring(2);
-					int j = a.indexOf("=");
-					if (j>0) {
-						map.put(a.substring(0,j), j<a.length()-1 ? a.substring(j+1) : "");
-					} else if (j<0) {
-						map.put(a, "");						
-					} else {
-						System.out.println("ERROR: missing name before =");
-						System.exit(1);
-					}
-				}
-			} else if (a.startsWith("-")) {
-				if (a.length()>1) {
-					a = a.substring(1);
-					if (i<args.length-1) {
-						map.put(a, args[i+1]);
-						i++;
-					} else {
-						map.put(a, "");
-					}
-				} else {
-					System.out.println("ERROR: missing name after -");
-					System.exit(1);					
-				}
-			}
-		}
-		return map;
-	}
-	public void showUsage() {
-		System.out.println("usage: sso cmd");
-		System.exit(0);
+	public String getUsage() {
+		StringBuilder sb = new StringBuilder();
+		return sb.toString();
 	}
 
 	//
-	// Token
+	// Login, API, Token
 	//
+
+	public void login(Map<String, Object> args) {
+		getToken(args);	
+	}
+
+	public void api(Map<String, Object> args) {
+		api(args);	
+	}
+
+	
 	public void getToken(Map<String, Object> args) {
 		printLine("Credentials: ", tokenUsername, tokenPassword);
 		printLine("Config:", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		printLine("Token: ", token);
+		if (token!=null) {
+			writeConfig(args, token.getValue());			
+		}
 	}
+
+
+	private void writeConfig(Map<String, Object> args, String token) {
+		File file = getConfigFile(args);
+		Map<String, Object> config = makeConfig(args, token);
+		try (PrintWriter writer = new PrintWriter(new FileOutputStream(file))) {
+			ObjectMapper mapper = new ObjectMapper();
+			String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
+			writer.write(json);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}		
+	}
+	
+	private Map<String, Object> makeConfig(Map<String, Object> args, String token) {
+		Map<String, Object> config = new LinkedHashMap<>();
+		config.putAll(MappingUtils.toMap(this.config));
+		config.put(KEY_TOKEN, token);
+		return config;
+
+	}
+	
+	private File getConfigFile(Map<String, Object> args) {
+		String home = System.getProperty("user.home");
+		if (home==null) {
+			home = ".";
+		}
+		String dir =  home + File.separator + CONFIG_FOLDER;
+		File fdir = new File(dir);
+		fdir.mkdirs();
+		String path = dir + File.separator + CONFIG_FILE;
+		return new File(path);
+	}
+
 
 	public void showToken() {
 		System.out.println(token);

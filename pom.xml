@@ -26,6 +26,44 @@
 			<artifactId>einnovator-sso-starter</artifactId>
 			<version>${einnovator.version}</version>
 		</dependency>
+
+ 		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-notifications-starter</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
+
+ 		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-documents-starter</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
+
+ 		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-social-starter</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
+
+		 
+ 		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-devops-starter</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
+		
+				
+		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-settings</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-license</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
 		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
