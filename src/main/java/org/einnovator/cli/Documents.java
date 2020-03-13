@@ -32,7 +32,6 @@ public class Documents extends CommandRunnerBase {
 
 	@Autowired
 	Sso sso;
-	
 
 	OAuth2AccessToken token;
 	
@@ -79,7 +78,7 @@ public class Documents extends CommandRunnerBase {
 			case "get": case "g": case "show": case "s": case "view": case "v":
 				read(path, argsMap);
 				break;
-			case "list": case "l": case "":
+			case "list": case "l": case "ls": case "dir": case "":
 				list(path, argsMap);
 				break;
 			case "create": case "c":
