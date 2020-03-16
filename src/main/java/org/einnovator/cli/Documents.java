@@ -140,7 +140,7 @@ public class Documents extends CommandRunnerBase {
 	public void list(String path, Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		DocumentFilter filter = convert(args, DocumentFilter.class);
-		List<Document> documents = documentsClient.list(path, filter, pageable, null);
+		List<Document> documents = documentsClient.list(path, filter, pageable);
 		printLine("Listing Documents...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -149,8 +149,8 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void read(String path, Map<String, Object> args) {
-		String documentId = get(new String[] {"id", "uuid", "documentname", "email"}, args, null);
-		Document document = documentsClient.read(documentId, null, null);
+		String documentId = (String)get(new String[] {"id", "uuid", "documentname", "email"}, args);
+		Document document = documentsClient.read(documentId, null);
 		printLine("Get Document...");
 		printLine("ID:", documentId);
 		printLine("Document:");
@@ -161,21 +161,21 @@ public class Documents extends CommandRunnerBase {
 		Document document = convert(args, Document.class);
 		printLine("Creating Document...");
 		print(document);
-		URI uri = documentsClient.write(document, null, null);
+		URI uri = documentsClient.write(document, null);
 		printLine("URI:", uri);
 	}
 
 	public void mkdir(String path, Map<String, Object> args) {
 		printLine("mkdir " + path);
-		URI uri = documentsClient.mkdir(path, null, null);
+		URI uri = documentsClient.mkdir(path, null);
 		printLine("URI:", uri);
 	}
 	
 	public void delete(String path, Map<String, Object> args) {
-		String documentId = get(new String[] {"id", "documentname"}, args, null);
+		String documentId = (String)get(new String[] {"id", "documentname"}, args);
 		printLine("Deleting Document...");
 		printLine("ID:", documentId);		
-		documentsClient.delete(path, null, null);	
+		documentsClient.delete(path, null);	
 	}
 
 
@@ -186,7 +186,7 @@ public class Documents extends CommandRunnerBase {
 	public void listMounts(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		MountFilter filter = convert(args, MountFilter.class);
-		Page<Mount> mounts = null; // documentsClient.listMounts(filter, pageable, null);
+		Page<Mount> mounts = null; // documentsClient.listMounts(filter, pageable);
 		printLine("Listing Mounts...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -195,8 +195,8 @@ public class Documents extends CommandRunnerBase {
 	}
 	
 	public void getMount(Map<String, Object> args) {
-		String mountId = get(new String[] {"id", "uuid"}, args, null);
-		Mount mount = null; //documentsClient.getMount(mountId, null, null);
+		String mountId = (String)get(new String[] {"id", "uuid"}, args);
+		Mount mount = null; //documentsClient.getMount(mountId, null);
 		printLine("Get Mount...");
 		printLine("ID:", mountId);
 		printLine("Mount:");
@@ -207,31 +207,31 @@ public class Documents extends CommandRunnerBase {
 		Mount mount = convert(args, Mount.class);
 		printLine("Creating Mount...");
 		print(mount);
-		URI uri = null; //documentsClient.createMount(mount, null, null);
+		URI uri = null; //documentsClient.createMount(mount, null);
 		printLine("URI:", uri);
 		String mountId = UriUtils.extractId(uri);
-		Mount mount2 = null; //documentsClient.getMount(mountId, null, null);
+		Mount mount2 = null; //documentsClient.getMount(mountId, null);
 		print("Created Mount:");
 		print(mount2);
 	}
 
 	public void updateMount(Map<String, Object> args) {
-		String mountId = get(new String[] {"id", "uuid"}, args, null);
+		String mountId = (String)get(new String[] {"id", "uuid"}, args);
 		Mount mount = convert(args, Mount.class);
 		printLine("Updating Mount...");
 		print(mount);
-		//documentsClient.updateMount(mount, null, null);
-		Mount mount2 = null; //documentsClient.getMount(mountId, null, null);
+		//documentsClient.updateMount(mount, null);
+		Mount mount2 = null; //documentsClient.getMount(mountId, null);
 		print("Updated Mount:");
 		print(mount2);
 
 	}
 	
 	public void deleteMount(Map<String, Object> args) {
-		String mountId = get(new String[] {"id", "uuid"}, args, null);
+		String mountId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Mount...");
 		printLine("ID:", mountId);		
-		//documentsClient.deleteMount(mountId, null, null);		
+		//documentsClient.deleteMount(mountId, null);		
 	}
 	
 }

@@ -45,6 +45,11 @@
 			<version>${einnovator.version}</version>
 		</dependency>
 
+		  <dependency>
+			<groupId>org.einnovator</groupId>
+			<artifactId>einnovator-payments-starter</artifactId>
+			<version>${einnovator.version}</version>
+		</dependency>
 		 
  		<dependency>
 			<groupId>org.einnovator</groupId>

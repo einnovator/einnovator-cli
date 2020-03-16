@@ -151,7 +151,7 @@ public class Notifications extends CommandRunnerBase {
 	public void listNotifications(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		NotificationFilter filter = convert(args, NotificationFilter.class);
-		Page<Notification> notifications = notificationsClient.listNotifications(filter, pageable, null);
+		Page<Notification> notifications = notificationsClient.listNotifications(filter, pageable);
 		printLine("Listing Notifications...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -161,7 +161,7 @@ public class Notifications extends CommandRunnerBase {
 	
 	public void countNotifications(Map<String, Object> args) {
 		NotificationFilter filter = convert(args, NotificationFilter.class);
-		Long n = notificationsClient.countNotifications(filter, null);
+		Long n = notificationsClient.countNotifications(filter);
 		printLine("Count Notification...");
 		printLine(n);
 	}
@@ -170,15 +170,15 @@ public class Notifications extends CommandRunnerBase {
 		Event event = convert(args, Event.class);
 		printLine("Publish Event...");
 		print(event);
-		notificationsClient.publishEvent(event, null);
+		notificationsClient.publishEvent(event);
 	}
 
 	
 	public void deleteNotification(Map<String, Object> args) {
-		String notificationId = get(new String[] {"id", "uuid"}, args, null);
+		String notificationId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Notification...");
 		printLine("ID:", notificationId);		
-		notificationsClient.deleteNotification(notificationId, null, null);		
+		notificationsClient.deleteNotification(notificationId, null);		
 	}
 
 	//
@@ -188,7 +188,7 @@ public class Notifications extends CommandRunnerBase {
 	public void listNotificationTypes(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		NotificationTypeFilter filter = convert(args, NotificationTypeFilter.class);
-		Page<NotificationType> notificationTypes = notificationsClient.listNotificationTypes(filter, pageable, null);
+		Page<NotificationType> notificationTypes = notificationsClient.listNotificationTypes(filter, pageable);
 		printLine("Listing NotificationTypes...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -197,8 +197,8 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getNotificationType(Map<String, Object> args) {
-		String notificationTypeId = get(new String[] {"id", "uuid"}, args, null);
-		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, null, null);
+		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, args);
+		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, null);
 		printLine("Get NotificationType...");
 		printLine("ID:", notificationTypeId);
 		printLine("NotificationType:");
@@ -209,31 +209,31 @@ public class Notifications extends CommandRunnerBase {
 		NotificationType notificationType = convert(args, NotificationType.class);
 		printLine("Creating NotificationType...");
 		print(notificationType);
-		URI uri = null; notificationsClient.createNotificationType(notificationType, null, null);
+		URI uri = null; notificationsClient.createNotificationType(notificationType, null);
 		printLine("URI:", uri);
 		String notificationTypeId = UriUtils.extractId(uri);
-		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null, null);
+		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null);
 		print("Created NotificationType:");
 		print(notificationType2);
 	}
 
 	public void updateNotificationType(Map<String, Object> args) {
-		String notificationTypeId = get(new String[] {"id", "uuid"}, args, null);
+		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, args);
 		NotificationType notificationType = convert(args, NotificationType.class);
 		printLine("Updating NotificationType...");
 		print(notificationType);
-		notificationsClient.updateNotificationType(notificationType, null, null);
-		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null, null);
+		notificationsClient.updateNotificationType(notificationType, null);
+		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null);
 		print("Updated NotificationType:");
 		print(notificationType2);
 
 	}
 	
 	public void deleteNotificationType(Map<String, Object> args) {
-		String notificationTypeId = get(new String[] {"id", "uuid"}, args, null);
+		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting NotificationType...");
 		printLine("ID:", notificationTypeId);		
-		notificationsClient.deleteNotificationType(notificationTypeId, null, null);		
+		notificationsClient.deleteNotificationType(notificationTypeId, null);		
 	}
 
 	
@@ -244,7 +244,7 @@ public class Notifications extends CommandRunnerBase {
 	public void listTemplates(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		TemplateFilter filter = convert(args, TemplateFilter.class);
-		Page<Template> templates = notificationsClient.listTemplates(filter, pageable, null);
+		Page<Template> templates = notificationsClient.listTemplates(filter, pageable);
 		printLine("Listing Templates...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -253,8 +253,8 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getTemplate(Map<String, Object> args) {
-		String templateId = get(new String[] {"id", "uuid"}, args, null);
-		Template template = null; notificationsClient.getTemplate(templateId, null, null);
+		String templateId = (String)get(new String[] {"id", "uuid"}, args);
+		Template template = null; notificationsClient.getTemplate(templateId, null);
 		printLine("Get Template...");
 		printLine("ID:", templateId);
 		printLine("Template:");
@@ -265,31 +265,31 @@ public class Notifications extends CommandRunnerBase {
 		Template template = convert(args, Template.class);
 		printLine("Creating Template...");
 		print(template);
-		URI uri = null; notificationsClient.createTemplate(template, null, null);
+		URI uri = null; notificationsClient.createTemplate(template, null);
 		printLine("URI:", uri);
 		String templateId = UriUtils.extractId(uri);
-		Template template2 = null; notificationsClient.getTemplate(templateId, null, null);
+		Template template2 = null; notificationsClient.getTemplate(templateId, null);
 		print("Created Template:");
 		print(template2);
 	}
 
 	public void updateTemplate(Map<String, Object> args) {
-		String templateId = get(new String[] {"id", "uuid"}, args, null);
+		String templateId = (String)get(new String[] {"id", "uuid"}, args);
 		Template template = convert(args, Template.class);
 		printLine("Updating Template...");
 		print(template);
-		notificationsClient.updateTemplate(template, null, null);
-		Template template2 = null; notificationsClient.getTemplate(templateId, null, null);
+		notificationsClient.updateTemplate(template, null);
+		Template template2 = null; notificationsClient.getTemplate(templateId, null);
 		print("Updated Template:");
 		print(template2);
 
 	}
 	
 	public void deleteTemplate(Map<String, Object> args) {
-		String templateId = get(new String[] {"id", "uuid"}, args, null);
+		String templateId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Template...");
 		printLine("ID:", templateId);		
-		notificationsClient.deleteTemplate(templateId, null, null);		
+		notificationsClient.deleteTemplate(templateId, null);		
 	}
 
 	//
@@ -299,7 +299,7 @@ public class Notifications extends CommandRunnerBase {
 	public void listJobs(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		JobFilter filter = convert(args, JobFilter.class);
-		Page<Job> jobs = notificationsClient.listJobs(filter, pageable, null);
+		Page<Job> jobs = notificationsClient.listJobs(filter, pageable);
 		printLine("Listing Jobs...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -308,8 +308,8 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getJob(Map<String, Object> args) {
-		String jobId = get(new String[] {"id", "uuid"}, args, null);
-		Job job = null; notificationsClient.getJob(jobId, null, null);
+		String jobId = (String)get(new String[] {"id", "uuid"}, args);
+		Job job = null; notificationsClient.getJob(jobId, null);
 		printLine("Get Job...");
 		printLine("ID:", jobId);
 		printLine("Job:");
@@ -320,31 +320,31 @@ public class Notifications extends CommandRunnerBase {
 		Job job = convert(args, Job.class);
 		printLine("Creating Job...");
 		print(job);
-		URI uri = null; notificationsClient.createJob(job, null, null);
+		URI uri = null; notificationsClient.createJob(job, null);
 		printLine("URI:", uri);
 		String jobId = UriUtils.extractId(uri);
-		Job job2 = null; notificationsClient.getJob(jobId, null, null);
+		Job job2 = null; notificationsClient.getJob(jobId, null);
 		print("Created Job:");
 		print(job2);
 	}
 
 	public void updateJob(Map<String, Object> args) {
-		String jobId = get(new String[] {"id", "uuid"}, args, null);
+		String jobId = (String)get(new String[] {"id", "uuid"}, args);
 		Job job = convert(args, Job.class);
 		printLine("Updating Job...");
 		print(job);
-		notificationsClient.updateJob(job, null, null);
-		Job job2 = null; notificationsClient.getJob(jobId, null, null);
+		notificationsClient.updateJob(job, null);
+		Job job2 = null; notificationsClient.getJob(jobId, null);
 		print("Updated Job:");
 		print(job2);
 
 	}
 	
 	public void deleteJob(Map<String, Object> args) {
-		String jobId = get(new String[] {"id", "uuid"}, args, null);
+		String jobId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Job...");
 		printLine("ID:", jobId);		
-		notificationsClient.deleteJob(jobId, null, null);		
+		notificationsClient.deleteJob(jobId, null);		
 	}
 	
 	

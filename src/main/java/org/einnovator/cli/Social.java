@@ -115,7 +115,7 @@ public class Social extends CommandRunnerBase {
 	public void listChannels(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		ChannelFilter filter = convert(args, ChannelFilter.class);
-		Page<Channel> channels = socialClient.listChannels(filter, pageable, null);
+		Page<Channel> channels = socialClient.listChannels(filter, pageable);
 		printLine("Listing Channels...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -124,8 +124,8 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void getChannel(Map<String, Object> args) {
-		String channelId = get(new String[] {"id", "uuid"}, args, null);
-		Channel channel = null; socialClient.getChannel(channelId, null, null);
+		String channelId = (String)get(new String[] {"id", "uuid"}, args);
+		Channel channel = null; socialClient.getChannel(channelId, null);
 		printLine("Get Channel...");
 		printLine("ID:", channelId);
 		printLine("Channel:");
@@ -136,31 +136,31 @@ public class Social extends CommandRunnerBase {
 		Channel channel = convert(args, Channel.class);
 		printLine("Creating Channel...");
 		print(channel);
-		URI uri = null; socialClient.createChannel(channel, null, null);
+		URI uri = null; socialClient.createChannel(channel, null);
 		printLine("URI:", uri);
 		String channelId = UriUtils.extractId(uri);
-		Channel channel2 = null; socialClient.getChannel(channelId, null, null);
+		Channel channel2 = null; socialClient.getChannel(channelId, null);
 		print("Created Channel:");
 		print(channel2);
 	}
 
 	public void updateChannel(Map<String, Object> args) {
-		String channelId = get(new String[] {"id", "uuid"}, args, null);
+		String channelId = (String)get(new String[] {"id", "uuid"}, args);
 		Channel channel = convert(args, Channel.class);
 		printLine("Updating Channel...");
 		print(channel);
-		socialClient.updateChannel(channel, null, null);
-		Channel channel2 = null; socialClient.getChannel(channelId, null, null);
+		socialClient.updateChannel(channel, null);
+		Channel channel2 = null; socialClient.getChannel(channelId, null);
 		print("Updated Channel:");
 		print(channel2);
 
 	}
 	
 	public void deleteChannel(Map<String, Object> args) {
-		String channelId = get(new String[] {"id", "uuid"}, args, null);
+		String channelId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Channel...");
 		printLine("ID:", channelId);		
-		socialClient.deleteChannel(channelId, null, null);		
+		socialClient.deleteChannel(channelId, null);		
 	}
 	
 	

@@ -1,12 +1,8 @@
 package org.einnovator.cli;
 
 import static  org.einnovator.util.MappingUtils.convert;
-import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
+import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +16,7 @@ import org.einnovator.sso.client.model.Member;
 import org.einnovator.sso.client.model.Role;
 import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
+import org.einnovator.sso.client.modelx.ClientOptions;
 import org.einnovator.sso.client.modelx.GroupFilter;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
@@ -28,6 +25,10 @@ import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
@@ -36,19 +37,10 @@ import org.springframework.security.oauth2.client.token.grant.password.ResourceO
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 
 @Component
-public class Sso extends CommandRunnerBase {
+public class Devops extends CommandRunnerBase {
 
-	
-	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
-	
-	public static String CONFIG_FOLDER = ".ei";
-	public static String CONFIG_FILE = "config.json";
-	public static String KEY_TOKEN = "token";
-	
 	public String DEFAULT_CLIENT = "application";
 	public String DEFAULT_SECRET = "application$123";
 
@@ -66,72 +58,41 @@ public class Sso extends CommandRunnerBase {
 	String tokenUsername = DEFAULT_USERNAME;
 	String tokenPassword = DEFAULT_PASSWORD;
 	
-	boolean init;
-	
-	@Override
-	public String getPrefix() {
-		return "sso";
-	}
-
-	String[] SSO_COMMANDS = new String[] { 
-		"login",
-		"api",
-		"token", "tk", "t",
-		"users", "user", "u",
-		"groups", "group", "g",
-		"member", "members", "m",
-		"role", "roles", "r",
-		"invitation", "invitations", "invites", "inv", "i",
-		"clients", "client", "c",
-		};
-
-	protected String[] getCommands() {
-		return SSO_COMMANDS;
-	}
-
 
 
 	public void init(Map<String, Object> args) {
-		config.setServer(SSO_DEFAULT_SERVER);
-		config.setClientId(DEFAULT_CLIENT);
-		config.setClientSecret(DEFAULT_SECRET);
-		updateObjectFromNonNull(config, convert(args, SsoClientConfiguration.class));
+		updateObjectFrom(config, convert(args, SsoClientConfiguration.class));
+		String tokenUsername = (String)get("u", args, DEFAULT_USERNAME);
+		String tokenPassword = (String)get("p", args, DEFAULT_PASSWORD);
+		if (config.getClientId()==null) {
+			config.setClientId(DEFAULT_CLIENT);
+		}
+		if (config.getClientSecret()==null) {
+			config.setClientSecret(DEFAULT_SECRET);
+		}
 
-		tokenUsername = (String)get("u", args, DEFAULT_USERNAME);
-		tokenPassword = (String)get("p", args, DEFAULT_PASSWORD);
-		
-		init = true;
-		ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
+		config.setServer("http://localhost:2001");
+		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
 		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
+
 		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
 		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
 
 		ssoClient = new SsoClient(template, config, false);
 	}
 	
-
-
-	public ResourceOwnerPasswordResourceDetails getRequiredResourceDetails() {
-		if (!init) {
-			//TODO: read config file
-			init = true;
-		}
-		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
-		return resource;
+	@Override
+	public String getPrefix() {
+		return "sso";
 	}
-
 	
+	Map<String, Object> argsMap;
+
 	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
 
 		getToken(argsMap);
 		
 		switch (type) {
-		case "login": case "l":
-			login(argsMap);
-			break;
-		case "api": case "a":
-			api(argsMap);
-			break;
 		case "token": case "tk": case "t":
 			switch (op) {
 				case "show": case "s": case "":
@@ -290,61 +251,15 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	//
-	// Login, API, Token
+	// Token
 	//
-
-	public void login(Map<String, Object> args) {
-		getToken(args);	
-	}
-
-	public void api(Map<String, Object> args) {
-		api(args);	
-	}
-
 	
 	public void getToken(Map<String, Object> args) {
 		printLine("Credentials: ", tokenUsername, tokenPassword);
 		printLine("Config:", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		printLine("Token: ", token);
-		if (token!=null) {
-			writeConfig(args, token.getValue());			
-		}
 	}
-
-
-	private void writeConfig(Map<String, Object> args, String token) {
-		File file = getConfigFile(args);
-		Map<String, Object> config = makeConfig(args, token);
-		try (PrintWriter writer = new PrintWriter(new FileOutputStream(file))) {
-			ObjectMapper mapper = new ObjectMapper();
-			String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
-			writer.write(json);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}		
-	}
-	
-	private Map<String, Object> makeConfig(Map<String, Object> args, String token) {
-		Map<String, Object> config = new LinkedHashMap<>();
-		config.putAll(MappingUtils.toMap(this.config));
-		config.put(KEY_TOKEN, token);
-		return config;
-
-	}
-	
-	private File getConfigFile(Map<String, Object> args) {
-		String home = System.getProperty("user.home");
-		if (home==null) {
-			home = ".";
-		}
-		String dir =  home + File.separator + CONFIG_FOLDER;
-		File fdir = new File(dir);
-		fdir.mkdirs();
-		String path = dir + File.separator + CONFIG_FILE;
-		return new File(path);
-	}
-
 
 	public void showToken() {
 		System.out.println(token);
@@ -504,7 +419,7 @@ public class Sso extends CommandRunnerBase {
 
 	public void invite(Map<String, Object> args) {
 		Invitation invitation = convert(args, Invitation.class);
-		Boolean sendMail = get("sendMail", args, true);
+		Boolean sendMail = null;
 		printLine(Boolean.TRUE.equals(sendMail) ? "Sending Invitation..." : "Creating Invitation...");
 		printLine("Invitation", invitation);
 		URI uri = ssoClient.invite(invitation, new InvitationOptions().withSendMail(sendMail));
@@ -675,6 +590,79 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	
+	//
+	// Util
+	//
+	
+	public <T> T get(String name, Map<String, Object> map, T defaultValue) {
+		@SuppressWarnings("unchecked")
+		T value = (T)map.get(name);
+		if (value==null) {
+			value = defaultValue;
+		}
+		return value;
+	}
+	
+	public Object get(String[] names, Map<String, Object> map) {
+		for (String name: names) {
+			Object value = map.get(name);
+			if (value!=null) {
+				return value;
+			}
+		}
+		return null;
+	}
+	
+
+	//
+	// Print
+	//
+	
+	void print(Object obj) {
+		print(obj, 0);
+	}
+
+	@SuppressWarnings("rawtypes")
+	void print(Object obj, int n) {
+		if (obj instanceof Iterable) {
+			for (Object o: (Iterable)obj) {
+				print(o, n+1);
+			}
+			return;
+		}
+		System.out.println(String.format("%" + (n+1) + "s%s", "", format(obj)));
+	}
+	
+	void printLine(Object... objs) {
+		boolean first = true;
+		for (Object obj: objs) {
+			if (!first) {
+				System.out.print(" ");						
+			}
+			System.out.print(obj);		
+			first = false;
+		}
+		System.out.println();		
+	}
+	
+	String format(Object obj) {
+		String o = (String)argsMap.get("o");
+		if (o!=null && !o.isEmpty()) {
+			String[] a = o.split(",");
+			StringBuilder sb = new StringBuilder();
+			Map<String, Object> map = MappingUtils.toMap(obj);
+			for (String s: a) {
+				if (!s.isEmpty()) {
+					sb.append(" ");						
+				}
+				sb.append(map.get(s));
+			}
+			return sb.toString();
+		} else {
+			return obj.toString();			
+		}
+	}
+
 	
 	
 }

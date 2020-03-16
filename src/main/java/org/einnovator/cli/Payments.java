@@ -126,7 +126,7 @@ public class Payments extends CommandRunnerBase {
 	public void listAccounts(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		AccountFilter filter = convert(args, AccountFilter.class);
-		Page<Account> accounts = paymentsClient.listAccounts(filter, pageable, null);
+		Page<Account> accounts = paymentsClient.listAccounts(filter, pageable);
 		printLine("Listing Accounts...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -135,9 +135,9 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void getAccount(Map<String, Object> args) {
-		String accountId = get(new String[] {"id", "uuid"}, args, null);
+		String accountId = (String)get(new String[] {"id", "uuid"}, args);
 		AccountOptions options = convert(args, AccountOptions.class);
-		Account account = null; paymentsClient.getAccount(accountId, options, null);
+		Account account = null; paymentsClient.getAccount(accountId, options);
 		printLine("Get Account...");
 		printLine("ID:", accountId);
 		printLine("Account:");
@@ -148,31 +148,31 @@ public class Payments extends CommandRunnerBase {
 		Account account = convert(args, Account.class);
 		printLine("Creating Account...");
 		print(account);
-		URI uri = paymentsClient.createAccount(account, null, null);
+		URI uri = paymentsClient.createAccount(account, null);
 		printLine("URI:", uri);
 		String accountId = UriUtils.extractId(uri);
-		Account account2 = null; paymentsClient.getAccount(accountId, null, null);
+		Account account2 = null; paymentsClient.getAccount(accountId, null);
 		print("Created Account:");
 		print(account2);
 	}
 
 	public void updateAccount(Map<String, Object> args) {
-		String accountId = get(new String[] {"id", "uuid"}, args, null);
+		String accountId = (String)get(new String[] {"id", "uuid"}, args);
 		Account account = convert(args, Account.class);
 		printLine("Updating Account...");
 		print(account);
-		paymentsClient.updateAccount(account, null, null);
-		Account account2 = null; paymentsClient.getAccount(accountId, null, null);
+		paymentsClient.updateAccount(account, null);
+		Account account2 = null; paymentsClient.getAccount(accountId, null);
 		print("Updated Account:");
 		print(account2);
 
 	}
 	
 	public void deleteAccount(Map<String, Object> args) {
-		String accountId = get(new String[] {"id", "uuid"}, args, null);
+		String accountId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Account...");
 		printLine("ID:", accountId);		
-		paymentsClient.deleteAccount(accountId, null, null);		
+		paymentsClient.deleteAccount(accountId, null);		
 	}
 
 	//
@@ -182,7 +182,7 @@ public class Payments extends CommandRunnerBase {
 	public void listPayments(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
 		PaymentFilter filter = convert(args, PaymentFilter.class);
-		Page<Payment> payments = paymentsClient.listPayments(filter, pageable, null);
+		Page<Payment> payments = paymentsClient.listPayments(filter, pageable);
 		printLine("Listing Payments...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
@@ -191,9 +191,9 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void getPayment(Map<String, Object> args) {
-		String paymentId = get(new String[] {"id", "uuid"}, args, null);
+		String paymentId = (String)get(new String[] {"id", "uuid"}, args);
 		PaymentOptions options = convert(args, PaymentOptions.class);
-		Payment payment = null; paymentsClient.getPayment(paymentId, options, null);
+		Payment payment = null; paymentsClient.getPayment(paymentId, options);
 		printLine("Get Payment...");
 		printLine("ID:", paymentId);
 		printLine("Payment:");
@@ -204,31 +204,31 @@ public class Payments extends CommandRunnerBase {
 		Payment payment = convert(args, Payment.class);
 		printLine("Creating Payment...");
 		print(payment);
-		URI uri = paymentsClient.submitPayment(payment, null, null);
+		URI uri = paymentsClient.submitPayment(payment, null);
 		printLine("URI:", uri);
 		String paymentId = UriUtils.extractId(uri);
-		Payment payment2 = null; paymentsClient.getPayment(paymentId, null, null);
+		Payment payment2 = null; paymentsClient.getPayment(paymentId, null);
 		print("Created Payment:");
 		print(payment2);
 	}
 
 	public void updatePayment(Map<String, Object> args) {
-		String paymentId = get(new String[] {"id", "uuid"}, args, null);
+		String paymentId = (String)get(new String[] {"id", "uuid"}, args);
 		Payment payment = convert(args, Payment.class);
 		printLine("Updating Payment...");
 		print(payment);
-		paymentsClient.updatePayment(payment, null, null);
-		Payment payment2 = null; paymentsClient.getPayment(paymentId, null, null);
+		paymentsClient.updatePayment(payment, null);
+		Payment payment2 = null; paymentsClient.getPayment(paymentId, null);
 		print("Updated Payment:");
 		print(payment2);
 
 	}
 	
 	public void deletePayment(Map<String, Object> args) {
-		String paymentId = get(new String[] {"id", "uuid"}, args, null);
+		String paymentId = (String)get(new String[] {"id", "uuid"}, args);
 		printLine("Deleting Payment...");
 		printLine("ID:", paymentId);		
-		paymentsClient.deletePayment(paymentId, null, null);		
+		paymentsClient.deletePayment(paymentId, null);		
 	}
 	
 	

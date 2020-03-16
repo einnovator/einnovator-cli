@@ -66,16 +66,31 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		return value;
 	}
 	
-	protected <T> T get(String[] names, Map<String, Object> map, T defaultValue) {
+	protected Object get(String name, Map<String, Object> map) {
+		Object value = map.get(name);
+		return value;
+	}
+	
+	protected <T> T get(String[] names, Map<String, Object> map, Class<T> type) {
 		for (String name: names) {
-			T value = get(name, map, null);
+			@SuppressWarnings("unchecked")
+			T value = (T)map.get(name);
 			if (value!=null) {
 				return value;
 			}
 		}
-		return defaultValue;
+		return null;
 	}
 
+	protected Object get(String[] names, Map<String, Object> map) {
+		for (String name: names) {
+			Object value = map.get(name);
+			if (value!=null) {
+				return value;
+			}
+		}
+		return null;
+	}
 	//
 	// Print
 	//
