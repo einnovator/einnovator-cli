@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
+import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
 
 @SpringBootApplication
@@ -27,8 +30,11 @@ public class CliRunner {
 	@Autowired
 	private List<CommandRunner> runners;
 	
+	DefaultOAuth2ClientContext context;
+	OAuth2RestTemplate template;
+	
 	public static void main(String[] args) {
-		new SpringApplicationBuilder(Sso.class).web(false).run(args);
+		new SpringApplicationBuilder(CliRunner.class).web(false).run(args);
 	}
 	
 	@PostConstruct
@@ -46,6 +52,7 @@ public class CliRunner {
 	}
 	
 	@Component
+	@Profile("!test")
 	public class CommandLiner implements CommandLineRunner {
 
 		@Override
@@ -55,35 +62,44 @@ public class CliRunner {
 
 	}
 	
-	public void dispatch(String[] args) {
+	public void dispatch(String... args) {
 		if (args.length==0) {
 			printUsage();
 			System.exit(-1);
 		}
 		String prefix = args[0];
-		CommandRunner runner = select(prefix);
+		CommandRunner runner = getRunner(prefix);
 		if (runner==null) {
+			System.err.println("Unknow service: " + prefix);
 			printUsage();
 			System.exit(-1);
 		}
 		if (args.length==1) {
+			System.err.println("Missing arguments...");
 			runner.printUsage();
 			System.exit(-1);
 			return;
 		}
 		String type = args[1];
 		type = type.toLowerCase();
-		String op = args.length>1 && !args[1].startsWith("-")? args[1] : "";
+		String op = args.length>1 && !args[2].startsWith("-")? args[2] : "";
 		argsMap = makeArgsMap(args);
 
-		runner.init(argsMap);		
 
-		//printLine("Args:", argsMap);
+		System.out.println("Type: " + type + " ; Op: " + op + " ; Args:" + argsMap + " ; Runner:" + runner.getClass().getSimpleName());
+		OAuth2RestTemplate template = null;
+		if (!(runner instanceof Sso)) {
+			CommandRunner runner2 = getRunner(Sso.SSO_PREFIX);
+			runner2.init(argsMap, null);
+			template = ((Sso)runner2).getTemplate();			
+		}
+		runner.init(argsMap, template);		
+
 		runner.run(type, op, argsMap, args);
 
 	}
 	
-	public CommandRunner select(String prefix) {
+	public CommandRunner getRunner(String prefix) {
 		for (CommandRunner runner: runners) {
 			String rprefix = runner.getPrefix();
 			if (prefix.equalsIgnoreCase(rprefix)) {

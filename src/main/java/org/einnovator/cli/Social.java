@@ -54,6 +54,7 @@ public class Social extends CommandRunnerBase {
 
 
 	public void init(Map<String, Object> args) {
+		super.init(args, template);
 		config.setServer(SOCIALS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, SocialClientConfiguration.class));
 

@@ -12,7 +12,7 @@
 	<artifactId>einnovator-cli</artifactId>
 	<version>1.0.RELEASE</version>
 	<name>einnovator-cli</name>
-	<description>CLI Tool for EInnovator Service Suite, Devops, and Studio (JVM)</description>
+	<description>CLI Tool for EInnovator Services</description>
 
 	<properties>
 		<java.version>1.8</java.version>
@@ -54,19 +54,6 @@
  		<dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-devops-starter</artifactId>
-			<version>${einnovator.version}</version>
-		</dependency>
-		
-				
-		<dependency>
-			<groupId>org.einnovator</groupId>
-			<artifactId>einnovator-settings</artifactId>
-			<version>${einnovator.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.einnovator</groupId>
-			<artifactId>einnovator-license</artifactId>
 			<version>${einnovator.version}</version>
 		</dependency>
 		

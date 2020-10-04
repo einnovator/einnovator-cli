@@ -44,7 +44,8 @@ public class Sso extends CommandRunnerBase {
 
 	
 	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
-	
+	public static final String SSO_PREFIX = "sso";
+
 	public static String CONFIG_FOLDER = ".ei";
 	public static String CONFIG_FILE = "config.json";
 	public static String KEY_TOKEN = "token";
@@ -70,7 +71,7 @@ public class Sso extends CommandRunnerBase {
 	
 	@Override
 	public String getPrefix() {
-		return "sso";
+		return SSO_PREFIX;
 	}
 
 	String[] SSO_COMMANDS = new String[] { 
@@ -90,8 +91,9 @@ public class Sso extends CommandRunnerBase {
 	}
 
 
-
-	public void init(Map<String, Object> args) {
+	@Override
+	public void init(Map<String, Object> args, OAuth2RestTemplate template) {
+		super.init(args, template);
 		config.setServer(SSO_DEFAULT_SERVER);
 		config.setClientId(DEFAULT_CLIENT);
 		config.setClientSecret(DEFAULT_SECRET);
@@ -101,15 +103,16 @@ public class Sso extends CommandRunnerBase {
 		tokenPassword = (String)get("p", args, DEFAULT_PASSWORD);
 		
 		init = true;
-		ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
-		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
-		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
-
+		if (template==null) {
+			ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
+			DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
+			template = new OAuth2RestTemplate(resource, context);
+			template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());			
+		}
+		setTemplate(template);
 		ssoClient = new SsoClient(template, config, false);
 	}
 	
-
 
 	public ResourceOwnerPasswordResourceDetails getRequiredResourceDetails() {
 		if (!init) {

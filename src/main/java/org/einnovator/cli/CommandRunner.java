@@ -5,6 +5,8 @@ package org.einnovator.cli;
 
 import java.util.Map;
 
+import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+
 /**
  * A {@code CommandRunner}.
  *
@@ -19,8 +21,7 @@ public interface CommandRunner {
 	
 	void printUsage();
 	
-	void init0(Map<String, Object> args);
-	void init(Map<String, Object> args);
+	void init(Map<String, Object> args, OAuth2RestTemplate template);
 
 	void run(String type, String op, Map<String, Object> argsMap, String[] args);
 

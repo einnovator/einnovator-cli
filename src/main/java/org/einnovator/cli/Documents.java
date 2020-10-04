@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
 public class Documents extends CommandRunnerBase {
 
 	private static final String DOCUMENTS_DEFAULT_SERVER = "http://localhost:2021";
+	public static final String DOCUMENTS_PREFIX = "documents";
 
 	@Autowired
 	Sso sso;
@@ -43,7 +44,7 @@ public class Documents extends CommandRunnerBase {
 	
 	@Override
 	public String getPrefix() {
-		return "documents";
+		return DOCUMENTS_PREFIX;
 	}
 
 	String[] DOCUMENTS_COMMANDS = new String[] { 
@@ -58,6 +59,7 @@ public class Documents extends CommandRunnerBase {
 
 
 	public void init(Map<String, Object> args) {
+		super.init(args, template);
 		config.setServer(DOCUMENTS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, DocumentsClientConfiguration.class));
 

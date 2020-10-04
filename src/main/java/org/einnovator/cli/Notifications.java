@@ -65,6 +65,7 @@ public class Notifications extends CommandRunnerBase {
 
 
 	public void init(Map<String, Object> args) {
+		super.init(args, template);
 		config.setServer(NOTIFICATIONS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, NotificationsClientConfiguration.class));
 

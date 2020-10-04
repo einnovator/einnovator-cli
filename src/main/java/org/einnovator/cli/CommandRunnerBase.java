@@ -4,14 +4,15 @@ import java.util.Map;
 
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.StringUtil;
+import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 
 
 public abstract class CommandRunnerBase implements CommandRunner {
 
 
 	protected Map<String, Object> argsMap;
-
-
+	protected OAuth2RestTemplate template;
+	
 	@Override
 	public boolean supports(String cmd) {
 		return StringUtil.containsIgnoreCase(getCommands(), cmd);
@@ -23,13 +24,9 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	}
 
 	@Override
-	public void init0(Map<String, Object> argsMap) {
+	public void init(Map<String, Object> argsMap, OAuth2RestTemplate template) {
 		this.argsMap = argsMap;
-	}
-
-	@Override
-	public void init(Map<String, Object> argsMap) {
-		this.argsMap = argsMap;
+		this.template = template;
 	}
 
 	@Override
@@ -49,6 +46,46 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	//
 	
 	
+	/**
+	 * Get the value of property {@code argsMap}.
+	 *
+	 * @return the value of {@code argsMap}
+	 */
+	public Map<String, Object> getArgsMap() {
+		return argsMap;
+	}
+
+
+	/**
+	 * Set the value of property {@code argsMap}.
+	 *
+	 * @param argsMap the value of {@code argsMap}
+	 */
+	public void setArgsMap(Map<String, Object> argsMap) {
+		this.argsMap = argsMap;
+	}
+
+
+	/**
+	 * Get the value of property {@code template}.
+	 *
+	 * @return the value of {@code template}
+	 */
+	public OAuth2RestTemplate getTemplate() {
+		return template;
+	}
+
+
+	/**
+	 * Set the value of property {@code template}.
+	 *
+	 * @param template the value of {@code template}
+	 */
+	public void setTemplate(OAuth2RestTemplate template) {
+		this.template = template;
+	}
+
+
 	protected void invalidOp(String type, String op) {
 		System.err.println(String.format("ERROR: invalid operation: %s %s", type, op));
 	}

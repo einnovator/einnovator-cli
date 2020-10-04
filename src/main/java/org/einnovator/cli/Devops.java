@@ -4,232 +4,159 @@ import static  org.einnovator.util.MappingUtils.convert;
 import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 
 import java.net.URI;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.einnovator.sso.client.SsoClient;
-import org.einnovator.sso.client.config.SsoClientConfiguration;
-import org.einnovator.sso.client.model.Client;
-import org.einnovator.sso.client.model.Group;
-import org.einnovator.sso.client.model.Invitation;
-import org.einnovator.sso.client.model.Member;
-import org.einnovator.sso.client.model.Role;
-import org.einnovator.sso.client.model.User;
-import org.einnovator.sso.client.modelx.ClientFilter;
-import org.einnovator.sso.client.modelx.ClientOptions;
-import org.einnovator.sso.client.modelx.GroupFilter;
-import org.einnovator.sso.client.modelx.InvitationFilter;
-import org.einnovator.sso.client.modelx.InvitationOptions;
-import org.einnovator.sso.client.modelx.RoleFilter;
-import org.einnovator.sso.client.modelx.UserFilter;
+import org.einnovator.devops.client.DevopsClient;
+import org.einnovator.devops.client.config.DevopsClientConfiguration;
+import org.einnovator.devops.client.model.Cluster;
+import org.einnovator.devops.client.model.Domain;
+import org.einnovator.devops.client.model.Registry;
+import org.einnovator.devops.client.model.Space;
+import org.einnovator.devops.client.model.Vcs;
+import org.einnovator.devops.client.modelx.ClusterFilter;
+import org.einnovator.devops.client.modelx.DomainFilter;
+import org.einnovator.devops.client.modelx.DomainOptions;
+import org.einnovator.devops.client.modelx.RegistryFilter;
+import org.einnovator.devops.client.modelx.SpaceFilter;
+import org.einnovator.devops.client.modelx.VcsFilter;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
-import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
-import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 
 
 @Component
 public class Devops extends CommandRunnerBase {
+	public static final String DEVOPS_PREFIX = "devops";
 
-	public String DEFAULT_CLIENT = "application";
-	public String DEFAULT_SECRET = "application$123";
+	private DevopsClient devopsClient;
 
-	public String DEFAULT_USERNAME = "jsimao71@gmail.com";
-	public String DEFAULT_USERNAME2 = "tdd@gmail.com";
-	public String DEFAULT_PASSWORD = "Einnovator123!!";
+	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
-
-	OAuth2AccessToken token;
-	
-	private SsoClient ssoClient;
-
-	private SsoClientConfiguration config = new SsoClientConfiguration();
-
-	String tokenUsername = DEFAULT_USERNAME;
-	String tokenPassword = DEFAULT_PASSWORD;
-	
-
-
-	public void init(Map<String, Object> args) {
-		updateObjectFrom(config, convert(args, SsoClientConfiguration.class));
-		String tokenUsername = (String)get("u", args, DEFAULT_USERNAME);
-		String tokenPassword = (String)get("p", args, DEFAULT_PASSWORD);
-		if (config.getClientId()==null) {
-			config.setClientId(DEFAULT_CLIENT);
-		}
-		if (config.getClientSecret()==null) {
-			config.setClientSecret(DEFAULT_SECRET);
-		}
-
-		config.setServer("http://localhost:2001");
-		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
-		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-
-		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
-		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
-
-		ssoClient = new SsoClient(template, config, false);
+	public void init(Map<String, Object> args, OAuth2RestTemplate template) {
+		super.init(args, template);
+		updateObjectFrom(config, convert(args, DevopsClientConfiguration.class));
+		config.setServer("http://localhost:2501");
+		devopsClient = new DevopsClient(template, config);
 	}
 	
 	@Override
 	public String getPrefix() {
-		return "sso";
+		return DEVOPS_PREFIX;
 	}
 	
-	Map<String, Object> argsMap;
-
 	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
-
-		getToken(argsMap);
+		System.out.println("!1!");
 		
 		switch (type) {
-		case "token": case "tk": case "t":
-			switch (op) {
-				case "show": case "s": case "":
-					showToken();
-					break;
-				default: 
-					invalidOp(type, op);
-					break;
-			}
-			break;
-		case "user": case "users": case "u":
+		case "cluster": case "clusters": case "c":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getUser(argsMap);
+				getCluster(argsMap);
 				break;
 			case "list": case "l": case "":
-				listUsers(argsMap);
+				System.out.println("!3!");
+				listClusters(argsMap);
 				break;
 			case "create": case "c":
-				createUser(argsMap);
+				createCluster(argsMap);
 				break;
 			case "update": case "u":
-				updateUser(argsMap);
+				updateCluster(argsMap);
 				break;
 			case "delete": case "del": case "d":
-				deleteUser(argsMap);
+				deleteCluster(argsMap);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "group": case "groups": case "g":
+		case "space": case "spaces": case "g":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getGroup(argsMap);
+				getSpace(argsMap);
 				break;
 			case "list": case "l": case "":
-				listGroups(argsMap);
+				listSpaces(argsMap);
 				break;
 			case "create": case "c":
-				createGroup(argsMap);
+				createSpace(argsMap);
 				break;
 			case "update": case "u":
-				updateGroup(argsMap);
+				updateSpace(argsMap);
 				break;
 			case "delete": case "del": case "d":
-				deleteGroup(argsMap);
+				deleteSpace(argsMap);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "member": case "members": case "m":
-			listGroupMembers(argsMap);
+		case "domain": case "domains": case "d":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				//getMember(argsMap);
+				getDomain(argsMap);
 				break;
 			case "list": case "l": case "":
-				//listMembers(argsMap);
+				listDomains(argsMap);
 				break;
 			case "create": case "c":
-				addMember(argsMap);
+				createDomain(argsMap);
 				break;
 			case "update": case "u":
-				//updateMember(argsMap);
+				updateDomain(argsMap);
 				break;
 			case "delete": case "del": case "d":
-				removeMember(argsMap);
+				deleteDomain(argsMap);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "role": case "roles": case "r":
+		case "registry": case "registries": case "r":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getRole(argsMap);
+				getRegistry(argsMap);
 				break;
 			case "list": case "l": case "":
-				listRoles(argsMap);
+				listRegistrys(argsMap);
 				break;
 			case "create": case "c":
-				createRole(argsMap);
+				createRegistry(argsMap);
 				break;
 			case "update": case "u":
-				updateRole(argsMap);
+				updateRegistry(argsMap);
 				break;
 			case "delete": case "del": case "d":
-				deleteRole(argsMap);
+				deleteRegistry(argsMap);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "invitation": case "invitations": case "invites": case "inv": case "i": 
+		case "vcs": case "vcss": case "v": case "git":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getInvitation(argsMap);
+				getVcs(argsMap);
 				break;
 			case "list": case "l": case "":
-				listInvitations(argsMap);
+				listVcss(argsMap);
 				break;
 			case "create": case "c":
-				invite(argsMap);
+				createVcs(argsMap);
 				break;
 			case "update": case "u":
-				updateInvitation(argsMap);
+				updateVcs(argsMap);
 				break;
 			case "delete": case "del": case "d":
-				deleteInvitation(argsMap);
-				break;
-			default: 
-				invalidOp(type, op);
-				break;
-			}
-			break;
-		case "client": case "clients": case "c":
-			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getClient(argsMap);
-				break;
-			case "list": case "l": case "":
-				listClients(argsMap);
-				break;
-			case "create": case "c":
-				createClient(argsMap);
-				break;
-			case "update": case "u":
-				updateClient(argsMap);
-				break;
-			case "delete": case "del": case "d":
-				deleteClient(argsMap);
+				deleteVcs(argsMap);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -250,343 +177,294 @@ public class Devops extends CommandRunnerBase {
 		return sb.toString();
 	}
 
-	//
-	// Token
-	//
-	
-	public void getToken(Map<String, Object> args) {
-		printLine("Credentials: ", tokenUsername, tokenPassword);
-		printLine("Config:", config);
-		token = ssoClient.getToken(tokenUsername, tokenPassword);
-		printLine("Token: ", token);
-	}
-
-	public void showToken() {
-		System.out.println(token);
-	}
-
 	
 	//
-	// User
+	// Cluster
 	//
 	
-	public void listUsers(Map<String, Object> args) {
+	public void listClusters(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		UserFilter filter = convert(args, UserFilter.class);
-		Page<User> users = ssoClient.listUsers(filter, pageable);
-		printLine("Listing Users...");
+		ClusterFilter filter = convert(args, ClusterFilter.class);
+		Page<Cluster> clusters = devopsClient.listClusters(filter, pageable);
+		printLine("Listing Clusters...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
-		printLine("Users:");
-		print(users);
+		printLine("Clusters:");
+		print(clusters);
 	}
 
-	public void getUser(Map<String, Object> args) {
-		String userId = (String)get(new String[] {"id", "uuid", "username", "email"}, args);
-		User user = ssoClient.getUser(userId, null);
-		printLine("Get User...");
-		printLine("ID:", userId);
-		printLine("User:");
-		print(user);
+	public void getCluster(Map<String, Object> args) {
+		String clusterId = (String)get(new String[] {"id", "uuid", "clustername", "email"}, args);
+		Cluster cluster = devopsClient.getCluster(clusterId, null);
+		printLine("Get Cluster...");
+		printLine("ID:", clusterId);
+		printLine("Cluster:");
+		print(cluster);
 	}
 
-	public void createUser(Map<String, Object> args) {
-		User user = convert(args, User.class);
-		printLine("Creating User...");
-		print(user);
-		URI uri = ssoClient.createUser(user, null);
+	public void createCluster(Map<String, Object> args) {
+		Cluster cluster = convert(args, Cluster.class);
+		printLine("Creating Cluster...");
+		print(cluster);
+		URI uri = devopsClient.createCluster(cluster, null);
 		printLine("URI:", uri);
-		print("Created User:");
+		print("Created Cluster:");
 		String id = UriUtils.extractId(uri);
-		User user2 = ssoClient.getUser(id, null);
-		print(user2);
+		Cluster cluster2 = devopsClient.getCluster(id, null);
+		print(cluster2);
 
 	}
 
 	
-	public void updateUser(Map<String, Object> args) {
-		String userId = (String)get("user", args);
-		User user = convert(args, User.class);
-		printLine("Updating User...");
-		print(user);
-		ssoClient.updateUser(user, null);
-		print("Updated User:");
-		User user2 = ssoClient.getUser(userId, null);
-		print(user2);
+	public void updateCluster(Map<String, Object> args) {
+		String clusterId = (String)get("cluster", args);
+		Cluster cluster = convert(args, Cluster.class);
+		printLine("Updating Cluster...");
+		print(cluster);
+		devopsClient.updateCluster(cluster, null);
+		print("Updated Cluster:");
+		Cluster cluster2 = devopsClient.getCluster(clusterId, null);
+		print(cluster2);
 	}
 
-	public void deleteUser(Map<String, Object> args) {
-		String userId = (String)get(new String[] {"id", "username"}, args);
-		printLine("Deleting User...");
-		printLine("ID:", userId);		
-		ssoClient.deleteUser(userId, null);	
+	public void deleteCluster(Map<String, Object> args) {
+		String clusterId = (String)get(new String[] {"id", "clustername"}, args);
+		printLine("Deleting Cluster...");
+		printLine("ID:", clusterId);		
+		devopsClient.deleteCluster(clusterId, null);	
 	}
 
 	//
-	// Groups
+	// Spaces
 	//
 	
-	public void listGroups(Map<String, Object> args) {
+	public void listSpaces(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		GroupFilter filter = convert(args, GroupFilter.class);
-		Page<Group> groups = ssoClient.listGroups(filter, pageable);
-		printLine("Listing Groups...");
+		SpaceFilter filter = convert(args, SpaceFilter.class);
+		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
+		printLine("Listing Spaces...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
-		printLine("Groups:");
-		print(groups);
+		printLine("Spaces:");
+		print(spaces);
 	}
 	
-	public void getGroup(Map<String, Object> args) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, args);
-		Group group = ssoClient.getGroup(groupId, null);
-		printLine("Get Group...");
-		printLine("ID:", groupId);
-		printLine("Group:");
-		print(group);
+	public void getSpace(Map<String, Object> args) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
+		Space space = devopsClient.getSpace(spaceId, null);
+		printLine("Get Space...");
+		printLine("ID:", spaceId);
+		printLine("Space:");
+		print(space);
 	}
 	
-	public void createGroup(Map<String, Object> args) {
-		Group group = convert(args, Group.class);
-		printLine("Creating Group...");
-		print(group);
-		URI uri = ssoClient.createGroup(group, null);
+	public void createSpace(Map<String, Object> args) {
+		Space space = convert(args, Space.class);
+		printLine("Creating Space...");
+		print(space);
+		URI uri = devopsClient.createSpace(space, null);
 		printLine("URI:", uri);
-		String groupId = UriUtils.extractId(uri);
-		Group group2 = ssoClient.getGroup(groupId, null);
-		print("Created Group:");
-		print(group2);
+		String spaceId = UriUtils.extractId(uri);
+		Space space2 = devopsClient.getSpace(spaceId, null);
+		print("Created Space:");
+		print(space2);
 	}
 
-	public void updateGroup(Map<String, Object> args) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, args);
-		Group group = convert(args, Group.class);
-		printLine("Updating Group...");
-		print(group);
-		ssoClient.updateGroup(group, null);
-		Group group2 = ssoClient.getGroup(groupId, null);
-		print("Updated Group:");
-		print(group2);
+	public void updateSpace(Map<String, Object> args) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
+		Space space = convert(args, Space.class);
+		printLine("Updating Space...");
+		print(space);
+		devopsClient.updateSpace(space, null);
+		Space space2 = devopsClient.getSpace(spaceId, null);
+		print("Updated Space:");
+		print(space2);
 
-	}
-	
-	public void deleteGroup(Map<String, Object> args) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, args);
-		printLine("Deleting Group...");
-		printLine("ID:", groupId);		
-		ssoClient.deleteGroup(groupId, null);		
-	}
-
-
-
-	//
-	// Group Members
-	//
-	
-	public void addMember(Map<String, Object> args) {
-		String userId = (String)get("user", args);
-		String groupId = (String)get("group", args);
-		printLine("Adding Member...");
-		printLine("User:", userId);		
-		printLine("Group:", groupId);		
-		ssoClient.addMemberToGroup(userId, groupId, null);
-	}
-
-	
-	public void removeMember(Map<String, Object> args) {
-		String userId = (String)get("user", args);
-		String groupId = (String)get("group", args);
-		printLine("Removing Member...");
-		printLine("User:", userId);		
-		printLine("Group:", groupId);		
-		ssoClient.removeMemberFromGroup(userId, groupId, null);
 	}
 	
-	public void listGroupMembers(Map<String, Object> args) {
-		String groupId = (String)get("group", args);
-		printLine("Listing Group Members...");
-		printLine("Group:", groupId);
-		Page<Member> members = ssoClient.listGroupMembers(groupId, null, null);
-		printLine("Members:", groupId);
-		print(members);
+	public void deleteSpace(Map<String, Object> args) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
+		printLine("Deleting Space...");
+		printLine("ID:", spaceId);		
+		devopsClient.deleteSpace(spaceId, null);		
 	}
+
+
+
 
 	
 	//
-	// Invitation
+	// Domain
 	//
 	
 
-	public void invite(Map<String, Object> args) {
-		Invitation invitation = convert(args, Invitation.class);
+	public void createDomain(Map<String, Object> args) {
+		Domain domain = convert(args, Domain.class);
 		Boolean sendMail = null;
-		printLine(Boolean.TRUE.equals(sendMail) ? "Sending Invitation..." : "Creating Invitation...");
-		printLine("Invitation", invitation);
-		URI uri = ssoClient.invite(invitation, new InvitationOptions().withSendMail(sendMail));
+		printLine(Boolean.TRUE.equals(sendMail) ? "Sending Domain..." : "Creating Domain...");
+		printLine("Domain", domain);
+		URI uri = devopsClient.createDomain(domain, new DomainOptions());
 		printLine("URI:", uri);
 		String id = UriUtils.extractId(uri);
-		Invitation invitation2 = ssoClient.getInvitation(id, null);
-		print("Created Invitation:");
-		print(invitation2);
-		print("Token URI:");
-		URI tokenUri = ssoClient.getInvitationToken(id, new InvitationOptions().withSendMail(false));
-		print(tokenUri);
+		Domain domain2 = devopsClient.getDomain(id, null);
+		print("Created Domain:");
+		print(domain2);
 	}
 	
 	
-	public void listInvitations(Map<String, Object> args) {
+	public void listDomains(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		InvitationFilter filter = convert(args, InvitationFilter.class);
-		Page<Invitation> invitations = ssoClient.listInvitations(filter, pageable);
-		printLine("Listing Invitations...");
+		DomainFilter filter = convert(args, DomainFilter.class);
+		Page<Domain> domains = devopsClient.listDomains(filter, pageable);
+		printLine("Listing Domains...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
-		printLine("Invitations:");
-		print(invitations);
+		printLine("Domains:");
+		print(domains);
 	}
 
-	public void getInvitation(Map<String, Object> args) {
-		String invitationId = (String)get(new String[] {"id", "uuid"}, args);
-		Invitation invitation = ssoClient.getInvitation(invitationId, null);
-		printLine("Get Invitation...");
-		printLine("ID:", invitationId);
-		printLine("Invitation:");
-		print(invitation);
+	public void getDomain(Map<String, Object> args) {
+		String domainId = (String)get(new String[] {"id", "uuid"}, args);
+		Domain domain = devopsClient.getDomain(domainId, null);
+		printLine("Get Domain...");
+		printLine("ID:", domainId);
+		printLine("Domain:");
+		print(domain);
 	}
 
 
 	
-	public void updateInvitation(Map<String, Object> args) {
-		String invitationId = (String)get("invitation", args);
-		Invitation invitation = convert(args, Invitation.class);
-		printLine("Updating Invitation...");
-		print(invitation);
-		ssoClient.updateInvitation(invitation, null);
-		print("Updated Invitation:");
-		Invitation invitation2 = ssoClient.getInvitation(invitationId, null);
-		print(invitation2);
+	public void updateDomain(Map<String, Object> args) {
+		String domainId = (String)get("domain", args);
+		Domain domain = convert(args, Domain.class);
+		printLine("Updating Domain...");
+		print(domain);
+		devopsClient.updateDomain(domain, null);
+		print("Updated Domain:");
+		Domain domain2 = devopsClient.getDomain(domainId, null);
+		print(domain2);
 	}
 
-	public void deleteInvitation(Map<String, Object> args) {
-		String invitationId = (String)get(new String[] {"id", "uuid"}, args);
-		printLine("Deleting Invitation...");
-		printLine("ID:", invitationId);		
-		ssoClient.deleteInvitation(invitationId, null);	
+	public void deleteDomain(Map<String, Object> args) {
+		String domainId = (String)get(new String[] {"id", "uuid"}, args);
+		printLine("Deleting Domain...");
+		printLine("ID:", domainId);		
+		devopsClient.deleteDomain(domainId, null);	
 	}
 
 
 	//
-	// Roles
+	// Registrys
 	//
 	
-	public void listRoles(Map<String, Object> args) {
+	public void listRegistrys(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		RoleFilter filter = convert(args, RoleFilter.class);
-		Page<Role> roles = ssoClient.listRoles(filter, pageable);
-		printLine("Listing Roles...");
+		RegistryFilter filter = convert(args, RegistryFilter.class);
+		Page<Registry> registrys = devopsClient.listRegistrys(filter, pageable);
+		printLine("Listing Registrys...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
-		printLine("Roles:");
-		print(roles);
+		printLine("Registrys:");
+		print(registrys);
 	}
 	
-	public void getRole(Map<String, Object> args) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, args);
-		Role role = ssoClient.getRole(roleId, null);
-		printLine("Get Role...");
-		printLine("ID:", roleId);
-		printLine("Role:");
-		print(role);
+	public void getRegistry(Map<String, Object> args) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, args);
+		Registry registry = devopsClient.getRegistry(registryId, null);
+		printLine("Get Registry...");
+		printLine("ID:", registryId);
+		printLine("Registry:");
+		print(registry);
 	}
 	
-	public void createRole(Map<String, Object> args) {
-		Role role = convert(args, Role.class);
-		printLine("Creating Role...");
-		print(role);
-		URI uri = ssoClient.createRole(role, null);
+	public void createRegistry(Map<String, Object> args) {
+		Registry registry = convert(args, Registry.class);
+		printLine("Creating Registry...");
+		print(registry);
+		URI uri = devopsClient.createRegistry(registry, null);
 		printLine("URI:", uri);
-		String roleId = UriUtils.extractId(uri);
-		Role role2 = ssoClient.getRole(roleId, null);
-		print("Created Role:");
-		print(role2);
+		String registryId = UriUtils.extractId(uri);
+		Registry registry2 = devopsClient.getRegistry(registryId, null);
+		print("Created Registry:");
+		print(registry2);
 	}
 
-	public void updateRole(Map<String, Object> args) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, args);
-		Role role = convert(args, Role.class);
-		printLine("Updating Role...");
-		print(role);
-		ssoClient.updateRole(role, null);
-		Role role2 = ssoClient.getRole(roleId, null);
-		print("Updated Role:");
-		print(role2);
+	public void updateRegistry(Map<String, Object> args) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, args);
+		Registry registry = convert(args, Registry.class);
+		printLine("Updating Registry...");
+		print(registry);
+		devopsClient.updateRegistry(registry, null);
+		Registry registry2 = devopsClient.getRegistry(registryId, null);
+		print("Updated Registry:");
+		print(registry2);
 
 	}
 	
-	public void deleteRole(Map<String, Object> args) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, args);
-		printLine("Deleting Role...");
-		printLine("ID:", roleId);		
-		ssoClient.deleteRole(roleId, null);		
+	public void deleteRegistry(Map<String, Object> args) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, args);
+		printLine("Deleting Registry...");
+		printLine("ID:", registryId);		
+		devopsClient.deleteRegistry(registryId, null);		
 	}
 
 
 
 	//
-	// Clients
+	// Vcss
 	//
 	
 
-	public void listClients(Map<String, Object> args) {
+	public void listVcss(Map<String, Object> args) {
 		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		ClientFilter filter = convert(args, ClientFilter.class);
-		Page<Client> clients = ssoClient.listClients(filter, pageable);
-		printLine("Listing Clients...");
+		VcsFilter filter = convert(args, VcsFilter.class);
+		Page<Vcs> vcss = devopsClient.listVcss(filter, pageable);
+		printLine("Listing Vcss...");
 		printLine("Filter:", filter);
 		printLine("Pageable:", pageable);
-		printLine("Clients:");
-		print(clients);
+		printLine("Vcss:");
+		print(vcss);
 	}
 
-	public void getClient(Map<String, Object> args) {
-		String clientId = (String)get(new String[] {"id", "uuid"}, args);
-		Client client = ssoClient.getClient(clientId, null);
-		printLine("Get Client...");
-		printLine("ID:", clientId);
-		printLine("Client:");
-		print(client);
+	public void getVcs(Map<String, Object> args) {
+		String vcsId = (String)get(new String[] {"id", "uuid"}, args);
+		Vcs vcs = devopsClient.getVcs(vcsId, null);
+		printLine("Get Vcs...");
+		printLine("ID:", vcsId);
+		printLine("Vcs:");
+		print(vcs);
 	}
 
-	public void createClient(Map<String, Object> args) {
-		Client client = convert(args, Client.class);
-		printLine("Creating Client...");
-		print(client);
-		URI uri = ssoClient.createClient(client, null);
+	public void createVcs(Map<String, Object> args) {
+		Vcs vcs = convert(args, Vcs.class);
+		printLine("Creating Vcs...");
+		print(vcs);
+		URI uri = devopsClient.createVcs(vcs, null);
 		printLine("URI:", uri);
-		print("Created Client:");
+		print("Created Vcs:");
 		String id = UriUtils.extractId(uri);
-		Client client2 = ssoClient.getClient(id, null);
-		print(client2);
+		Vcs vcs2 = devopsClient.getVcs(id, null);
+		print(vcs2);
 
 	}
 
 	
-	public void updateClient(Map<String, Object> args) {
-		String clientId = (String)get("client", args);
-		Client client = convert(args, Client.class);
-		printLine("Updating Client...");
-		print(client);
-		ssoClient.updateClient(client, null);
-		print("Updated Client:");
-		Client client2 = ssoClient.getClient(clientId, null);
-		print(client2);
+	public void updateVcs(Map<String, Object> args) {
+		String vcsId = (String)get("vcs", args);
+		Vcs vcs = convert(args, Vcs.class);
+		printLine("Updating Vcs...");
+		print(vcs);
+		devopsClient.updateVcs(vcs, null);
+		print("Updated Vcs:");
+		Vcs vcs2 = devopsClient.getVcs(vcsId, null);
+		print(vcs2);
 	}
 
-	public void deleteClient(Map<String, Object> args) {
-		String clientId = (String)get(new String[] {"id", "uuid"}, args);
-		printLine("Deleting Client...");
-		printLine("ID:", clientId);		
-		ssoClient.deleteClient(clientId, null);	
+	public void deleteVcs(Map<String, Object> args) {
+		String vcsId = (String)get(new String[] {"id", "uuid"}, args);
+		printLine("Deleting Vcs...");
+		printLine("ID:", vcsId);		
+		devopsClient.deleteVcs(vcsId, null);	
 	}
 
 	

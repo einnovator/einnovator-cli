@@ -11,17 +11,17 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
-public class SsoTests {
+public class DevopsTests {
 
 	@Autowired
-	Sso sso;
+	Devops devops;
 	
 	@Autowired
 	CliRunner runner;
 
 	@Test
-	public void ssoTests() throws Exception {
-		runner.dispatch("sso", "users", "list", "-o", "id,username,email");
+	public void contextLoads() throws Exception {
+		runner.dispatch("devops", "cluster", "list", "-o", "id,name,provider,region");
 		/*
 		runner.run("users", "list");		
 		runner.run("groups", "list");		

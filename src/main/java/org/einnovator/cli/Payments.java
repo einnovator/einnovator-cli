@@ -58,6 +58,7 @@ public class Payments extends CommandRunnerBase {
 
 
 	public void init(Map<String, Object> args) {
+		super.init(args, template);
 		config.setServer(PAYMENTS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, PaymentsClientConfiguration.class));
 
