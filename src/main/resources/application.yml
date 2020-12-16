@@ -1,0 +1,11 @@
+
+banner:
+  location: banner.txt
+  
+logging:
+  level:
+    root: OFF
+    org:
+      springframework:
+        boot:
+          autoconfigure:DEBUG

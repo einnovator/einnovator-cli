@@ -48,7 +48,7 @@ public class Payments extends CommandRunnerBase {
 
 	String[] PAYMENTS_COMMANDS = new String[] { 
 		"accounts", "account", "acc",
-		"payments", "payment", "notific", "n",
+		"payments", "payment", "pay"
 		};
 
 	protected String[] getCommands() {
@@ -57,18 +57,16 @@ public class Payments extends CommandRunnerBase {
 
 
 
-	public void init(Map<String, Object> args) {
-		super.init(args, template);
+	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
 		config.setServer(PAYMENTS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, PaymentsClientConfiguration.class));
 
-		ResourceOwnerPasswordResourceDetails resource = sso.getRequiredResourceDetails();
-		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
-		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
-		
+		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+		super.init(cmds, args, template);
+
 		paymentsClient = new PaymentsClient(template, config);
 	}
+
 
 	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
 
@@ -89,7 +87,6 @@ public class Payments extends CommandRunnerBase {
 				break;
 			}
 			break;
-
 		case "payments": case "payment": case "pay":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":

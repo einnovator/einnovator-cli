@@ -1,5 +1,7 @@
 package org.einnovator.cli;
 
+import java.util.Arrays;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,15 +22,63 @@ public class DevopsTests {
 	CliRunner runner;
 
 	@Test
-	public void contextLoads() throws Exception {
-		runner.dispatch("devops", "cluster", "list", "-o", "id,name,provider,region");
-		/*
-		runner.run("users", "list");		
-		runner.run("groups", "list");		
-		runner.run("invitations", "list");		
-		runner.run("roles", "list");		
-		runner.run("clients", "list");
-		*/
+	public void clusterListTest() throws Exception {
+		run("devops", "cluster", "list");
+		run("devops", "cluster");
+		run("devops", "cluster", "schema");
+		run("devops", "cluster", "list", "-o", "+");
+		run("devops", "cluster", "list", "-o", "id,name,displayName,provider,region,sandbox,shared,fallback,enabled,master,credentialsType,caCertData,caCertUri,clientCertData,clientCertUri,clientKeyData,clientKeyUri,clientKeyAlgo,username,key,secret,svcacc,token,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+	
+
+	@Test
+	public void spaceListTest() throws Exception {
+		run("devops", "space");
+	}
+
+	@Test
+	public void spaceListColsTest() throws Exception {
+		run("devops", "space", "list", "-o", "id,name,displayName,cluster.name,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+
+	@Test
+	public void domainListTest() throws Exception {
+		run("devops", "domain", "list");
+		run("devops", "domain", "list", "-o", "id,name,dns,tls");
+		run("devops", "domain", "list", "-o", "id,name,displayName,dns,sandbox,verified,parent,root,enabled,tls,certificate,owner,ownerTypelastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+
+	@Test
+	public void registryListTest() throws Exception {
+		run("devops", "registry", "list");
+		run("devops", "registry", "list", "-o", "id,name,displayName,server,credentialsType,username,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+
+	@Test
+	public void vcsListTest() throws Exception {
+		run("devops", "vcs", "list");
+		run("devops", "vcs", "list", "-o", "id,name,displayName,url,credentialsType,username,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+	
+	@Test
+	public void deployListTest() throws Exception {
+		run("devops", "deploy", "schema");
+		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
+		run("devops", "deploy", "list", "-n", space);
+		run("devops", "deploy", "list", "-n", space, "-o", "id,name,displayName,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
+	}
+
+	@Test
+	public void deployGetTest() throws Exception {
+		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
+		String name = "superheros";
+		run("devops", "deploy", "get", name, "-n", space);
+	}
+
+	public void run(String... args) {
+		System.out.println("-------------------");
+		System.out.println(String.join(" ", args));
+		runner.dispatch(args);
 	}
 
 }

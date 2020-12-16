@@ -18,10 +18,10 @@ public interface CommandRunner {
 	String getPrefix();
 
 	boolean supports(String cmd);
-	
+
 	void printUsage();
 	
-	void init(Map<String, Object> args, OAuth2RestTemplate template);
+	void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template);
 
 	void run(String type, String op, Map<String, Object> argsMap, String[] args);
 

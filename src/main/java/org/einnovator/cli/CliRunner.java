@@ -11,7 +11,9 @@ import javax.annotation.PostConstruct;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -34,7 +36,7 @@ public class CliRunner {
 	OAuth2RestTemplate template;
 	
 	public static void main(String[] args) {
-		new SpringApplicationBuilder(CliRunner.class).web(false).run(args);
+		new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);
 	}
 	
 	@PostConstruct
@@ -67,46 +69,73 @@ public class CliRunner {
 			printUsage();
 			System.exit(-1);
 		}
-		String prefix = args[0];
-		CommandRunner runner = getRunner(prefix);
+		List<String> cmds = new ArrayList<>();
+		argsMap = makeArgsMap(args, cmds);
+		if (cmds.size()==0) {
+			System.err.println("Missing arguments...");
+			printUsage();
+			System.exit(-1);
+			return;
+		}
+		String prefix = cmds.get(0);
+		CommandRunner runner = getRunnerByName(prefix);
+		if (runner!=null) {
+			if (cmds.size()==1) {
+				System.err.println("Missing command...");
+				printUsage();
+				System.exit(-1);
+			}
+			cmds.remove(0);
+		} else {
+			runner = getRunnerByCommand(prefix);
+		}
 		if (runner==null) {
 			System.err.println("Unknow service: " + prefix);
 			printUsage();
 			System.exit(-1);
 		}
-		if (args.length==1) {
+		if (args.length==0) {
 			System.err.println("Missing arguments...");
 			runner.printUsage();
 			System.exit(-1);
 			return;
 		}
-		String type = args[1];
-		type = type.toLowerCase();
-		String op = args.length>1 && !args[2].startsWith("-")? args[2] : "";
-		argsMap = makeArgsMap(args);
+		String type = cmds.get(0).toLowerCase();
+		cmds.remove(0);
+		String op = "";
+		if (cmds.size()>0) {
+			op = cmds.get(0).toLowerCase();
+			cmds.remove(0);
+		}
 
+		debug("Type: " + type + " ; Op: " + op + " ; Args:" + argsMap + " ; Runner:" + runner.getClass().getSimpleName());
 
-		System.out.println("Type: " + type + " ; Op: " + op + " ; Args:" + argsMap + " ; Runner:" + runner.getClass().getSimpleName());
+		String[] cmds_ = cmds.toArray(new String[cmds.size()]);
+
 		OAuth2RestTemplate template = null;
 		if (!(runner instanceof Sso)) {
-			CommandRunner runner2 = getRunner(Sso.SSO_PREFIX);
-			runner2.init(argsMap, null);
+			CommandRunner runner2 = getRunnerByName(Sso.SSO_PREFIX);
+			runner2.init(cmds_, argsMap, null);
 			template = ((Sso)runner2).getTemplate();			
 		}
-		runner.init(argsMap, template);		
+		runner.init(cmds_, argsMap, template);		
 
-		runner.run(type, op, argsMap, args);
+		runner.run(type, op, argsMap, cmds_);
 
 	}
 	
-	public CommandRunner getRunner(String prefix) {
+	public CommandRunner getRunnerByName(String name) {
 		for (CommandRunner runner: runners) {
 			String rprefix = runner.getPrefix();
-			if (prefix.equalsIgnoreCase(rprefix)) {
+			if (name.equalsIgnoreCase(rprefix)) {
 				return runner;
 			}
 		}
-		for (CommandRunner runner: runners) {
+		return null;
+	}
+
+	public CommandRunner getRunnerByCommand(String prefix) {
+			for (CommandRunner runner: runners) {
 			if (runner.supports(prefix)) {
 				return runner;
 			}
@@ -136,10 +165,9 @@ public class CliRunner {
 	Map<String, Object> argsMap;
 
 	
-	private Map<String, Object> makeArgsMap(String[] args) {
+	private Map<String, Object> makeArgsMap(String[] args, List<String> cmds) {
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
-		int i0 = args.length>1 && !args[1].startsWith("-")? 2 : 1;
-		for (int i=i0; i<args.length; i++) {
+		for (int i=0; i<args.length; i++) {
 			String a = args[i];
 			if (a.startsWith("--")) {
 				if (a.length()>2) {
@@ -167,9 +195,22 @@ public class CliRunner {
 					System.err.println("ERROR: missing name after -");
 					System.exit(1);					
 				}
+			} else {
+				cmds.add(a);
 			}
 		}
 		return map;
+	}
+	
+	private void debug(String... s) {
+		if (isDebug()) {
+			System.out.println(s);
+		}
+	}
+	
+	private boolean isDebug() {
+		String s = (String)argsMap.get("debug");
+		return s!=null;
 	}
 	
 }

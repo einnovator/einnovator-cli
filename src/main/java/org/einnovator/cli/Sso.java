@@ -92,8 +92,8 @@ public class Sso extends CommandRunnerBase {
 
 
 	@Override
-	public void init(Map<String, Object> args, OAuth2RestTemplate template) {
-		super.init(args, template);
+	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
+		super.init(cmds, args, template);
 		config.setServer(SSO_DEFAULT_SERVER);
 		config.setClientId(DEFAULT_CLIENT);
 		config.setClientSecret(DEFAULT_SECRET);

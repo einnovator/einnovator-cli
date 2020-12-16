@@ -63,17 +63,12 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 
-
-	public void init(Map<String, Object> args) {
-		super.init(args, template);
+	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
 		config.setServer(NOTIFICATIONS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, NotificationsClientConfiguration.class));
 
-		ResourceOwnerPasswordResourceDetails resource = sso.getRequiredResourceDetails();
-		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
-		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
-		
+		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+		super.init(cmds, args, template);
 		notificationsClient = new NotificationsClient(template, config);
 	}
 

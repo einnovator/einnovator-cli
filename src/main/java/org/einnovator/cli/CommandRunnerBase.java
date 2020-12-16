@@ -1,10 +1,15 @@
 package org.einnovator.cli;
 
+import java.util.List;
 import java.util.Map;
 
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.StringUtil;
+import org.einnovator.util.config.ConnectionConfiguration;
+import org.einnovator.util.meta.MetaUtil;
+import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
 
 
 public abstract class CommandRunnerBase implements CommandRunner {
@@ -12,6 +17,7 @@ public abstract class CommandRunnerBase implements CommandRunner {
 
 	protected Map<String, Object> argsMap;
 	protected OAuth2RestTemplate template;
+	protected String[] cmds;
 	
 	@Override
 	public boolean supports(String cmd) {
@@ -24,10 +30,12 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	}
 
 	@Override
-	public void init(Map<String, Object> argsMap, OAuth2RestTemplate template) {
+	public void init(String[] cmds, Map<String, Object> argsMap, OAuth2RestTemplate template) {
+		this.cmds = cmds;
 		this.argsMap = argsMap;
 		this.template = template;
 	}
+
 
 	@Override
 	public void printUsage() {
@@ -85,6 +93,17 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		this.template = template;
 	}
 
+	protected void error(String msg, Object... args) {
+		System.err.println(String.format("ERROR: " + msg, args));
+	}
+
+	protected void noresources(String type, String op, Map<String, Object> args) {
+		System.err.println(String.format("Resources not found: %s", type));		
+	}
+
+	protected void operationFailed(String type, String op, Map<String, Object> args) {
+		System.err.println(String.format("ERROR: operation faield: %s %s", type, op));
+	}
 
 	protected void invalidOp(String type, String op) {
 		System.err.println(String.format("ERROR: invalid operation: %s %s", type, op));
@@ -92,6 +111,10 @@ public abstract class CommandRunnerBase implements CommandRunner {
 
 	protected void invalidType(String type) {
 		System.err.println(String.format("ERROR: invalid resource type: %s", type));
+	}
+	
+	protected void missingArg(String type, String op, String name) {
+		System.err.println(String.format("ERROR: missing argument %s: %s %s", name, type, op));
 	}
 	
 	protected <T> T get(String name, Map<String, Object> map, T defaultValue) {
@@ -178,5 +201,19 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	}
 
 	
+	public String schemaToString(Class<?> type) {
+		return schemaToString(type, " ");
+	}
+
+	public String schemaToString(Class<?> type, String separator) {
+		List<String> props = MetaUtil.collectAllPropertyNames(type);
+		return String.join(separator, props.toArray(new String[props.size()]));
+	}
 	
+	OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource, ConnectionConfiguration conncConfig) {
+		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
+		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
+		template.setRequestFactory(conncConfig.makeClientHttpRequestFactory());
+		return template;
+	}
 }

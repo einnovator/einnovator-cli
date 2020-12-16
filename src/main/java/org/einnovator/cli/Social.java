@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class Social extends CommandRunnerBase {
 
-	private static final String SOCIALS_DEFAULT_SERVER = "http://localhost:2051";
+	private static final String SOCIALS_DEFAULT_SERVER = "http://localhost:2030";
 
 	@Autowired
 	Sso sso;
@@ -53,23 +53,20 @@ public class Social extends CommandRunnerBase {
 
 
 
-	public void init(Map<String, Object> args) {
-		super.init(args, template);
+	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
 		config.setServer(SOCIALS_DEFAULT_SERVER);
 		updateObjectFromNonNull(config, convert(args, SocialClientConfiguration.class));
 
-		ResourceOwnerPasswordResourceDetails resource = sso.getRequiredResourceDetails();
-		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
-		template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());
+		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+		super.init(cmds, args, template);
 		
 		socialClient = new SocialClient(template, config);
 	}
 
+
 	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
 
 		switch (type) {
-
 		case "channel": case "channels": case "m":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
