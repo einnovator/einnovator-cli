@@ -23,6 +23,8 @@ public interface CommandRunner {
 	
 	void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template);
 
-	void run(String type, String op, Map<String, Object> argsMap, String[] args);
+	void run(String type, String op, String[] args, Map<String, Object> options);
+
+	void setEndpoints(Map<String, Object> endpoints);
 
 }

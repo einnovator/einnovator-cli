@@ -70,7 +70,7 @@ public class CliRunner {
 			System.exit(-1);
 		}
 		List<String> cmds = new ArrayList<>();
-		argsMap = makeArgsMap(args, cmds);
+		options = makeArgsMap(args, cmds);
 		if (cmds.size()==0) {
 			System.err.println("Missing arguments...");
 			printUsage();
@@ -108,19 +108,23 @@ public class CliRunner {
 			cmds.remove(0);
 		}
 
-		debug("Type: " + type + " ; Op: " + op + " ; Args:" + argsMap + " ; Runner:" + runner.getClass().getSimpleName());
+		debug("Type: " + type + " ; Op: " + op + " ; Args:" + options + " ; Runner:" + runner.getClass().getSimpleName());
 
 		String[] cmds_ = cmds.toArray(new String[cmds.size()]);
 
 		OAuth2RestTemplate template = null;
-		if (!(runner instanceof Sso)) {
-			CommandRunner runner2 = getRunnerByName(Sso.SSO_PREFIX);
-			runner2.init(cmds_, argsMap, null);
-			template = ((Sso)runner2).getTemplate();			
-		}
-		runner.init(cmds_, argsMap, template);		
 
-		runner.run(type, op, argsMap, cmds_);
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		sso.setup(options);
+		setupEndpoints(sso.getAllEndpoints());
+		
+		if (!(runner instanceof Sso)) {
+			sso.init(cmds_, options, null);
+			template = sso.getTemplate();			
+		}
+		runner.init(cmds_, options, template);		
+
+		runner.run(type, op, cmds_, options);
 
 	}
 	
@@ -162,7 +166,7 @@ public class CliRunner {
 	}
 
 
-	Map<String, Object> argsMap;
+	Map<String, Object> options;
 
 	
 	private Map<String, Object> makeArgsMap(String[] args, List<String> cmds) {
@@ -185,6 +189,9 @@ public class CliRunner {
 			} else if (a.startsWith("-")) {
 				if (a.length()>1) {
 					a = a.substring(1);
+					//if (a.length()>1) {
+					//	map.put(a.substring(0,1), a.substring(1));
+					//} else
 					if (i<args.length-1) {
 						map.put(a, args[i+1]);
 						i++;
@@ -209,8 +216,22 @@ public class CliRunner {
 	}
 	
 	private boolean isDebug() {
-		String s = (String)argsMap.get("debug");
+		String s = (String)options.get("debug");
 		return s!=null;
+	}
+	
+
+	public void setupEndpoints(Map<String, Object> endpoints) {
+		if (endpoints!=null) {
+			for (CommandRunner runner: runners) {
+				String name = runner.getPrefix();
+				@SuppressWarnings("unchecked")
+				Map<String, Object> endpoints1 = (Map<String, Object>)endpoints.get(name);
+				if (endpoints1!=null) {
+					runner.setEndpoints(endpoints1);
+				}
+			}			
+		}
 	}
 	
 }

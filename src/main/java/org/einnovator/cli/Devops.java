@@ -17,15 +17,12 @@ import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.Connector;
 import org.einnovator.devops.client.model.CronJob;
 import org.einnovator.devops.client.model.Deployment;
-import org.einnovator.devops.client.model.DeploymentKind;
-import org.einnovator.devops.client.model.DeploymentStatus;
 import org.einnovator.devops.client.model.Domain;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.Mount;
 import org.einnovator.devops.client.model.Registry;
 import org.einnovator.devops.client.model.Route;
 import org.einnovator.devops.client.model.Solution;
-import org.einnovator.devops.client.model.SolutionCategory;
 import org.einnovator.devops.client.model.Space;
 import org.einnovator.devops.client.model.Vcs;
 import org.einnovator.devops.client.modelx.CatalogFilter;
@@ -51,19 +48,19 @@ import org.einnovator.devops.client.modelx.VcsOptions;
 import org.einnovator.util.MapUtil;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
-import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
-import org.einnovator.util.meta.MetaUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 
 @Component
 public class Devops extends CommandRunnerBase {
 	public static final String DEVOPS_PREFIX = "devops";
+
+	public static final String DEVOPS_DEFAULT_SERVER = "http://localhost:2500";
+	public static final String DEVOPS_MONITOR_SERVER = "http://localhost:2501";
 
 	private static final String CLUSTER_DEFAULT_FORMAT = "name,displayName,provider,region";
 	private static final String CLUSTER_WIDE_FORMAT = "name,displayName,provider,region";
@@ -71,8 +68,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String SPACE_DEFAULT_FORMAT = "name,displayName,cluster.name,cluster.provider,cluster.region";
 	private static final String SPACE_WIDE_FORMAT = "name,displayName,cluster.name,cluster.provider,cluster.region";
 
-	private static final String DEPLOYMENT_DEFAULT_FORMAT = "name,displayName,kind,status,availableReplicas,desiredReplicas,readyReplicas";
-	private static final String DEPLOYMENT_WIDE_FORMAT = "name,displayName,kind,type,category,status,availableReplicas,desiredReplicas,readyReplicas,image.name";
+	private static final String DEPLOYMENT_DEFAULT_FORMAT = "name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready";
+	private static final String DEPLOYMENT_WIDE_FORMAT = "name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready,image.name:image,image.registry.name:registry";
 
 	private static final String JOB_DEFAULT_FORMAT = "name,displayName,status";
 	private static final String JOB_WIDE_FORMAT = "name,displayName,status";
@@ -109,13 +106,24 @@ public class Devops extends CommandRunnerBase {
 
 	private DevopsClient devopsClient;
 
+	private String server = DEVOPS_DEFAULT_SERVER;
+	
 	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
-	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
-		super.init(cmds, args, template);
-		updateObjectFrom(config, convert(args, DevopsClientConfiguration.class));
-		config.setServer("http://localhost:2501");
+	@Override
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
+		super.init(cmds, options, template);
+		updateObjectFrom(config, convert(options, DevopsClientConfiguration.class));
+		config.setServer(server);
 		devopsClient = new DevopsClient(template, config);
+	}
+	
+	@Override
+	public void setEndpoints(Map<String, Object> endpoints) {
+		String server = (String)endpoints.get("server");
+		if (server!=null) {
+			this.server = server;
+		}
 	}
 	
 	@Override
@@ -137,32 +145,33 @@ public class Devops extends CommandRunnerBase {
 		"solution", "solutions",
 		};
 
+	@Override
 	protected String[] getCommands() {
 		return DEVOPS_COMMANDS;
 	}
 
 	
-	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {		
+	public void run(String type, String op, String[] cmds, Map<String, Object> options) {		
 		switch (type) {
 		case "cluster": case "clusters": case "c":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getCluster(type, op, argsMap);
+				getCluster(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listCluster(type, op, argsMap);
+				listCluster(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaCluster(type, op, argsMap);
+				schemaCluster(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createCluster(type, op, argsMap);
+				createCluster(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateCluster(type, op, argsMap);
+				updateCluster(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteCluster(type, op, argsMap);
+				deleteCluster(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -172,22 +181,22 @@ public class Devops extends CommandRunnerBase {
 		case "space": case "spaces": case "g":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getSpace(type, op, argsMap);
+				getSpace(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listSpace(type, op, argsMap);
+				listSpace(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaSpace(type, op, argsMap);
+				schemaSpace(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createSpace(type, op, argsMap);
+				createSpace(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateSpace(type, op, argsMap);
+				updateSpace(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteSpace(type, op, argsMap);
+				deleteSpace(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -197,22 +206,22 @@ public class Devops extends CommandRunnerBase {
 		case "deploy": case "deployment": case "deploys": case "deployments":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getDeployment(type, op, argsMap);
+				getDeployment(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listDeployment(type, op, argsMap);
+				listDeployment(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaDeployment(type, op, argsMap);
+				schemaDeployment(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createDeployment(type, op, argsMap);
+				createDeployment(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateDeployment(type, op, argsMap);
+				updateDeployment(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteDeployment(type, op, argsMap);
+				deleteDeployment(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -222,22 +231,22 @@ public class Devops extends CommandRunnerBase {
 		case "job":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getJob(type, op, argsMap);
+				getJob(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listJob(type, op, argsMap);
+				listJob(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaJob(type, op, argsMap);
+				schemaJob(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createJob(type, op, argsMap);
+				createJob(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateJob(type, op, argsMap);
+				updateJob(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteJob(type, op, argsMap);
+				deleteJob(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -247,22 +256,22 @@ public class Devops extends CommandRunnerBase {
 		case "cronjob":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getCronJob(type, op, argsMap);
+				getCronJob(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listCronJob(type, op, argsMap);
+				listCronJob(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaCronJob(type, op, argsMap);
+				schemaCronJob(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createCronJob(type, op, argsMap);
+				createCronJob(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateCronJob(type, op, argsMap);
+				updateCronJob(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteCronJob(type, op, argsMap);
+				deleteCronJob(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -272,22 +281,22 @@ public class Devops extends CommandRunnerBase {
 		case "domain": case "domains":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getDomain(type, op, argsMap);
+				getDomain(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listDomain(type, op, argsMap);
+				listDomain(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaDomain(type, op, argsMap);
+				schemaDomain(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createDomain(type, op, argsMap);
+				createDomain(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateDomain(type, op, argsMap);
+				updateDomain(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteDomain(type, op, argsMap);
+				deleteDomain(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -297,22 +306,22 @@ public class Devops extends CommandRunnerBase {
 		case "registry": case "registries": case "r":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getRegistry(type, op, argsMap);
+				getRegistry(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listRegistry(type, op, argsMap);
+				listRegistry(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaRegistry(type, op, argsMap);
+				schemaRegistry(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createRegistry(type, op, argsMap);
+				createRegistry(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateRegistry(type, op, argsMap);
+				updateRegistry(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteRegistry(type, op, argsMap);
+				deleteRegistry(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -322,22 +331,22 @@ public class Devops extends CommandRunnerBase {
 		case "vcs": case "vcss": case "v": case "git":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getVcs(type, op, argsMap);
+				getVcs(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listVcs(type, op, argsMap);
+				listVcs(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaVcs(type, op, argsMap);
+				schemaVcs(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createVcs(type, op, argsMap);
+				createVcs(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateVcs(type, op, argsMap);
+				updateVcs(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteVcs(type, op, argsMap);
+				deleteVcs(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -347,22 +356,22 @@ public class Devops extends CommandRunnerBase {
 		case "catalog": case "catalogs":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getCatalog(type, op, argsMap);
+				getCatalog(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listCatalog(type, op, argsMap);
+				listCatalog(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaCatalog(type, op, argsMap);
+				schemaCatalog(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createCatalog(type, op, argsMap);
+				createCatalog(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateCatalog(type, op, argsMap);
+				updateCatalog(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteCatalog(type, op, argsMap);
+				deleteCatalog(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -372,22 +381,22 @@ public class Devops extends CommandRunnerBase {
 		case "solution": case "solutions":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getSolution(type, op, argsMap);
+				getSolution(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listSolution(type, op, argsMap);
+				listSolution(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
-				schemaSolution(type, op, argsMap);
+				schemaSolution(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createSolution(type, op, argsMap);
+				createSolution(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateSolution(type, op, argsMap);
+				updateSolution(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteSolution(type, op, argsMap);
+				deleteSolution(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -413,49 +422,49 @@ public class Devops extends CommandRunnerBase {
 	// Cluster
 	//
 	
-	public void listCluster(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		ClusterFilter filter = convert(args, ClusterFilter.class);
+	public void listCluster(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		ClusterFilter filter = convert(options, ClusterFilter.class);
 		Page<Cluster> clusters = devopsClient.listClusters(filter, pageable);
 		debug("Listing Clusters...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Clusters:");
 		if (clusters==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (clusters.getContent()==null || clusters.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(clusters);
+		print(clusters);
 	}
 
 
-	public void getCluster(String type, String op, Map<String, Object> args) {
-		String clusterId = (String)get(new String[] {"id", "uuid", "clustername", "email"}, args);
-		ClusterOptions options = convert(args, ClusterOptions.class);
-		Cluster cluster = devopsClient.getCluster(clusterId, options);
+	public void getCluster(String type, String op, String[] cmds, Map<String, Object> options) {
+		String clusterId = (String)get(new String[] {"id", "uuid", "clustername", "email"}, options);
+		ClusterOptions options_ = convert(options, ClusterOptions.class);
+		Cluster cluster = devopsClient.getCluster(clusterId, options_);
 		debug("Get Cluster...");
 		debug("ID:", clusterId);
 		debug("Cluster:");
 		printObj(cluster);
 	}
 
-	public void schemaCluster(String type, String op, Map<String, Object> args) {
+	public void schemaCluster(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Cluster.class));
 	}
 	
-	public void createCluster(String type, String op, Map<String, Object> args) {
-		Cluster cluster = convert(args, Cluster.class);
+	public void createCluster(String type, String op, String[] cmds, Map<String, Object> options) {
+		Cluster cluster = convert(options, Cluster.class);
 		debug("Creating Cluster...");
 		printObj(cluster);
 		URI uri = devopsClient.createCluster(cluster, null);
 		printLine("URI:", uri);
-		printObj("Created Cluster:");
+		debug("Created Cluster:");
 		String id = UriUtils.extractId(uri);
 		Cluster cluster2 = devopsClient.getCluster(id, null);
 		printObj(cluster2);
@@ -463,19 +472,19 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	
-	public void updateCluster(String type, String op, Map<String, Object> args) {
-		String clusterId = (String)get("cluster", args);
-		Cluster cluster = convert(args, Cluster.class);
+	public void updateCluster(String type, String op, String[] cmds, Map<String, Object> options) {
+		String clusterId = (String)get("cluster", options);
+		Cluster cluster = convert(options, Cluster.class);
 		debug("Updating Cluster...");
 		printObj(cluster);
 		devopsClient.updateCluster(cluster, null);
-		printObj("Updated Cluster:");
+		debug("Updated Cluster:");
 		Cluster cluster2 = devopsClient.getCluster(clusterId, null);
 		printObj(cluster2);
 	}
 
-	public void deleteCluster(String type, String op, Map<String, Object> args) {
-		String clusterId = (String)get(new String[] {"id", "clustername"}, args);
+	public void deleteCluster(String type, String op, String[] cmds, Map<String, Object> options) {
+		String clusterId = (String)get(new String[] {"id", "clustername"}, options);
 		debug("Deleting Cluster...");
 		debug("ID:", clusterId);		
 		devopsClient.deleteCluster(clusterId, null);	
@@ -485,31 +494,31 @@ public class Devops extends CommandRunnerBase {
 	// Spaces
 	//
 	
-	public void listSpace(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		SpaceFilter filter = convert(args, SpaceFilter.class);
+	public void listSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		SpaceFilter filter = convert(options, SpaceFilter.class);
 		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
 		debug("Listing Spaces...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Spaces:");
 		if (spaces==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (spaces.getContent()==null || spaces.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(spaces);
+		print(spaces);
 	}
 	
-	public void getSpace(String type, String op, Map<String, Object> args) {
-		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
-		SpaceOptions options = convert(args, SpaceOptions.class);
-		Space space = devopsClient.getSpace(spaceId, options);
+	public void getSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, options);
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		Space space = devopsClient.getSpace(spaceId, options_);
 		debug("Get Space...");
 		debug("ID:", spaceId);
 		debug("Space:");
@@ -517,36 +526,36 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 
-	public void schemaSpace(String type, String op, Map<String, Object> args) {
+	public void schemaSpace(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Space.class));
 	}
 	
-	public void createSpace(String type, String op, Map<String, Object> args) {
-		Space space = convert(args, Space.class);
+	public void createSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		Space space = convert(options, Space.class);
 		debug("Creating Space...");
 		printObj(space);
 		URI uri = devopsClient.createSpace(space, null);
 		printLine("URI:", uri);
 		String spaceId = UriUtils.extractId(uri);
 		Space space2 = devopsClient.getSpace(spaceId, null);
-		printObj("Created Space:");
+		debug("Created Space:");
 		printObj(space2);
 	}
 
-	public void updateSpace(String type, String op, Map<String, Object> args) {
-		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
-		Space space = convert(args, Space.class);
+	public void updateSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, options);
+		Space space = convert(options, Space.class);
 		debug("Updating Space...");
 		printObj(space);
 		devopsClient.updateSpace(space, null);
 		Space space2 = devopsClient.getSpace(spaceId, null);
-		printObj("Updated Space:");
+		debug("Updated Space:");
 		printObj(space2);
 
 	}
 	
-	public void deleteSpace(String type, String op, Map<String, Object> args) {
-		String spaceId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Space...");
 		debug("ID:", spaceId);		
 		devopsClient.deleteSpace(spaceId, null);		
@@ -556,10 +565,10 @@ public class Devops extends CommandRunnerBase {
 	// Deployments
 	//
 	
-	public void listDeployment(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		DeploymentFilter filter = convert(args, DeploymentFilter.class);
-		String spaceId = argSpaceId(args);
+	public void listDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		DeploymentFilter filter = convert(options, DeploymentFilter.class);
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
@@ -570,45 +579,45 @@ public class Devops extends CommandRunnerBase {
 		debug("Pageable:", pageable);
 		debug("Deployments:");
 		if (deployments==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (deployments.getContent()==null || deployments.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(deployments);
+		print(deployments);
 	}
 	
 	
-	private String argSpaceId(Map<String, Object> args) {
-		String spaceId = (String)args.get("n");
+	private String argSpaceId(Map<String, Object> options) {
+		String spaceId = (String)options.get("n");
 		if (spaceId!=null) {
 			return spaceId;
 		}
 		return null;
 	}
 	
-	public void getDeployment(String type, String op, Map<String, Object> args) {
+	public void getDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		String deploymentId = cmds.length > 0 ? cmds[0] : null;			
 		if (deploymentId==null) {
-			deploymentId = (String)get(new String[] {"id", "uuid"}, args);
+			deploymentId = (String)get(new String[] {"id", "uuid"}, options);
 		}
 		if (deploymentId==null) {
 			error(String.format("missing deployment id"));
 			System.exit(-1);
 			return;
 		}
-		String spaceId = argSpaceId(args);
+		String spaceId = argSpaceId(options);
 		if (spaceId!=null) {
 			if (deploymentId.indexOf("/")<0) {
 				deploymentId = spaceId + "/" + deploymentId;
 			}
 		}
-		DeploymentOptions options = convert(args, DeploymentOptions.class);
-		Deployment deployment = devopsClient.getDeployment(deploymentId, options);
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		Deployment deployment = devopsClient.getDeployment(deploymentId, options_);
 		debug("Get Deployment...");
 		debug("ID:", deploymentId);
 		debug("Deployment:");
@@ -616,51 +625,51 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 
-	public void schemaDeployment(String type, String op, Map<String, Object> args) {
+	public void schemaDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Deployment.class));
 	}
 	
-	public void createDeployment(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void createDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
 		}
-		Deployment deployment = convert(args, Deployment.class);
+		Deployment deployment = convert(options, Deployment.class);
 		debug("Creating Deployment...");
 		printObj(deployment);
 		URI uri = devopsClient.createDeployment(spaceId, deployment, null);
 		printLine("URI:", uri);
 		String deploymentId = UriUtils.extractId(uri);
 		Deployment deployment2 = devopsClient.getDeployment(deploymentId, null);
-		printObj("Created Deployment:");
+		debug("Created Deployment:");
 		printObj(deployment2);
 	}
 
-	public void updateDeployment(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void updateDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String deploymentId = (String)get(new String[] {"id", "uuid"}, args);
-		Deployment deployment = convert(args, Deployment.class);
+		String deploymentId = (String)get(new String[] {"id", "uuid"}, options);
+		Deployment deployment = convert(options, Deployment.class);
 		debug("Updating Deployment...");
 		printObj(deployment);
 		devopsClient.updateDeployment(deployment, null);
 		Deployment deployment2 = devopsClient.getDeployment(deploymentId, null);
-		printObj("Updated Deployment:");
+		debug("Updated Deployment:");
 		printObj(deployment2);
 
 	}
 	
-	public void deleteDeployment(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void deleteDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String deploymentId = (String)get(new String[] {"id", "uuid"}, args);
+		String deploymentId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Deployment...");
 		debug("ID:", deploymentId);		
 		devopsClient.deleteDeployment(deploymentId, null);		
@@ -670,10 +679,10 @@ public class Devops extends CommandRunnerBase {
 	// Jobs
 	//
 	
-	public void listJob(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		JobFilter filter = convert(args, JobFilter.class);
-		String spaceId = argSpaceId(args);
+	public void listJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		JobFilter filter = convert(options, JobFilter.class);
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
@@ -684,27 +693,27 @@ public class Devops extends CommandRunnerBase {
 		debug("Pageable:", pageable);
 		debug("Jobs:");
 		if (jobs==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (jobs.getContent()==null || jobs.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(jobs);
+		print(jobs);
 	}
 
-	public void getJob(String type, String op, Map<String, Object> args) {
-		String jobId = (String)get(new String[] {"id", "uuid"}, args);
-		String spaceId = argSpaceId(args);
+	public void getJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String jobId = (String)get(new String[] {"id", "uuid"}, options);
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
 		}
-		JobOptions options = convert(args, JobOptions.class);
-		Job job = devopsClient.getJob(jobId, options);
+		JobOptions options_ = convert(options, JobOptions.class);
+		Job job = devopsClient.getJob(jobId, options_);
 		debug("Get Job...");
 		debug("ID:", jobId);
 		debug("Job:");
@@ -712,51 +721,51 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 
-	public void schemaJob(String type, String op, Map<String, Object> args) {
+	public void schemaJob(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Job.class));
 	}
 	
-	public void createJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void createJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
 		}
-		Job job = convert(args, Job.class);
+		Job job = convert(options, Job.class);
 		debug("Creating Job...");
 		printObj(job);
 		URI uri = devopsClient.createJob(spaceId, job, null);
 		printLine("URI:", uri);
 		String jobId = UriUtils.extractId(uri);
 		Job job2 = devopsClient.getJob(jobId, null);
-		printObj("Created Job:");
+		debug("Created Job:");
 		printObj(job2);
 	}
 
-	public void updateJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void updateJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String jobId = (String)get(new String[] {"id", "uuid"}, args);
-		Job job = convert(args, Job.class);
+		String jobId = (String)get(new String[] {"id", "uuid"}, options);
+		Job job = convert(options, Job.class);
 		debug("Updating Job...");
 		printObj(job);
 		devopsClient.updateJob(job, null);
 		Job job2 = devopsClient.getJob(jobId, null);
-		printObj("Updated Job:");
+		debug("Updated Job:");
 		printObj(job2);
 
 	}
 	
-	public void deleteJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void deleteJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String jobId = (String)get(new String[] {"id", "uuid"}, args);
+		String jobId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Job...");
 		debug("ID:", jobId);		
 		devopsClient.deleteJob(jobId, null);		
@@ -766,10 +775,10 @@ public class Devops extends CommandRunnerBase {
 	// CronJobs
 	//
 	
-	public void listCronJob(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		CronJobFilter filter = convert(args, CronJobFilter.class);
-		String spaceId = argSpaceId(args);
+	public void listCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		CronJobFilter filter = convert(options, CronJobFilter.class);
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
@@ -780,27 +789,27 @@ public class Devops extends CommandRunnerBase {
 		debug("Pageable:", pageable);
 		debug("CronJobs:");
 		if (cronjobs==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (cronjobs.getContent()==null || cronjobs.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(cronjobs);
+		print(cronjobs);
 	}
 
-	public void getCronJob(String type, String op, Map<String, Object> args) {
-		String cronjobId = (String)get(new String[] {"id", "uuid"}, args);
-		String spaceId = argSpaceId(args);
+	public void getCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String cronjobId = (String)get(new String[] {"id", "uuid"}, options);
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
 		}
-		CronJobOptions options = convert(args, CronJobOptions.class);
-		CronJob cronjob = devopsClient.getCronJob(cronjobId, options);
+		CronJobOptions options_ = convert(options, CronJobOptions.class);
+		CronJob cronjob = devopsClient.getCronJob(cronjobId, options_);
 		debug("Get CronJob...");
 		debug("ID:", cronjobId);
 		debug("CronJob:");
@@ -808,51 +817,51 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 
-	public void schemaCronJob(String type, String op, Map<String, Object> args) {
+	public void schemaCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(CronJob.class));
 	}
 	
-	public void createCronJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void createCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			missingArg(type, op, "-n");
 			return;
 		}
-		CronJob cronjob = convert(args, CronJob.class);
+		CronJob cronjob = convert(options, CronJob.class);
 		debug("Creating CronJob...");
 		printObj(cronjob);
 		URI uri = devopsClient.createCronJob(spaceId, cronjob, null);
 		printLine("URI:", uri);
 		String cronjobId = UriUtils.extractId(uri);
 		CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
-		printObj("Created CronJob:");
+		debug("Created CronJob:");
 		printObj(cronjob2);
 	}
 
-	public void updateCronJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void updateCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String cronjobId = (String)get(new String[] {"id", "uuid"}, args);
-		CronJob cronjob = convert(args, CronJob.class);
+		String cronjobId = (String)get(new String[] {"id", "uuid"}, options);
+		CronJob cronjob = convert(options, CronJob.class);
 		debug("Updating CronJob...");
 		printObj(cronjob);
 		devopsClient.updateCronJob(cronjob, null);
 		CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
-		printObj("Updated CronJob:");
+		debug("Updated CronJob:");
 		printObj(cronjob2);
 
 	}
 	
-	public void deleteCronJob(String type, String op, Map<String, Object> args) {
-		String spaceId = argSpaceId(args);
+	public void deleteCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argSpaceId(options);
 		if (spaceId==null) {
 			//missingArg(type, op, "-n");
 			//return;
 		}
-		String cronjobId = (String)get(new String[] {"id", "uuid"}, args);
+		String cronjobId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting CronJob...");
 		debug("ID:", cronjobId);		
 		devopsClient.deleteCronJob(cronjobId, null);		
@@ -862,43 +871,43 @@ public class Devops extends CommandRunnerBase {
 	// Domain
 	//
 
-	public void listDomain(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		DomainFilter filter = convert(args, DomainFilter.class);
+	public void listDomain(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		DomainFilter filter = convert(options, DomainFilter.class);
 		Page<Domain> domains = devopsClient.listDomains(filter, pageable);
 		debug("Listing Domains...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Domains:");
 		if (domains==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (domains.getContent()==null || domains.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(domains);
+		print(domains);
 	}
 
-	public void getDomain(String type, String op, Map<String, Object> args) {
-		String domainId = (String)get(new String[] {"id", "uuid"}, args);
-		DomainOptions options = convert(args, DomainOptions.class);
-		Domain domain = devopsClient.getDomain(domainId, options);
+	public void getDomain(String type, String op, String[] cmds, Map<String, Object> options) {
+		String domainId = (String)get(new String[] {"id", "uuid"}, options);
+		DomainOptions options_ = convert(options, DomainOptions.class);
+		Domain domain = devopsClient.getDomain(domainId, options_);
 		debug("Get Domain...");
 		debug("ID:", domainId);
 		debug("Domain:");
 		printObj(domain);
 	}
 
-	public void schemaDomain(String type, String op, Map<String, Object> args) {
+	public void schemaDomain(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Domain.class));
 	}
 
-	public void createDomain(String type, String op, Map<String, Object> args) {
-		Domain domain = convert(args, Domain.class);
+	public void createDomain(String type, String op, String[] cmds, Map<String, Object> options) {
+		Domain domain = convert(options, Domain.class);
 		Boolean sendMail = null;
 		debug(Boolean.TRUE.equals(sendMail) ? "Sending Domain..." : "Creating Domain...");
 		debug("Domain", domain);
@@ -906,24 +915,24 @@ public class Devops extends CommandRunnerBase {
 		printLine("URI:", uri);
 		String id = UriUtils.extractId(uri);
 		Domain domain2 = devopsClient.getDomain(id, null);
-		printObj("Created Domain:");
+		debug("Created Domain:");
 		printObj(domain2);
 	}
 	
 	
-	public void updateDomain(String type, String op, Map<String, Object> args) {
-		String domainId = (String)get("domain", args);
-		Domain domain = convert(args, Domain.class);
+	public void updateDomain(String type, String op, String[] cmds, Map<String, Object> options) {
+		String domainId = (String)get("domain", options);
+		Domain domain = convert(options, Domain.class);
 		debug("Updating Domain...");
 		printObj(domain);
 		devopsClient.updateDomain(domain, null);
-		printObj("Updated Domain:");
+		debug("Updated Domain:");
 		Domain domain2 = devopsClient.getDomain(domainId, null);
 		printObj(domain2);
 	}
 
-	public void deleteDomain(String type, String op, Map<String, Object> args) {
-		String domainId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteDomain(String type, String op, String[] cmds, Map<String, Object> options) {
+		String domainId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Domain...");
 		debug("ID:", domainId);		
 		devopsClient.deleteDomain(domainId, null);	
@@ -934,29 +943,29 @@ public class Devops extends CommandRunnerBase {
 	// Registrys
 	//
 	
-	public void listRegistry(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		RegistryFilter filter = convert(args, RegistryFilter.class);
+	public void listRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		RegistryFilter filter = convert(options, RegistryFilter.class);
 		Page<Registry> registrys = devopsClient.listRegistries(filter, pageable);
 		debug("Listing Registrys...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Registrys:");
 		if (registrys==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (registrys.getContent()==null || registrys.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(registrys);
+		print(registrys);
 	}
 	
-	public void getRegistry(String type, String op, Map<String, Object> args) {
-		String registryId = (String)get(new String[] {"id", "uuid"}, args);
+	public void getRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, options);
 		Registry registry = devopsClient.getRegistry(registryId, null);
 		debug("Get Registry...");
 		debug("ID:", registryId);
@@ -965,38 +974,38 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 
-	public void schemaRegistry(String type, String op, Map<String, Object> args) {
+	public void schemaRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Registry.class));
 	}
 
 	
-	public void createRegistry(String type, String op, Map<String, Object> args) {
-		Registry registry = convert(args, Registry.class);
+	public void createRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
+		Registry registry = convert(options, Registry.class);
 		debug("Creating Registry...");
 		printObj(registry);
-		RegistryOptions options = convert(args, RegistryOptions.class);
-		URI uri = devopsClient.createRegistry(registry, options);
+		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		URI uri = devopsClient.createRegistry(registry, options_);
 		printLine("URI:", uri);
 		String registryId = UriUtils.extractId(uri);
 		Registry registry2 = devopsClient.getRegistry(registryId, null);
-		printObj("Created Registry:");
+		debug("Created Registry:");
 		printObj(registry2);
 	}
 
-	public void updateRegistry(String type, String op, Map<String, Object> args) {
-		String registryId = (String)get(new String[] {"id", "uuid"}, args);
-		Registry registry = convert(args, Registry.class);
+	public void updateRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, options);
+		Registry registry = convert(options, Registry.class);
 		debug("Updating Registry...");
 		printObj(registry);
 		devopsClient.updateRegistry(registry, null);
 		Registry registry2 = devopsClient.getRegistry(registryId, null);
-		printObj("Updated Registry:");
+		debug("Updated Registry:");
 		printObj(registry2);
 
 	}
 	
-	public void deleteRegistry(String type, String op, Map<String, Object> args) {
-		String registryId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
+		String registryId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Registry...");
 		debug("ID:", registryId);		
 		devopsClient.deleteRegistry(registryId, null);		
@@ -1009,31 +1018,31 @@ public class Devops extends CommandRunnerBase {
 	//
 	
 
-	public void listVcs(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		VcsFilter filter = convert(args, VcsFilter.class);
+	public void listVcs(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		VcsFilter filter = convert(options, VcsFilter.class);
 		Page<Vcs> vcss = devopsClient.listVcss(filter, pageable);
 		debug("Listing Vcss...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Vcss:");
 		if (vcss==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (vcss.getContent()==null || vcss.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(vcss);
+		print(vcss);
 	}
 
-	public void getVcs(String type, String op, Map<String, Object> args) {
-		String vcsId = (String)get(new String[] {"id", "uuid"}, args);
-		VcsOptions options = convert(args, VcsOptions.class);
-		Vcs vcs = devopsClient.getVcs(vcsId, options);
+	public void getVcs(String type, String op, String[] cmds, Map<String, Object> options) {
+		String vcsId = (String)get(new String[] {"id", "uuid"}, options);
+		VcsOptions options_ = convert(options, VcsOptions.class);
+		Vcs vcs = devopsClient.getVcs(vcsId, options_);
 		debug("Get Vcs...");
 		debug("ID:", vcsId);
 		debug("Vcs:");
@@ -1041,17 +1050,17 @@ public class Devops extends CommandRunnerBase {
 	}
 
 
-	public void schemaVcs(String type, String op, Map<String, Object> args) {
+	public void schemaVcs(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Vcs.class));
 	}
 
-	public void createVcs(String type, String op, Map<String, Object> args) {
-		Vcs vcs = convert(args, Vcs.class);
+	public void createVcs(String type, String op, String[] cmds, Map<String, Object> options) {
+		Vcs vcs = convert(options, Vcs.class);
 		debug("Creating Vcs...");
 		printObj(vcs);
 		URI uri = devopsClient.createVcs(vcs, null);
 		printLine("URI:", uri);
-		printObj("Created Vcs:");
+		debug("Created Vcs:");
 		String id = UriUtils.extractId(uri);
 		Vcs vcs2 = devopsClient.getVcs(id, null);
 		printObj(vcs2);
@@ -1059,19 +1068,19 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	
-	public void updateVcs(String type, String op, Map<String, Object> args) {
-		String vcsId = (String)get("vcs", args);
-		Vcs vcs = convert(args, Vcs.class);
+	public void updateVcs(String type, String op, String[] cmds, Map<String, Object> options) {
+		String vcsId = (String)get("vcs", options);
+		Vcs vcs = convert(options, Vcs.class);
 		debug("Updating Vcs...");
 		printObj(vcs);
 		devopsClient.updateVcs(vcs, null);
-		printObj("Updated Vcs:");
+		debug("Updated Vcs:");
 		Vcs vcs2 = devopsClient.getVcs(vcsId, null);
 		printObj(vcs2);
 	}
 
-	public void deleteVcs(String type, String op, Map<String, Object> args) {
-		String vcsId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteVcs(String type, String op, String[] cmds, Map<String, Object> options) {
+		String vcsId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Vcs...");
 		debug("ID:", vcsId);		
 		devopsClient.deleteVcs(vcsId, null);	
@@ -1081,43 +1090,43 @@ public class Devops extends CommandRunnerBase {
 	// Catalog
 	//
 
-	public void listCatalog(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		CatalogFilter filter = convert(args, CatalogFilter.class);
+	public void listCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		CatalogFilter filter = convert(options, CatalogFilter.class);
 		Page<Catalog> catalogs = devopsClient.listCatalogs(filter, pageable);
 		debug("Listing Catalogs...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Catalogs:");
 		if (catalogs==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (catalogs.getContent()==null || catalogs.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(catalogs);
+		print(catalogs);
 	}
 
-	public void getCatalog(String type, String op, Map<String, Object> args) {
-		String catalogId = (String)get(new String[] {"id", "uuid"}, args);
-		CatalogOptions options = convert(args, CatalogOptions.class);
-		Catalog catalog = devopsClient.getCatalog(catalogId, options);
+	public void getCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		String catalogId = (String)get(new String[] {"id", "uuid"}, options);
+		CatalogOptions options_ = convert(options, CatalogOptions.class);
+		Catalog catalog = devopsClient.getCatalog(catalogId, options_);
 		debug("Get Catalog...");
 		debug("ID:", catalogId);
 		debug("Catalog:");
 		printObj(catalog);
 	}
 
-	public void schemaCatalog(String type, String op, Map<String, Object> args) {
+	public void schemaCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Catalog.class));
 	}
 
-	public void createCatalog(String type, String op, Map<String, Object> args) {
-		Catalog catalog = convert(args, Catalog.class);
+	public void createCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		Catalog catalog = convert(options, Catalog.class);
 		Boolean sendMail = null;
 		debug(Boolean.TRUE.equals(sendMail) ? "Sending Catalog..." : "Creating Catalog...");
 		debug("Catalog", catalog);
@@ -1125,24 +1134,24 @@ public class Devops extends CommandRunnerBase {
 		printLine("URI:", uri);
 		String id = UriUtils.extractId(uri);
 		Catalog catalog2 = devopsClient.getCatalog(id, null);
-		printObj("Created Catalog:");
+		debug("Created Catalog:");
 		printObj(catalog2);
 	}
 	
 	
-	public void updateCatalog(String type, String op, Map<String, Object> args) {
-		String catalogId = (String)get("catalog", args);
-		Catalog catalog = convert(args, Catalog.class);
+	public void updateCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		String catalogId = (String)get("catalog", options);
+		Catalog catalog = convert(options, Catalog.class);
 		debug("Updating Catalog...");
 		printObj(catalog);
 		devopsClient.updateCatalog(catalog, null);
-		printObj("Updated Catalog:");
+		debug("Updated Catalog:");
 		Catalog catalog2 = devopsClient.getCatalog(catalogId, null);
 		printObj(catalog2);
 	}
 
-	public void deleteCatalog(String type, String op, Map<String, Object> args) {
-		String catalogId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		String catalogId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Catalog...");
 		debug("ID:", catalogId);		
 		devopsClient.deleteCatalog(catalogId, null);	
@@ -1153,43 +1162,43 @@ public class Devops extends CommandRunnerBase {
 	// Solution
 	//
 
-	public void listSolution(String type, String op, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		SolutionFilter filter = convert(args, SolutionFilter.class);
+	public void listSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		SolutionFilter filter = convert(options, SolutionFilter.class);
 		Page<Solution> solutions = devopsClient.listSolutions(filter, pageable);
 		debug("Listing Solutions...");
 		debug("Filter:", filter);
 		debug("Pageable:", pageable);
 		debug("Solutions:");
 		if (solutions==null) {
-			operationFailed(type, op, args);
+			operationFailed(type, op, options);
 			System.exit(-1);
 			return;
 		}
 		if (solutions.getContent()==null || solutions.getContent().isEmpty()) {
-			noresources(type, op, args);
+			noresources(type, op, options);
 			System.exit(0);
 			return;
 		}
-		printObj(solutions);
+		print(solutions);
 	}
 
-	public void getSolution(String type, String op, Map<String, Object> args) {
-		String solutionId = (String)get(new String[] {"id", "uuid"}, args);
-		SolutionOptions options = convert(args, SolutionOptions.class);
-		Solution solution = devopsClient.getSolution(solutionId, options);
+	public void getSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		String solutionId = (String)get(new String[] {"id", "uuid"}, options);
+		SolutionOptions options_ = convert(options, SolutionOptions.class);
+		Solution solution = devopsClient.getSolution(solutionId, options_);
 		debug("Get Solution...");
 		debug("ID:", solutionId);
 		debug("Solution:");
 		printObj(solution);
 	}
 
-	public void schemaSolution(String type, String op, Map<String, Object> args) {
+	public void schemaSolution(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Solution.class));
 	}
 
-	public void createSolution(String type, String op, Map<String, Object> args) {
-		Solution solution = convert(args, Solution.class);
+	public void createSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		Solution solution = convert(options, Solution.class);
 		Boolean sendMail = null;
 		debug(Boolean.TRUE.equals(sendMail) ? "Sending Solution..." : "Creating Solution...");
 		debug("Solution", solution);
@@ -1197,372 +1206,33 @@ public class Devops extends CommandRunnerBase {
 		printLine("URI:", uri);
 		String id = UriUtils.extractId(uri);
 		Solution solution2 = devopsClient.getSolution(id, null);
-		printObj("Created Solution:");
+		debug("Created Solution:");
 		printObj(solution2);
 	}
 	
 	
-	public void updateSolution(String type, String op, Map<String, Object> args) {
-		String solutionId = (String)get("solution", args);
-		Solution solution = convert(args, Solution.class);
+	public void updateSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		String solutionId = (String)get("solution", options);
+		Solution solution = convert(options, Solution.class);
 		debug("Updating Solution...");
 		printObj(solution);
 		devopsClient.updateSolution(solution, null);
-		printObj("Updated Solution:");
+		debug("Updated Solution:");
 		Solution solution2 = devopsClient.getSolution(solutionId, null);
 		printObj(solution2);
 	}
 
-	public void deleteSolution(String type, String op, Map<String, Object> args) {
-		String solutionId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		String solutionId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Solution...");
 		debug("ID:", solutionId);		
 		devopsClient.deleteSolution(solutionId, null);	
 	}
 
 
-	//
-	// Util
-	//
-	
-	public <T> T get(String name, Map<String, Object> map, T defaultValue) {
-		@SuppressWarnings("unchecked")
-		T value = (T)map.get(name);
-		if (value==null) {
-			value = defaultValue;
-		}
-		return value;
-	}
-	
-	public Object get(String[] names, Map<String, Object> map) {
-		for (String name: names) {
-			Object value = map.get(name);
-			if (value!=null) {
-				return value;
-			}
-		}
-		return null;
-	}
-	
 
-	//
-	// Print
-	//
-	
-	void print(Object obj) {
-		print(obj, 0);
-	}
-
-	void println(Object obj) {
-		print(obj, 0);
-		System.out.println();
-	}
-
-	@SuppressWarnings("rawtypes")
-	void print(Object obj, int n) {
-		if (obj instanceof Iterable) {
-			for (Object o: (Iterable)obj) {
-				print(o, n+1);
-			}
-			return;
-		}
-		System.out.print(String.format((n>0 ? "%" + (n+1) + "s" : "") + "%s", "", format(obj)));
-	}
-
-	void printW(Object obj, int n) {
-		System.out.print(String.format("%" + (n>1 ? "-" + n : "") + "s", formatSimple(obj)));		
-	}
-
-	void print(Page<?> page) {
-		print(page.getContent());
-	}
-	
-	void print(Iterable<?> it) {
-		boolean ln = false;
-		boolean hrule = false;
-		if (isTabular()) {
-			String fmt = null;
-			List<List<String>> table = new ArrayList<>();
-			for (Object o: it) {
-				if (fmt==null) {
-					fmt = getFormat(o);
-				}
-				List<String> row = getFields(o, fmt);
-				table.add(row);
-			}
-			int[] widths = getColsWidth(table);
-			String[] cols = getFormatCols(fmt);
-			if (cols.length>widths.length) {
-				widths = Arrays.copyOf(widths, cols.length);
-			}
-			for (int j = 0; j<cols.length; j++) {
-				if (cols[j].length()>widths[j]) {
-					widths[j] = cols[j].length();
-				}
-			}
-			for (int j = 0; j<cols.length; j++) {
-				String col = formatColName(cols[j]);
-				printW(col, widths[j]+3);
-			}
-			System.out.println();
-			if (hrule) {
-				for (int j = 0; j<cols.length; j++) {
-					System.out.print(new String(new char[widths[j]+3]).replace('\0', '-'));
-				}
-				System.out.println();				
-			}
-			int i = 0;
-			for (List<String> row: table) {
-				if (ln) {
-					print("[%-" + digits(table.size()) + "s] ", i);
-				}
-				int j = 0;
-				for (String value: row) {
-					printW(value, widths[j]+3);
-					j++;
-				}
-				System.out.println();
-				i++;
-			}
-		} else {
-			String fmt = null;
-			for (Object o: it) {
-				if (fmt==null) {
-					fmt = getFormat(o);
-				}
-				print(o, 0);
-			}			
-		}
-
-	}
-
-	void printObj(Object obj) {
-		String fmt = getFormat(obj);
-		if (isTabular()) {
-			List<String> values = getFields(obj, fmt);
-			String[] cols = getFormatCols(fmt);
-			int[] widths = new int[Math.max(values.size(), cols.length)];
-			for (int i=0; i<widths.length; i++) {
-				widths[i] = i<cols.length && i<values.size() ? Math.max(values.get(i).length(), cols[i].length()) :
-					i<cols.length ? cols[i].length() : values.get(i).length();
-			}
-			for (int j = 0; j<cols.length; j++) {
-				String col = formatColName(cols[j]);
-				printW(col, widths[j]+3);
-			}
-			System.out.println();
-			int j = 0;
-			for (String value: values) {
-				printW(value, widths[j]+3);
-				j++;
-			}
-			System.out.println();
-		} else {
-			print(obj, 0);
-		}		
-	}
-	
-	private String formatColName(String col) {
-		return col.toUpperCase();
-	}
-
-	private int digits(int n) {
-		return (int)(Math.log10(n)+1);
-	}
-
-	private int[] getColsWidth(List<List<String>> table) {
-		int[] ww = new int[getWidth(table)];
-		for (List<String> row: table) {
-			int i = 0;
-			for (String value: row) {
-				int l = value!=null ? value.length() : 0;
-				if (l>ww[i]) {
-					ww[i] = l;
-				}
-				i++;
-			}				
-		}
-		return ww;
-	}
-
-	private int getWidth(List<List<String>> table) {
-		int w = 0;
-		for (List<String> row: table) {
-			if (row.size()>w) {
-				w = row.size();
-			}
-		}
-		return w;
-	}
-
-	void printLine(Object... objs) {
-		for (Object obj: objs) {
-			System.out.print(obj);		
-		}
-		System.out.println();		
-	}
-	
-	protected boolean isTabular() {
-		String o = getFormat();
-		if (o==null) {
-			return true;
-		}
-		switch (o) {
-		case "wide":
-		case "raw":
-		case "json":
-		case "yaml":
-			return false;
-		default: 
-			return true;
-		}
-	}
-	
-	protected String getFormat() {
-		String o = (String)argsMap.get("o");
-		if (o==null || o.isEmpty()) {
-			return null;
-		}
-		o = o.toLowerCase();
-		return o;
-	}
-
-	protected String getFormat(Object obj) {
-		String o = getFormat();
-		if (o==null || o.isEmpty()) {
-			o = getDefaultFormat(obj.getClass());
-		}
-		return o;
-	}
-	
-	String[] getFormatCols(String fmt) {
-		String[] cols = fmt.split(",");
-		return cols;
-	}
-	
-	String format(Object obj) {
-		if (obj==null) {
-			return "";
-		}
-		String o = getFormat();
-		if (o==null || o.isEmpty()) {
-			o = getDefaultFormat(obj.getClass());
-		}
-		if (o==null || o.isEmpty()) {
-			o = getDefaultFormat(obj.getClass());
-		} else if ("wide".equals(o)) {
-			o = getWideFormat(obj.getClass());
-		}  else if ("raw".equals(o)) {
-			return obj.toString();
-		} else if ("json".equals(o)) {
-			String s = MappingUtils.toJson(obj);
-			if (s==null) {
-				s = "";
-			}
-			return s;
-		} else if ("yaml".equals(o)) {
-			String s = MappingUtils.toJson(obj);
-			if (s==null) {
-				s = "";
-			}
-			return s;
-		}
-		if (o!=null && !o.isEmpty()) {
-			StringBuilder sb = new StringBuilder();
-			Map<String, Object> map = MappingUtils.toMap(obj);
-			if (map==null) {
-				sb.append("???");
-			} else if (o=="+") {
-				for (Map.Entry<String, Object> e: map.entrySet()) {
-					if (sb.length()>0) {
-						sb.append(" ");						
-					}
-					sb.append(e.getValue());
-				}
-			} else {
-				String[] a = o.split(",");
-				for (String s: a) {
-					if (!s.isEmpty()) {
-						sb.append(" ");						
-					}
-					Object value = MapUtil.resolve(s, map);
-					if (value==null) {
-						value = "";
-					}
-					sb.append(value);						
-				}
-			}
-			return sb.toString();
-		} else {
-			return obj.toString();			
-		}
-	}
-
-	String formatCols(Object obj, String fmt) {
-		StringBuilder sb = new StringBuilder();
-		Map<String, Object> map = MappingUtils.toMap(obj);
-		if (map==null) {
-			sb.append("???");
-		} else if (fmt=="+") {
-			for (Map.Entry<String, Object> e: map.entrySet()) {
-				if (sb.length()>0) {
-					sb.append(" ");						
-				}
-				sb.append(e.getValue());
-			}
-		} else {
-			String[] a = fmt.split(",");
-			for (String s: a) {
-				if (!s.isEmpty()) {
-					sb.append(" ");						
-				}
-				Object value = MapUtil.resolve(s, map);
-				if (value==null) {
-					value = "";
-				}
-				sb.append(value);						
-			}
-		}
-		return sb.toString();
-	}
-	
-	List<String> getFields(Object obj, String fmt) {
-		List<String> values = new ArrayList<>();
-		Map<String, Object> map = MappingUtils.toMap(obj);
-		if (map==null) {
-		} else if (fmt=="+") {
-			for (Map.Entry<String, Object> e: map.entrySet()) {
-				values.add(formatSimple(e.getValue()));						
-			}
-		} else {
-			String[] a = fmt.split(",");
-			for (String s: a) {
-				Object value = MapUtil.resolve(s, map);
-				values.add(formatSimple(value));						
-			}
-		}
-		return values;
-	}
-
-	private String formatSimple(Object value) {
-		if (value==null) {
-			return "";
-		}
-		return value.toString();
-	}
-
-	protected void debug(Object... s) {
-		if (isDebug()) {
-			System.out.println(s);
-		}
-	}
-	
-	protected boolean isDebug() {
-		String s = (String)argsMap.get("debug");
-		return s!=null;
-	}
-	
-	private String getDefaultFormat(Class<? extends Object> type) {
+	@Override
+	protected String getDefaultFormat(Class<? extends Object> type) {
 		if (Cluster.class.equals(type)) {
 			return CLUSTER_DEFAULT_FORMAT;
 		}
@@ -1611,7 +1281,8 @@ public class Devops extends CommandRunnerBase {
 		return null;
 	}
 
-	private String getWideFormat(Class<? extends Object> type) {
+	@Override
+	protected String getWideFormat(Class<? extends Object> type) {
 		if (Cluster.class.equals(type)) {
 			return CLUSTER_WIDE_FORMAT;
 		}

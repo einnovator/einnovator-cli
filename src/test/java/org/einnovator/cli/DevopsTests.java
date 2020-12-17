@@ -13,13 +13,10 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
-public class DevopsTests {
+public class DevopsTests extends TestsBase {
 
 	@Autowired
 	Devops devops;
-	
-	@Autowired
-	CliRunner runner;
 
 	@Test
 	public void clusterListTest() throws Exception {
@@ -73,6 +70,13 @@ public class DevopsTests {
 		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
 		String name = "superheros";
 		run("devops", "deploy", "get", name, "-n", space);
+	}
+
+	@Test
+	public void deployGetWideTest() throws Exception {
+		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
+		String name = "superheros";
+		run("devops", "deploy", "get", name, "-n", space, "-o", "wide");
 	}
 
 	public void run(String... args) {

@@ -18,9 +18,7 @@ import org.einnovator.util.UriUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
-import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 
@@ -28,9 +26,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class Documents extends CommandRunnerBase {
 
-	private static final String DOCUMENTS_DEFAULT_SERVER = "http://localhost:2021";
+	public static final String DOCUMENTS_DEFAULT_SERVER = "http://localhost:2020";
+	public static final String DOCUMENTS_MONITOR_SERVER = "http://localhost:2021";
+
 	public static final String DOCUMENTS_PREFIX = "documents";
 
+
+	private static final String DOCUMENT_DEFAULT_FORMAT = "name,type,contentLength:size,owner,lastModified";
+	private static final String DOCUMENT_WIDE_FORMAT = "name,type,contentLength:size,contentType,owner,lastModified";
+
+	private static final String MOUNT_DEFAULT_FORMAT = "name,type,path,scope,enabled,readonly";
+	private static final String MOUNT_WIDE_FORMAT = "name,type,path,scope,enabled,readonly,versioned,root";
+	
 	@Autowired
 	Sso sso;
 
@@ -38,9 +45,10 @@ public class Documents extends CommandRunnerBase {
 	
 	private DocumentsClient documentsClient;
 
+	private String server = DOCUMENTS_DEFAULT_SERVER;
+
 	private DocumentsClientConfiguration config = new DocumentsClientConfiguration();
 
-	
 	
 	@Override
 	public String getPrefix() {
@@ -52,40 +60,50 @@ public class Documents extends CommandRunnerBase {
 		"mounts", "mount", "m",
 		};
 
+	@Override
 	protected String[] getCommands() {
 		return DOCUMENTS_COMMANDS;
 	}
 
-	public void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template) {
-		config.setServer(DOCUMENTS_DEFAULT_SERVER);
-		updateObjectFromNonNull(config, convert(args, DocumentsClientConfiguration.class));
+	@Override
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
+		config.setServer(server);
+		updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
 
 		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-		super.init(cmds, args, template);
+		super.init(cmds, options, template);
 
 		documentsClient = new DocumentsClient(template, config);
 	}
 
-	public void run(String type, String op, Map<String, Object> argsMap, String[] args) {
+	@Override
+	public void setEndpoints(Map<String, Object> endpoints) {
+		String server = (String)endpoints.get("server");
+		if (server!=null) {
+			this.server = server;
+		}
+	}
+
+	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
 
 		String path = op;
 		switch (type) {
 		case "documents": case "document": case "docs": case "doc": case "d":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				read(path, argsMap);
+				read(path, options);
 				break;
 			case "list": case "l": case "ls": case "dir": case "":
-				list(path, argsMap);
+				list(path, options);
 				break;
 			case "create": case "c":
-				write(path, argsMap);
+				write(path, options);
 				break;
 			case "mkdir": case "mkd":
-				mkdir(path, argsMap);
+				mkdir(path, options);
 				break;				
 			case "delete": case "del": case "d":
-				delete(path, argsMap);
+				delete(path, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -95,19 +113,19 @@ public class Documents extends CommandRunnerBase {
 		case "mount": case "mounts": case "m":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":
-				getMount(argsMap);
+				getMount(type, op, cmds, options);
 				break;
 			case "list": case "l": case "":
-				listMounts(argsMap);
+				listMounts(type, op, cmds, options);
 				break;
 			case "create": case "c":
-				createMount(argsMap);
+				createMount(type, op, cmds, options);
 				break;
 			case "update": case "u":
-				updateMount(argsMap);
+				updateMount(type, op, cmds, options);
 				break;
 			case "delete": case "del": case "d":
-				deleteMount(argsMap);
+				deleteMount(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -134,9 +152,9 @@ public class Documents extends CommandRunnerBase {
 	// Document
 	//
 	
-	public void list(String path, Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		DocumentFilter filter = convert(args, DocumentFilter.class);
+	public void list(String path, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		DocumentFilter filter = convert(options, DocumentFilter.class);
 		List<Document> documents = documentsClient.list(path, filter, pageable);
 		printLine("Listing Documents...");
 		printLine("Filter:", filter);
@@ -145,8 +163,8 @@ public class Documents extends CommandRunnerBase {
 		print(documents);
 	}
 
-	public void read(String path, Map<String, Object> args) {
-		String documentId = (String)get(new String[] {"id", "uuid", "documentname", "email"}, args);
+	public void read(String path, Map<String, Object> options) {
+		String documentId = (String)get(new String[] {"id", "uuid", "documentname", "email"}, options);
 		Document document = documentsClient.read(documentId, null);
 		printLine("Get Document...");
 		printLine("ID:", documentId);
@@ -154,22 +172,22 @@ public class Documents extends CommandRunnerBase {
 		print(document);
 	}
 
-	public void write(String path, Map<String, Object> args) {
-		Document document = convert(args, Document.class);
+	public void write(String path, Map<String, Object> options) {
+		Document document = convert(options, Document.class);
 		printLine("Creating Document...");
 		print(document);
 		URI uri = documentsClient.write(document, null);
 		printLine("URI:", uri);
 	}
 
-	public void mkdir(String path, Map<String, Object> args) {
+	public void mkdir(String path, Map<String, Object> options) {
 		printLine("mkdir " + path);
 		URI uri = documentsClient.mkdir(path, null);
 		printLine("URI:", uri);
 	}
 	
-	public void delete(String path, Map<String, Object> args) {
-		String documentId = (String)get(new String[] {"id", "documentname"}, args);
+	public void delete(String path, Map<String, Object> options) {
+		String documentId = (String)get(new String[] {"id", "documentname"}, options);
 		printLine("Deleting Document...");
 		printLine("ID:", documentId);		
 		documentsClient.delete(path, null);	
@@ -180,9 +198,9 @@ public class Documents extends CommandRunnerBase {
 	// Mounts
 	//
 	
-	public void listMounts(Map<String, Object> args) {
-		Pageable pageable = convert(args, PageOptions.class).toPageRequest();
-		MountFilter filter = convert(args, MountFilter.class);
+	public void listMounts(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		MountFilter filter = convert(options, MountFilter.class);
 		Page<Mount> mounts = null; // documentsClient.listMounts(filter, pageable);
 		printLine("Listing Mounts...");
 		printLine("Filter:", filter);
@@ -191,8 +209,8 @@ public class Documents extends CommandRunnerBase {
 		print(mounts);
 	}
 	
-	public void getMount(Map<String, Object> args) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, args);
+	public void getMount(String type, String op, String[] cmds, Map<String, Object> options) {
+		String mountId = (String)get(new String[] {"id", "uuid"}, options);
 		Mount mount = null; //documentsClient.getMount(mountId, null);
 		printLine("Get Mount...");
 		printLine("ID:", mountId);
@@ -200,8 +218,8 @@ public class Documents extends CommandRunnerBase {
 		print(mount);
 	}
 	
-	public void createMount(Map<String, Object> args) {
-		Mount mount = convert(args, Mount.class);
+	public void createMount(String type, String op, String[] cmds, Map<String, Object> options) {
+		Mount mount = convert(options, Mount.class);
 		printLine("Creating Mount...");
 		print(mount);
 		URI uri = null; //documentsClient.createMount(mount, null);
@@ -212,9 +230,9 @@ public class Documents extends CommandRunnerBase {
 		print(mount2);
 	}
 
-	public void updateMount(Map<String, Object> args) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, args);
-		Mount mount = convert(args, Mount.class);
+	public void updateMount(String type, String op, String[] cmds, Map<String, Object> options) {
+		String mountId = (String)get(new String[] {"id", "uuid"}, options);
+		Mount mount = convert(options, Mount.class);
 		printLine("Updating Mount...");
 		print(mount);
 		//documentsClient.updateMount(mount, null);
@@ -224,11 +242,33 @@ public class Documents extends CommandRunnerBase {
 
 	}
 	
-	public void deleteMount(Map<String, Object> args) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, args);
+	public void deleteMount(String type, String op, String[] cmds, Map<String, Object> options) {
+		String mountId = (String)get(new String[] {"id", "uuid"}, options);
 		printLine("Deleting Mount...");
 		printLine("ID:", mountId);		
 		//documentsClient.deleteMount(mountId, null);		
+	}
+	
+	@Override
+	protected String getDefaultFormat(Class<? extends Object> type) {
+		if (Document.class.equals(type)) {
+			return DOCUMENT_DEFAULT_FORMAT;
+		}
+		if (Mount.class.equals(type)) {
+			return MOUNT_DEFAULT_FORMAT;
+		}
+		return null;
+	}
+
+	@Override
+	protected String getWideFormat(Class<? extends Object> type) {
+		if (Document.class.equals(type)) {
+			return DOCUMENT_WIDE_FORMAT;
+		}
+		if (Mount.class.equals(type)) {
+			return MOUNT_WIDE_FORMAT;
+		}
+		return null;
 	}
 	
 }

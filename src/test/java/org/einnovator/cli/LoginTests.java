@@ -11,22 +11,22 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
-public class SsoTests extends TestsBase {
+public class LoginTests {
 
-	
+	public static String DEFAULT_USERNAME = "jsimao71@gmail.com";
+	public static String DEFAULT_USERNAME2 = "tdd@gmail.com";
+	public static String DEFAULT_PASSWORD = "Einnovator123!!";
+	public static String DEFAULT_API = "localhost";
+
 	@Autowired
 	Sso sso;
+	
+	@Autowired
+	CliRunner runner;
 
 	@Test
-	public void ssoTests() throws Exception {
-		runner.dispatch("sso", "users", "list", "-o", "id,username,email");
-		/*
-		runner.run("users", "list");		
-		runner.run("groups", "list");		
-		runner.run("invitations", "list");		
-		runner.run("roles", "list");		
-		runner.run("clients", "list");
-		*/
+	public void loginTests() throws Exception {
+		runner.dispatch("login", "-u", DEFAULT_USERNAME, "-p", DEFAULT_PASSWORD, "-a", DEFAULT_API);
 	}
 
 }
