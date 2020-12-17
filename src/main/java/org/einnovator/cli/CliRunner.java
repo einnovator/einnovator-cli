@@ -127,6 +127,9 @@ public class CliRunner {
 		try {
 			runner.run(type, op, cmds_, options);			
 		} catch (RuntimeException e) {
+			if (options.get("dump")!=null) {
+				e.printStackTrace();
+			}			
 			error(e.toString());
 		}
 

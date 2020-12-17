@@ -562,7 +562,19 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	//
 	// Format
 	//
+
+	protected boolean isEcho() {
+		return hasFormat();
+	}
 	
+	protected boolean hasFormat() {
+		String o = (String)options.get("o");
+		if (o==null) {
+			return false;
+		}
+		return true;
+	}
+
 	protected String getFormat() {
 		String o = (String)options.get("o");
 		if (o==null || o.isEmpty()) {

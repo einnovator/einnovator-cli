@@ -17,6 +17,7 @@ import org.einnovator.devops.client.model.Deployment;
 import org.einnovator.devops.client.model.Domain;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.Mount;
+import org.einnovator.devops.client.model.NamedEntity;
 import org.einnovator.devops.client.model.Registry;
 import org.einnovator.devops.client.model.Route;
 import org.einnovator.devops.client.model.Solution;
@@ -46,7 +47,9 @@ import org.einnovator.devops.client.modelx.VcsOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.PageUtil;
 import org.einnovator.util.UriUtils;
+import org.einnovator.util.model.EntityBase;
 import org.einnovator.util.model.EntityOptions;
+import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -107,6 +110,10 @@ public class Devops extends CommandRunnerBase {
 
 	private String server = DEVOPS_DEFAULT_SERVER;
 	
+	private String cluster;
+
+	private String space;
+
 	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
 	@Override
@@ -446,21 +453,25 @@ public class Devops extends CommandRunnerBase {
 		cluster.setName(argName(op, cmds));
 		debug("Creating Cluster: %s", cluster);
 		URI uri = devopsClient.createCluster(cluster, null);
-		printLine("Cluster URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Cluster cluster2 = devopsClient.getCluster(id, null);
-		printObj(cluster2);
-
+		if (isEcho()) {
+			printLine("Cluster URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Cluster cluster2 = devopsClient.getCluster(id, null);
+			printObj(cluster2);
+		}
 	}
 
 	
 	public void updateCluster(String type, String op, String[] cmds, Map<String, Object> options) {
 		String clusterId = argId(op, cmds);
 		Cluster cluster = convert(options, Cluster.class);
+		setId(cluster, clusterId);
 		debug("Updating Cluster: %s %s", clusterId, cluster);
 		devopsClient.updateCluster(cluster, null);
-		Cluster cluster2 = devopsClient.getCluster(clusterId, null);
-		printObj(cluster2);
+		if (isEcho()) {
+			Cluster cluster2 = devopsClient.getCluster(clusterId, null);
+			printObj(cluster2);			
+		}
 	}
 
 	public void deleteCluster(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -500,21 +511,25 @@ public class Devops extends CommandRunnerBase {
 		debug("Creating Space: %s", space);
 		printObj(space);
 		URI uri = devopsClient.createSpace(space, null);
-		printLine("Space URI:", uri);
-		String spaceId = UriUtils.extractId(uri);
-		Space space2 = devopsClient.getSpace(spaceId, null);
-		printObj(space2);
+		if (isEcho()) {
+			printLine("Space URI:", uri);
+			String spaceId = UriUtils.extractId(uri);
+			Space space2 = devopsClient.getSpace(spaceId, null);
+			printObj(space2);			
+		}
 	}
 
 	public void updateSpace(String type, String op, String[] cmds, Map<String, Object> options) {
 		String spaceId = argIdx(op, cmds);
 		Space space = convert(options, Space.class);
 		debug("Updating Space: %s %s", spaceId, space);
-		printObj(space);
+		setId(space, spaceId);
 		devopsClient.updateSpace(space, null);
-		Space space2 = devopsClient.getSpace(spaceId, null);
-		debug("Updated Space: %s", spaceId);
-		printObj(space2);
+		if (isEcho()) {
+			Space space2 = devopsClient.getSpace(spaceId, null);
+			debug("Updated Space: %s", spaceId);
+			printObj(space2);
+		}
 	}
 	
 	public void deleteSpace(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -587,7 +602,24 @@ public class Devops extends CommandRunnerBase {
 		return id;
 	}
 	
-
+	private void setId(EntityBase entity, String id) {
+		try {
+			Long.parseLong(id);			
+			entity.setId(id);
+			return;
+		} catch (IllegalArgumentException e) {			
+		}
+		try {
+			UUID.fromString(id);
+			entity.setUuid(id);
+		} catch (IllegalArgumentException e) {			
+		}
+		if (entity instanceof NamedEntity) {
+			((NamedEntity)entity).setName(id);
+			return;
+		}
+	}
+	
 	//
 	// Deployments
 	//
@@ -629,17 +661,21 @@ public class Devops extends CommandRunnerBase {
 		deployment.setName(argName(op, cmds));
 		debug("Creating Deployment: %s", deployment);
 		URI uri = devopsClient.createDeployment(spaceId, deployment, null);
-		printLine("Deployment URI:", uri);
-		String deployId = UriUtils.extractId(uri);
-		Deployment deployment2 = devopsClient.getDeployment(deployId, null);
-		printObj(deployment2);
+		if (isEcho()) {
+			printLine("Deployment URI:", uri);
+			String deployId = UriUtils.extractId(uri);
+			Deployment deployment2 = devopsClient.getDeployment(deployId, null);
+			printObj(deployment2);
+		}
 	}
 
 	public void updateDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		String deployId = argIdx(op, cmds);
 		Deployment deployment = convert(options, Deployment.class);
+		setId(deployment, deployId);
 		debug("Updating Deployment: %s %s", deployId, deployment);
-		devopsClient.updateDeployment(deployment, null);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		devopsClient.updateDeployment(deployment, options_);
 		Deployment deployment2 = devopsClient.getDeployment(deployId, null);
 		printObj(deployment2);
 	}
@@ -690,20 +726,24 @@ public class Devops extends CommandRunnerBase {
 		job.setName(argName(op, cmds));
 		debug("Creating Job: %s", job);
 		URI uri = devopsClient.createJob(spaceId, job, null);
-		printLine("Job URI:", uri);
-		String jobId = UriUtils.extractId(uri);
-		Job job2 = devopsClient.getJob(jobId, null);
-		printObj(job2);
+		if (isEcho()) {
+			printLine("Job URI:", uri);
+			String jobId = UriUtils.extractId(uri);
+			Job job2 = devopsClient.getJob(jobId, null);
+			printObj(job2);			
+		}
 	}
 
 	public void updateJob(String type, String op, String[] cmds, Map<String, Object> options) {
 		String jobId = argIdx(op, cmds);
 		Job job = convert(options, Job.class);
 		debug("Updating Job: %s %s", jobId, job);
+		setId(job, jobId);
 		devopsClient.updateJob(job, null);
-		Job job2 = devopsClient.getJob(jobId, null);
-		printObj(job2);
-
+		if (isEcho()) {
+			Job job2 = devopsClient.getJob(jobId, null);
+			printObj(job2);
+		}
 	}
 	
 	public void deleteJob(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -752,20 +792,24 @@ public class Devops extends CommandRunnerBase {
 		cronjob.setName(argName(op, cmds));
 		debug("Creating CronJob: %s", cronjob);
 		URI uri = devopsClient.createCronJob(spaceId, cronjob, null);
-		printLine("CronJob URI:", uri);
-		String cronjobId = UriUtils.extractId(uri);
-		CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
-		printObj(cronjob2);
+		if (isEcho()) {
+			printLine("CronJob URI:", uri);
+			String cronjobId = UriUtils.extractId(uri);
+			CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
+			printObj(cronjob2);			
+		}
 	}
 
 	public void updateCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
 		String cronjobId = argIdx(op, cmds);
 		CronJob cronjob = convert(options, CronJob.class);
+		setId(cronjob, cronjobId);
 		debug("Updating CronJob: %s %s", cronjobId, cronjob);
 		devopsClient.updateCronJob(cronjob, null);
-		CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
-		printObj(cronjob2);
-
+		if (isEcho()) {
+			CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
+			printObj(cronjob2);
+		}
 	}
 	
 	public void deleteCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -803,10 +847,12 @@ public class Devops extends CommandRunnerBase {
 		domain.setName(argName(op, cmds));
 		debug("Domain: %s", domain);
 		URI uri = devopsClient.createDomain(domain, new DomainOptions());
-		printLine("Domain URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Domain domain2 = devopsClient.getDomain(id, null);
-		printObj(domain2);
+		if (isEcho()) {
+			printLine("Domain URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Domain domain2 = devopsClient.getDomain(id, null);
+			printObj(domain2);			
+		}
 	}
 	
 	
@@ -815,8 +861,10 @@ public class Devops extends CommandRunnerBase {
 		Domain domain = convert(options, Domain.class);
 		debug("Updating Domain: %s %s", domainId, domain);
 		devopsClient.updateDomain(domain, null);
-		Domain domain2 = devopsClient.getDomain(domainId, null);
-		printObj(domain2);
+		if (isEcho()) {
+			Domain domain2 = devopsClient.getDomain(domainId, null);
+			printObj(domain2);
+		}
 	}
 
 	public void deleteDomain(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -857,21 +905,23 @@ public class Devops extends CommandRunnerBase {
 		debug("Creating Registry: %s", registry);
 		RegistryOptions options_ = convert(options, RegistryOptions.class);
 		URI uri = devopsClient.createRegistry(registry, options_);
-		printLine("Registry URI:", uri);
-		String registryId = UriUtils.extractId(uri);
-		Registry registry2 = devopsClient.getRegistry(registryId, null);
-		printObj(registry2);
+		if (isEcho()) {
+			printLine("Registry URI:", uri);
+			String registryId = UriUtils.extractId(uri);
+			Registry registry2 = devopsClient.getRegistry(registryId, null);
+			printObj(registry2);			
+		}
 	}
 
 	public void updateRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
 		String registryId = argId(op, cmds);
 		Registry registry = convert(options, Registry.class);
 		debug("Updating Registry: %s %s", registryId, registry);
-		printObj(registry);
 		devopsClient.updateRegistry(registry, null);
-		Registry registry2 = devopsClient.getRegistry(registryId, null);
-		printObj(registry2);
-
+		if (isEcho()) {
+			Registry registry2 = devopsClient.getRegistry(registryId, null);
+			printObj(registry2);			
+		}
 	}
 	
 	public void deleteRegistry(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -913,10 +963,12 @@ public class Devops extends CommandRunnerBase {
 		vcs.setName(argName(op, cmds));
 		debug("Creating Vcs: %s", vcs);
 		URI uri = devopsClient.createVcs(vcs, null);
-		printLine("Vcs URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Vcs vcs2 = devopsClient.getVcs(id, null);
-		printObj(vcs2);
+		if (isEcho()) {
+			printLine("Vcs URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Vcs vcs2 = devopsClient.getVcs(id, null);
+			printObj(vcs2);			
+		}
 
 	}
 
@@ -926,8 +978,10 @@ public class Devops extends CommandRunnerBase {
 		Vcs vcs = convert(options, Vcs.class);
 		debug("Updating Vcs: %s %s", vcsId, vcs);
 		devopsClient.updateVcs(vcs, null);
-		Vcs vcs2 = devopsClient.getVcs(vcsId, null);
-		printObj(vcs2);
+		if (isEcho()) {
+			Vcs vcs2 = devopsClient.getVcs(vcsId, null);
+			printObj(vcs2);			
+		}
 	}
 
 	public void deleteVcs(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -965,10 +1019,12 @@ public class Devops extends CommandRunnerBase {
 		catalog.setName(argName(op, cmds));
 		debug("Creating Catalog: %s", catalog);
 		URI uri = devopsClient.createCatalog(catalog, new CatalogOptions());
-		printLine("Catalog URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Catalog catalog2 = devopsClient.getCatalog(id, null);
-		printObj(catalog2);
+		if (isEcho()) {
+			printLine("Catalog URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Catalog catalog2 = devopsClient.getCatalog(id, null);
+			printObj(catalog2);			
+		}
 	}
 	
 	
@@ -977,8 +1033,10 @@ public class Devops extends CommandRunnerBase {
 		Catalog catalog = convert(options, Catalog.class);
 		debug("Updating Catalog: %s %s", catalogId, catalog);
 		devopsClient.updateCatalog(catalog, null);
-		Catalog catalog2 = devopsClient.getCatalog(catalogId, null);
-		printObj(catalog2);
+		if (isEcho()) {
+			Catalog catalog2 = devopsClient.getCatalog(catalogId, null);
+			printObj(catalog2);			
+		}
 	}
 
 	public void deleteCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -1017,10 +1075,12 @@ public class Devops extends CommandRunnerBase {
 		solution.setName(argName(op, cmds));
 		debug("Creating Solution: %s", solution);
 		URI uri = devopsClient.createSolution(solution, new SolutionOptions());
-		printLine("Solution URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Solution solution2 = devopsClient.getSolution(id, null);
-		printObj(solution2);
+		if (isEcho()) {
+			printLine("Solution URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Solution solution2 = devopsClient.getSolution(id, null);
+			printObj(solution2);
+		}
 	}
 	
 	
@@ -1029,8 +1089,10 @@ public class Devops extends CommandRunnerBase {
 		Solution solution = convert(options, Solution.class);
 		debug("Updating Solution: %s %s", solutionId, solution);
 		devopsClient.updateSolution(solution, null);
-		Solution solution2 = devopsClient.getSolution(solutionId, null);
-		printObj(solution2);
+		if (isEcho()) {
+			Solution solution2 = devopsClient.getSolution(solutionId, null);
+			printObj(solution2);			
+		}
 	}
 
 	public void deleteSolution(String type, String op, String[] cmds, Map<String, Object> options) {
