@@ -109,7 +109,7 @@ public class Social extends CommandRunnerBase {
 			case "update": case "u":
 				updateChannel(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteChannel(type, op, cmds, options);
 				break;
 			default: 

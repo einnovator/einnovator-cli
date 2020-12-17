@@ -20,14 +20,15 @@ public class DevopsTests extends TestsBase {
 
 	@Test
 	public void clusterListTest() throws Exception {
-		run("devops", "cluster", "list");
 		run("devops", "cluster");
+	}
+	
+	@Test
+	public void clusterListTest2() throws Exception {
 		run("devops", "cluster", "schema");
 		run("devops", "cluster", "list", "-o", "+");
 		run("devops", "cluster", "list", "-o", "id,name,displayName,provider,region,sandbox,shared,fallback,enabled,master,credentialsType,caCertData,caCertUri,clientCertData,clientCertUri,clientKeyData,clientKeyUri,clientKeyAlgo,username,key,secret,svcacc,token,owner,ownerType,lastModified,lastModifiedFormatted,lastModifiedBy,creationDate,creationDateFormatted,createdBy,img");
 	}
-	
-
 	@Test
 	public void spaceListTest() throws Exception {
 		run("devops", "space");
@@ -77,6 +78,18 @@ public class DevopsTests extends TestsBase {
 		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
 		String name = "superheros";
 		run("devops", "deploy", "get", name, "-n", space, "-o", "wide");
+	}
+
+	@Test
+	public void deployListFilterKindTest() throws Exception {
+		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
+		run("devops", "deploy", "-n", space, "--kind=Deployment");
+	}
+
+	@Test
+	public void deployListCicdTest() throws Exception {
+		String space = "us-central/test"; //"einnovator"; //"test-uscentral";
+		run("devops", "deploy", "-n", space, "-o", "cicd");
 	}
 
 	public void run(String... args) {

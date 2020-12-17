@@ -11,24 +11,18 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.einnovator.sso.client.model.User;
-import org.einnovator.sso.client.model.Client;
-import org.einnovator.sso.client.model.GenderType;
-import org.einnovator.sso.client.model.Invitation;
-import org.einnovator.sso.client.model.InvitationError;
-import org.einnovator.sso.client.model.InvitationStatus;
-import org.einnovator.sso.client.model.InvitationType;
-import org.einnovator.sso.client.model.Member;
-import org.einnovator.sso.client.model.Role;
-import org.einnovator.sso.client.model.RoleType;
-import org.einnovator.sso.client.model.Group;
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
+import org.einnovator.sso.client.model.Client;
+import org.einnovator.sso.client.model.Group;
+import org.einnovator.sso.client.model.Invitation;
+import org.einnovator.sso.client.model.Member;
+import org.einnovator.sso.client.model.Role;
+import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
 import org.einnovator.sso.client.modelx.GroupFilter;
 import org.einnovator.sso.client.modelx.InvitationFilter;
@@ -40,7 +34,6 @@ import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
-import org.einnovator.util.model.Phone;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
@@ -67,14 +60,11 @@ public class Sso extends CommandRunnerBase {
 	public static String KEY_TOKEN = "token";
 	public static String KEY_API = "api";
 	public static String KEY_ENDPOINTS = "endpoints";
+	public static String KEY_USERNAME = "username";
 	public static String KEY_SETTINGS = "settings";
 
 	public String DEFAULT_CLIENT = "application";
 	public String DEFAULT_SECRET = "application$123";
-
-	public String DEFAULT_USERNAME = "jsimao71@gmail.com";
-	public String DEFAULT_USERNAME2 = "tdd@gmail.com";
-	public String DEFAULT_PASSWORD = "Einnovator123!!";
 
 
 	private static final String USER_DEFAULT_FORMAT = "id,username,email,status";
@@ -101,8 +91,8 @@ public class Sso extends CommandRunnerBase {
 
 	private SsoClientConfiguration config = new SsoClientConfiguration();
 
-	String tokenUsername = DEFAULT_USERNAME;
-	String tokenPassword = DEFAULT_PASSWORD;
+	String tokenUsername;
+	String tokenPassword;
 	String clientId = DEFAULT_CLIENT;
 	String clientSecret = DEFAULT_SECRET;
 	
@@ -138,25 +128,19 @@ public class Sso extends CommandRunnerBase {
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
 		super.init(cmds, options, template);
-				
-		config.setServer(server);
-		config.setClientId(clientId);
-		config.setClientSecret(clientSecret);
-		updateObjectFromNonNull(config, convert(options, SsoClientConfiguration.class));
 
-		tokenUsername = (String)get("u", options, tokenUsername);
-		tokenPassword = (String)get("p", options, tokenPassword);
-		
 		init = true;
+		
+		if (token!=null && token.isExpired()) {
+			error("Token expired! Login again...");
+			System.exit(-1);
+			token = null;
+		}
 		if (template==null) {
 			ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
 			DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
 			if (token!=null) {
-				if (!token.isExpired()) {
-					context.setAccessToken(token);					
-				} else {
-					token = null;
-				}
+				context.setAccessToken(token);					
 			}
 			template = new OAuth2RestTemplate(resource, context);
 			template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());			
@@ -182,15 +166,20 @@ public class Sso extends CommandRunnerBase {
 			setup(options);
 			init = true;
 		}
-		if (!StringUtil.hasText(tokenUsername)) {
-			error("missing username");
-			System.exit(-1);
-			return null;
-		}
-		if (!StringUtil.hasText(tokenPassword)) {
-			error("missing password");
-			System.exit(-1);
-			return null;
+		if (token==null) {
+			if (!StringUtil.hasText(tokenUsername)) {
+				error("missing username");
+				System.exit(-1);
+				return null;
+			}
+			if (!StringUtil.hasText(tokenPassword)) {
+				error("missing password");
+				System.exit(-1);
+				return null;
+			}			
+		} else {
+			if (tokenPassword==null) {
+			}		
 		}
 
 		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
@@ -236,7 +225,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				updateUser(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteUser(type, op, cmds, options);
 				break;
 			default: 
@@ -258,7 +247,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				updateGroup(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteGroup(type, op, cmds, options);
 				break;
 			default: 
@@ -281,7 +270,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				//updateMember(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				removeMember(type, op, cmds, options);
 				break;
 			default: 
@@ -303,7 +292,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				updateRole(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteRole(type, op, cmds, options);
 				break;
 			default: 
@@ -325,7 +314,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				updateInvitation(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteInvitation(type, op, cmds, options);
 				break;
 			default: 
@@ -347,7 +336,7 @@ public class Sso extends CommandRunnerBase {
 			case "update": case "u":
 				updateClient(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteClient(type, op, cmds, options);
 				break;
 			default: 
@@ -530,10 +519,10 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getToken(String type, String op, String[] cmds, Map<String, Object> options) {
-		debug("Credentials: ", tokenUsername, tokenPassword);
-		debug("Config:", config);
+		info("Credentials: %s %s", tokenUsername, tokenPassword);
+		debug("Config: %s", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
-		debug("Token: ", token);
+		debug("Token: %s", token);
 		if (token!=null) {
 			writeConfig(api, allEndpoints, token.getValue(), options);			
 		}
@@ -554,13 +543,21 @@ public class Sso extends CommandRunnerBase {
 	
 	public void setup(Map<String, Object> options) {
 		Map<String, Object> config = readConfig(options);
-		if (config==null) {
-			return;
+		if (config!=null) {
+			String current = (String)config.get("current");
+			@SuppressWarnings("unchecked")
+			Map<String, Object> context = findContext(current, (List<Map<String, Object>>)config.get("contexts"));
+			setupForContext(context);
 		}
-		String current = (String)config.get("current");
-		@SuppressWarnings("unchecked")
-		Map<String, Object> context = findContext(current, (List<Map<String, Object>>)config.get("contexts"));
-		setupForContext(context);
+				
+		this.config.setServer(server);
+		this.config.setClientId(clientId);
+		this.config.setClientSecret(clientSecret);
+		tokenUsername = (String)get("u", options, tokenUsername);
+		tokenPassword = (String)get("p", options, tokenPassword);
+		updateObjectFromNonNull(config, convert(options, SsoClientConfiguration.class));
+
+		
 	}
 
 	@SuppressWarnings("unchecked")
@@ -594,6 +591,7 @@ public class Sso extends CommandRunnerBase {
 		context.put(KEY_API, api);
 		context.put(KEY_TOKEN, token);
 		context.put(KEY_ENDPOINTS, endpoints);
+		context.put(KEY_USERNAME, tokenUsername);
 		Map<String, Object> settings = new LinkedHashMap<>();
 		context.put(KEY_SETTINGS, settings);
 		settings.put("connection", this.config.getConnection());
@@ -614,6 +612,8 @@ public class Sso extends CommandRunnerBase {
 		if (token!=null) {
 			this.token = new DefaultOAuth2AccessToken(token);
 		}
+		tokenUsername = (String)context.get(KEY_USERNAME);
+
 		if (settings!=null) {
 			clientId = (String)settings.get("clientId");
 			clientSecret = (String)settings.get("clientSecret");

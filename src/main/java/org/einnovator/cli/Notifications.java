@@ -37,7 +37,6 @@ public class Notifications extends CommandRunnerBase {
 	public static final String NOTIFICATIONS_DEFAULT_SERVER = "http://localhost:2010";
 	public static final String NOTIFICATIONS_MONITOR_SERVER = "http://localhost:2011";
 
-
 	private static final String NOTIFICATIONTYPE_DEFAULT_FORMAT = "id,typeId,category,subcategory,app,admin";
 	private static final String NOTIFICATIONTYPE_WIDE_FORMAT = "id,typeId,category,subcategory,app,admin,label";
 
@@ -47,8 +46,8 @@ public class Notifications extends CommandRunnerBase {
 	private static final String TEMPLATE_DEFAULT_FORMAT = "id,name,category,medium,contentType,app";
 	private static final String TEMPLATE_WIDE_FORMAT = "id,name,category,medium,contentType,app,subject";
 
-	private static final String JOB_DEFAULT_FORMAT ="id,name,receiverType:type,system,status,dryRun,submitDate:submitted,startDate:started,completedDate:completed,readCount:read,processCount:proc,writeCount:write,skipCount:skip";
-	private static final String JOB_WIDE_FORMAT ="id,name,receiverType:type,system,status,templateId,submitDate:submitted,startDate:started,completedDate:completed,readCount:read,processCount:proc,writeCount:write,skipCount:skip,skip:offset,max";
+	private static final String JOB_DEFAULT_FORMAT ="id,name,receiverType:type,system,status,dryrun,progress,submitDate:submitted,startDate:started,completedDate:completed,readCount:read,processCount:proc,writeCount:write,skipCount:skip,totalCount:total";
+	private static final String JOB_WIDE_FORMAT ="id,name,receiverType:type,system,status,dryrun,progress,templateId,submitDate:submitted,startDate:started,completedDate:completed,readCount:read,processCount:proc,writeCount:write,skipCount:skip,totalCount:total,skip:offset,max";
 
 	private static final String TRACKEDEVENT_DEFAULT_FORMAT = "id,username,type,app,xid,xname,xtype,source.id,source.type,action.id,date";
 	private static final String TRACKEDEVENT_WIDE_FORMAT = "id,username,type,app,xid,xname,xtype,source.id,source.type,action.id,date,dateFormatted:date";
@@ -126,7 +125,7 @@ public class Notifications extends CommandRunnerBase {
 			case "count": case "c":
 				countNotifications(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteNotification(type, op, cmds, options);
 				break;
 			default: 
@@ -148,7 +147,7 @@ public class Notifications extends CommandRunnerBase {
 			case "update": case "u":
 				updateJob(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteJob(type, op, cmds, options);
 				break;
 			default: 

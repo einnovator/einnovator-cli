@@ -111,7 +111,7 @@ public class Payments extends CommandRunnerBase {
 			case "list": case "l": case "":
 				listAccounts(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteAccount(type, op, cmds, options);
 				break;
 			default: 
@@ -127,7 +127,7 @@ public class Payments extends CommandRunnerBase {
 			case "list": case "l": case "":
 				listPayments(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deletePayment(type, op, cmds, options);
 				break;
 			default: 

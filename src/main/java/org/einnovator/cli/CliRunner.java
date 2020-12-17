@@ -124,7 +124,11 @@ public class CliRunner {
 		}
 		runner.init(cmds_, options, template);		
 
-		runner.run(type, op, cmds_, options);
+		try {
+			runner.run(type, op, cmds_, options);			
+		} catch (RuntimeException e) {
+			error(e.toString());
+		}
 
 	}
 	
@@ -233,5 +237,9 @@ public class CliRunner {
 			}			
 		}
 	}
-	
+
+
+	protected void error(String msg, Object... args) {
+		System.err.println(String.format("ERROR: " + msg, args));
+	}
 }

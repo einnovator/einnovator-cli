@@ -18,15 +18,48 @@ public class SsoTests extends TestsBase {
 	Sso sso;
 
 	@Test
-	public void ssoTests() throws Exception {
+	public void userListTest() throws Exception {
+		runner.dispatch("sso", "users", "list");
+	}
+
+	@Test
+	public void userListColsTest() throws Exception {
 		runner.dispatch("sso", "users", "list", "-o", "id,username,email");
-		/*
-		runner.run("users", "list");		
-		runner.run("groups", "list");		
-		runner.run("invitations", "list");		
-		runner.run("roles", "list");		
-		runner.run("clients", "list");
-		*/
+	}
+
+	@Test
+	public void userListYamlTest() throws Exception {
+		runner.dispatch("sso", "users", "list", "-o", "yaml");
+	}
+
+	@Test
+	public void userListJsonTest() throws Exception {
+		runner.dispatch("sso", "users", "list", "-o", "json");
+	}
+
+	@Test
+	public void groupListTest() throws Exception {
+		runner.dispatch("sso", "group");
+	}
+
+	@Test
+	public void invitationListTest() throws Exception {
+		runner.dispatch("sso", "invitation");
+	}
+
+	@Test
+	public void memberListTest() throws Exception {
+		runner.dispatch("sso", "member");
+	}
+
+	@Test
+	public void roleListTest() throws Exception {
+		runner.dispatch("sso", "role");
+	}
+
+	@Test
+	public void clientListTest() throws Exception {
+		runner.dispatch("sso", "client");
 	}
 
 }

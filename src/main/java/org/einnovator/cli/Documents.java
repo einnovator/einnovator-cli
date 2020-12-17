@@ -102,7 +102,7 @@ public class Documents extends CommandRunnerBase {
 			case "mkdir": case "mkd":
 				mkdir(path, options);
 				break;				
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				delete(path, options);
 				break;
 			default: 
@@ -124,7 +124,7 @@ public class Documents extends CommandRunnerBase {
 			case "update": case "u":
 				updateMount(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "d":
+			case "delete": case "del": case "rm": case "d":
 				deleteMount(type, op, cmds, options);
 				break;
 			default: 
