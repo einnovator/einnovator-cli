@@ -8,13 +8,17 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.bouncycastle.util.Arrays;
+import org.einnovator.devops.client.model.NamedEntity;
 import org.einnovator.util.MapUtil;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.meta.MetaUtil;
+import org.einnovator.util.model.EntityBase;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -31,9 +35,14 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	protected String[] cmds;
 	protected Map<String, Object> options;
 	protected OAuth2RestTemplate template;
+	protected boolean interactive;
+	protected boolean init;
 	
-	private static YAMLFactory yamlFactory = new YAMLFactory();
+	protected static YAMLFactory yamlFactory = new YAMLFactory();
 
+	@Autowired
+	protected List<CommandRunner> runners;
+	
 	@Override
 	public boolean supports(String cmd) {
 		return StringUtil.containsIgnoreCase(getCommands(), cmd);
@@ -45,10 +54,11 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	}
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
 		this.cmds = cmds;
 		this.options = options;
 		this.template = template;
+		this.interactive = interactive;
 	}
 
 
@@ -106,6 +116,35 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	 */
 	public void setTemplate(OAuth2RestTemplate template) {
 		this.template = template;
+	}
+
+	/**
+	 * Get the value of property {@code runners}.
+	 *
+	 * @return the value of {@code runners}
+	 */
+	public List<CommandRunner> getRunners() {
+		return runners;
+	}
+
+
+	/**
+	 * Set the value of property {@code runners}.
+	 *
+	 * @param runners the value of {@code runners}
+	 */
+	@Override
+	public void setRunners(List<CommandRunner> runners) {
+		this.runners = runners;
+	}
+
+	@Override
+	public Map<String, Object> getSettings() {
+		return null;
+	}
+
+	@Override
+	public void loadSettings(Map<String, Object> settings) {
 	}
 
 	protected void error(String msg, Object... args) {
@@ -179,7 +218,22 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		}
 		return value;
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	protected <T> T get(String name, Map<String, Object> map, T defaultValue, Class<T> type) {
+		T value = (T)map.get(name);
+		if (value==null) {
+			value = defaultValue;
+		} else if (!type.isAssignableFrom(value.getClass())) {
+			if (value instanceof Map) {
+				Object obj = MetaUtil.newInstance(type);
+				MappingUtils.fromMap(obj, (Map<String,Object>)value);
+				value = (T)obj;
+			}
+		}
+		return value;
+	}
+
 	protected Object get(String[] names, Map<String, Object> map) {
 		for (String name: names) {
 			Object value = map.get(name);
@@ -700,5 +754,109 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	protected String getFormat(String fmt, Class<? extends Object> type) {
 		return null;
 	}
+	
+	protected Integer parseInt(String s) {
+		try {
+			return Integer.parseInt(s);			
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
 
+	protected void exit(int code) {
+		if (interactive) {
+			throw new InteractiveException();
+		}
+		System.exit(code);		
+	}
+
+	protected String argn(String op, String[] cmds, int index, boolean required) {
+		String id = cmds.length > index ? cmds[index] : null;
+		if (required && id==null) {
+			error(String.format("missing argument"));
+			exit(-1);
+			return null;
+		}
+		return id;
+	}
+		
+	protected String argId(String op, String[] cmds, boolean required) {
+		return argn(op, cmds, 0, required);
+	}
+
+	protected String argId1(String op, String[] cmds, boolean required) {
+		return argn(op, cmds, 1, required);
+	}
+
+	protected String argName(String op, String[] cmds, boolean required) {
+		return argn(op, cmds, 0, required);
+	}
+
+	protected String argName(String op, String[] cmds) {
+		return argName(op, cmds, true);
+	}
+
+	protected String argId(String op, String[] cmds) {
+		return argId(op, cmds, true);
+	}
+	protected String argId1(String op, String[] cmds) {
+		return argId1(op, cmds, true);
+	}
+	
+	protected String argPID(Map<String, Object> options) {
+		return null;
+	}
+	
+	protected String argIdx(String op, String[] cmds) {
+		return argIdx(op, cmds, 0);
+	}
+
+	protected String argIdx1(String op, String[] cmds) {
+		return argIdx(op, cmds, 1);
+	}
+
+	protected String argIdx(String op, String[] cmds, int index) {
+		String id = cmds.length > index ? cmds[index] : null;
+		if (id==null) {
+			error(String.format("missing resource id"));
+			exit(-1);
+			return null;
+		}
+		try {
+			Long.parseLong(id);			
+			return id;
+		} catch (IllegalArgumentException e) {			
+		}
+		try {
+			UUID.fromString(id);
+			return id;
+		} catch (IllegalArgumentException e) {			
+		}
+		String pid = argPID(options);
+		if (pid!=null) {
+			if (id.indexOf("/")<0) {
+				id = pid + "/" + id;
+			}
+		}
+		return id;
+	}
+	
+	protected void setId(EntityBase entity, String id) {
+		try {
+			Long.parseLong(id);			
+			entity.setId(id);
+			return;
+		} catch (IllegalArgumentException e) {			
+		}
+		try {
+			UUID.fromString(id);
+			entity.setUuid(id);
+		} catch (IllegalArgumentException e) {			
+		}
+		if (entity instanceof NamedEntity) {
+			((NamedEntity)entity).setName(id);
+			return;
+		}
+	}
+	
 }

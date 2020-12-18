@@ -1,20 +1,16 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.convert;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
-import java.util.Date;
 import java.util.Map;
 
 import org.einnovator.notifications.client.NotificationsClient;
 import org.einnovator.notifications.client.config.NotificationsClientConfiguration;
 import org.einnovator.notifications.client.model.Event;
-import org.einnovator.notifications.client.model.EventType;
 import org.einnovator.notifications.client.model.Job;
 import org.einnovator.notifications.client.model.Notification;
 import org.einnovator.notifications.client.model.NotificationType;
-import org.einnovator.notifications.client.model.ObjectInfo;
 import org.einnovator.notifications.client.model.Template;
 import org.einnovator.notifications.client.model.TrackedEvent;
 import org.einnovator.notifications.client.modelx.JobFilter;
@@ -23,6 +19,7 @@ import org.einnovator.notifications.client.modelx.NotificationTypeFilter;
 import org.einnovator.notifications.client.modelx.TemplateFilter;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
+import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -85,13 +82,18 @@ public class Notifications extends CommandRunnerBase {
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
-		config.setServer(server);
-		updateObjectFromNonNull(config, convert(options, NotificationsClientConfiguration.class));
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+		if (!init) {
+			super.init(cmds, options, template, interactive);
 
-		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-		super.init(cmds, options, template);
-		notificationsClient = new NotificationsClient(template, config);
+			config.setServer(server);
+			updateObjectFromNonNull(config, convert(options, NotificationsClientConfiguration.class));
+
+			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+			super.init(cmds, options, template, interactive);
+			notificationsClient = new NotificationsClient(template, config);			
+			init = true;
+		}
 	}
 
 	@Override
@@ -177,11 +179,8 @@ public class Notifications extends CommandRunnerBase {
 	public void listNotifications(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		NotificationFilter filter = convert(options, NotificationFilter.class);
+		debug("Notifications: %s %s", filter, pageable);
 		Page<Notification> notifications = notificationsClient.listNotifications(filter, pageable);
-		printLine("Listing Notifications...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Notifications:");
 		print(notifications);
 	}
 	
@@ -201,9 +200,8 @@ public class Notifications extends CommandRunnerBase {
 
 	
 	public void deleteNotification(String type, String op, String[] cmds, Map<String, Object> options) {
-		String notificationId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Notification...");
-		printLine("ID:", notificationId);		
+		String notificationId = argId(op, cmds);
+		debug("Deleting Notification: %s", notificationId);
 		notificationsClient.deleteNotification(notificationId, null);		
 	}
 
@@ -223,42 +221,38 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
-		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, options);
+		String notificationTypeId = argId(op, cmds);
+		debug("NotificationType: %s", notificationTypeId);
 		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, null);
-		printLine("Get NotificationType...");
-		printLine("ID:", notificationTypeId);
-		printLine("NotificationType:");
-		print(notificationType);
+		printObj(notificationType);
 	}
 	
 	public void createNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
 		NotificationType notificationType = convert(options, NotificationType.class);
-		printLine("Creating NotificationType...");
-		print(notificationType);
-		URI uri = null; notificationsClient.createNotificationType(notificationType, null);
-		printLine("URI:", uri);
-		String notificationTypeId = UriUtils.extractId(uri);
-		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null);
-		print("Created NotificationType:");
-		print(notificationType2);
+		debug("Creating NotificationType: %s", notificationType);
+		URI uri = notificationsClient.createNotificationType(notificationType, new RequestOptions());
+		if (isEcho()) {
+			printLine("NotificationType URI:", uri);
+			String id = UriUtils.extractId(uri);
+			NotificationType notificationType2 = notificationsClient.getNotificationType(id, null);
+			printObj(notificationType2);			
+		}
 	}
 
 	public void updateNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
-		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, options);
-		NotificationType notificationType = convert(options, NotificationType.class);
-		printLine("Updating NotificationType...");
-		print(notificationType);
-		notificationsClient.updateNotificationType(notificationType, null);
-		NotificationType notificationType2 = null; notificationsClient.getNotificationType(notificationTypeId, null);
-		print("Updated NotificationType:");
-		print(notificationType2);
-
+		String notificationTypeId = argId(op, cmds);
+		NotificationType account = convert(options, NotificationType.class);
+		debug("Updating NotificationType: %s %s", notificationTypeId, account);
+		notificationsClient.updateNotificationType(account, null);
+		if (isEcho()) {
+			NotificationType account2 = notificationsClient.getNotificationType(notificationTypeId, null);
+			printObj(account2);			
+		}
 	}
 	
 	public void deleteNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
-		String notificationTypeId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting NotificationType...");
-		printLine("ID:", notificationTypeId);		
+		String notificationTypeId = argId(op, cmds);
+		debug("Deleting NotificationType: %s", notificationTypeId);
 		notificationsClient.deleteNotificationType(notificationTypeId, null);		
 	}
 
@@ -270,51 +264,44 @@ public class Notifications extends CommandRunnerBase {
 	public void listTemplates(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		TemplateFilter filter = convert(options, TemplateFilter.class);
+		debug("Templates: %s %s", filter, pageable);
 		Page<Template> templates = notificationsClient.listTemplates(filter, pageable);
-		printLine("Listing Templates...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Templates:");
 		print(templates);
 	}
 	
 	public void getTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
-		String templateId = (String)get(new String[] {"id", "uuid"}, options);
-		Template template = null; notificationsClient.getTemplate(templateId, null);
-		printLine("Get Template...");
-		printLine("ID:", templateId);
-		printLine("Template:");
-		print(template);
+		String templateId = argId(op, cmds);
+		debug("Template: %s", templateId);
+		Template template = notificationsClient.getTemplate(templateId, null);
+		printObj(template);
 	}
 	
 	public void createTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
 		Template template = convert(options, Template.class);
-		printLine("Creating Template...");
-		print(template);
-		URI uri = null; notificationsClient.createTemplate(template, null);
-		printLine("URI:", uri);
-		String templateId = UriUtils.extractId(uri);
-		Template template2 = null; notificationsClient.getTemplate(templateId, null);
-		print("Created Template:");
-		print(template2);
+		debug("Creating Template: %s", template);
+		URI uri = notificationsClient.createTemplate(template, new RequestOptions());
+		if (isEcho()) {
+			printLine("Template URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Template template2 = notificationsClient.getTemplate(id, null);
+			printObj(template2);			
+		}
 	}
 
 	public void updateTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
-		String templateId = (String)get(new String[] {"id", "uuid"}, options);
-		Template template = convert(options, Template.class);
-		printLine("Updating Template...");
-		print(template);
-		notificationsClient.updateTemplate(template, null);
-		Template template2 = null; notificationsClient.getTemplate(templateId, null);
-		print("Updated Template:");
-		print(template2);
-
+		String templateId = argId(op, cmds);
+		Template account = convert(options, Template.class);
+		debug("Updating Template: %s %s", templateId, account);
+		notificationsClient.updateTemplate(account, null);
+		if (isEcho()) {
+			Template account2 = notificationsClient.getTemplate(templateId, null);
+			printObj(account2);			
+		}
 	}
 	
 	public void deleteTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
-		String templateId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Template...");
-		printLine("ID:", templateId);		
+		String templateId = argId(op, cmds);
+		debug("Deleting Template: %s", templateId);
 		notificationsClient.deleteTemplate(templateId, null);		
 	}
 
@@ -325,51 +312,44 @@ public class Notifications extends CommandRunnerBase {
 	public void listJobs(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		JobFilter filter = convert(options, JobFilter.class);
+		debug("Jobs: %s %s", filter, pageable);
 		Page<Job> jobs = notificationsClient.listJobs(filter, pageable);
-		printLine("Listing Jobs...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Jobs:");
 		print(jobs);
 	}
 	
 	public void getJob(String type, String op, String[] cmds, Map<String, Object> options) {
-		String jobId = (String)get(new String[] {"id", "uuid"}, options);
-		Job job = null; notificationsClient.getJob(jobId, null);
-		printLine("Get Job...");
-		printLine("ID:", jobId);
-		printLine("Job:");
-		print(job);
+		String jobId = argId(op, cmds);
+		debug("Job: %s", jobId);
+		Job job = notificationsClient.getJob(jobId, null);
+		printObj(job);
 	}
 	
 	public void createJob(String type, String op, String[] cmds, Map<String, Object> options) {
 		Job job = convert(options, Job.class);
-		printLine("Creating Job...");
-		print(job);
-		URI uri = null; notificationsClient.createJob(job, null);
-		printLine("URI:", uri);
-		String jobId = UriUtils.extractId(uri);
-		Job job2 = null; notificationsClient.getJob(jobId, null);
-		print("Created Job:");
-		print(job2);
+		debug("Creating Job: %s", job);
+		URI uri = notificationsClient.createJob(job, new RequestOptions());
+		if (isEcho()) {
+			printLine("Job URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Job job2 = notificationsClient.getJob(id, null);
+			printObj(job2);			
+		}
 	}
 
 	public void updateJob(String type, String op, String[] cmds, Map<String, Object> options) {
-		String jobId = (String)get(new String[] {"id", "uuid"}, options);
-		Job job = convert(options, Job.class);
-		printLine("Updating Job...");
-		print(job);
-		notificationsClient.updateJob(job, null);
-		Job job2 = null; notificationsClient.getJob(jobId, null);
-		print("Updated Job:");
-		print(job2);
-
+		String jobId = argId(op, cmds);
+		Job account = convert(options, Job.class);
+		debug("Updating Job: %s %s", jobId, account);
+		notificationsClient.updateJob(account, null);
+		if (isEcho()) {
+			Job account2 = notificationsClient.getJob(jobId, null);
+			printObj(account2);			
+		}
 	}
 	
 	public void deleteJob(String type, String op, String[] cmds, Map<String, Object> options) {
-		String jobId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Job...");
-		printLine("ID:", jobId);		
+		String jobId = argId(op, cmds);
+		debug("Deleting Job: %s", jobId);
 		notificationsClient.deleteJob(jobId, null);		
 	}
 	

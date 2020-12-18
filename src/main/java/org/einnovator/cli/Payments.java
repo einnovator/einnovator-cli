@@ -1,6 +1,5 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.convert;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
@@ -18,9 +17,9 @@ import org.einnovator.payments.client.modelx.AccountFilter;
 import org.einnovator.payments.client.modelx.AccountOptions;
 import org.einnovator.payments.client.modelx.PaymentFilter;
 import org.einnovator.payments.client.modelx.PaymentOptions;
-import org.einnovator.sso.client.model.Client;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
+import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -83,14 +82,18 @@ public class Payments extends CommandRunnerBase {
 
 
 
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
-		config.setServer(PAYMENTS_DEFAULT_SERVER);
-		updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+		if (!init) {
+			super.init(cmds, options, template, interactive);
+			config.setServer(PAYMENTS_DEFAULT_SERVER);
+			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
 
-		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-		super.init(cmds, options, template);
+			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+			super.init(cmds, options, template, interactive);
 
-		paymentsClient = new PaymentsClient(template, config);
+			paymentsClient = new PaymentsClient(template, config);
+			init = true;
+		}
 	}
 
 	public void setEndpoints(Map<String, Object> endpoints) {
@@ -156,52 +159,46 @@ public class Payments extends CommandRunnerBase {
 	public void listAccounts(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		AccountFilter filter = convert(options, AccountFilter.class);
+		debug("Account: %s %s", filter, pageable);
 		Page<Account> accounts = paymentsClient.listAccounts(filter, pageable);
-		printLine("Listing Accounts...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Accounts:");
 		print(accounts);
 	}
 	
 	public void getAccount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String accountId = (String)get(new String[] {"id", "uuid"}, options);
+		String accountId = argId(op, cmds);
+		debug("Account: %s", accountId);
 		AccountOptions options_ = convert(options, AccountOptions.class);
-		Account account = null; paymentsClient.getAccount(accountId, options_);
-		printLine("Get Account...");
-		printLine("ID:", accountId);
-		printLine("Account:");
-		print(account);
+		Account account = paymentsClient.getAccount(accountId, options_);
+		printObj(account);
 	}
 	
 	public void createAccount(String type, String op, String[] cmds, Map<String, Object> options) {
 		Account account = convert(options, Account.class);
-		printLine("Creating Account...");
-		print(account);
-		URI uri = paymentsClient.createAccount(account, null);
-		printLine("URI:", uri);
-		String accountId = UriUtils.extractId(uri);
-		Account account2 = null; paymentsClient.getAccount(accountId, null);
-		print("Created Account:");
-		print(account2);
+		account.setName(argName(op, cmds));
+		debug("Creating Account: %s", account);
+		URI uri = paymentsClient.createAccount(account, new RequestOptions());
+		if (isEcho()) {
+			printLine("Account URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Account account2 = paymentsClient.getAccount(id, null);
+			printObj(account2);			
+		}
 	}
 
 	public void updateAccount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String accountId = (String)get(new String[] {"id", "uuid"}, options);
+		String accountId = argId(op, cmds);
 		Account account = convert(options, Account.class);
-		printLine("Updating Account...");
-		print(account);
+		debug("Updating Account: %s %s", accountId, account);
 		paymentsClient.updateAccount(account, null);
-		Account account2 = null; paymentsClient.getAccount(accountId, null);
-		print("Updated Account:");
-		print(account2);
-
+		if (isEcho()) {
+			Account account2 = paymentsClient.getAccount(accountId, null);
+			printObj(account2);			
+		}
 	}
 	
 	public void deleteAccount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String accountId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Account...");
-		printLine("ID:", accountId);		
+		String accountId = argId(op, cmds);
+		debug("Deleting Account: %s", accountId);
 		paymentsClient.deleteAccount(accountId, null);		
 	}
 
@@ -212,52 +209,45 @@ public class Payments extends CommandRunnerBase {
 	public void listPayments(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		PaymentFilter filter = convert(options, PaymentFilter.class);
+		debug("Payment: %s %s", filter, pageable);
 		Page<Payment> payments = paymentsClient.listPayments(filter, pageable);
-		printLine("Listing Payments...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Payments:");
 		print(payments);
 	}
 	
 	public void getPayment(String type, String op, String[] cmds, Map<String, Object> options) {
-		String paymentId = (String)get(new String[] {"id", "uuid"}, options);
+		String paymentId = argId(op, cmds);
+		debug("Payment: %s", paymentId);
 		PaymentOptions options_ = convert(options, PaymentOptions.class);
 		Payment payment = null; paymentsClient.getPayment(paymentId, options_);
-		printLine("Get Payment...");
-		printLine("ID:", paymentId);
-		printLine("Payment:");
-		print(payment);
+		printObj(payment);
 	}
 	
-	public void createPayment(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void submitPayment(String type, String op, String[] cmds, Map<String, Object> options) {
 		Payment payment = convert(options, Payment.class);
-		printLine("Creating Payment...");
-		print(payment);
-		URI uri = paymentsClient.submitPayment(payment, null);
-		printLine("URI:", uri);
-		String paymentId = UriUtils.extractId(uri);
-		Payment payment2 = null; paymentsClient.getPayment(paymentId, null);
-		print("Created Payment:");
-		print(payment2);
+		debug("Creating Payment: %s", payment);
+		URI uri = paymentsClient.submitPayment(payment, new RequestOptions());
+		if (isEcho()) {
+			printLine("Payment URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Payment payment2 = paymentsClient.getPayment(id, null);
+			printObj(payment2);			
+		}
 	}
 
 	public void updatePayment(String type, String op, String[] cmds, Map<String, Object> options) {
-		String paymentId = (String)get(new String[] {"id", "uuid"}, options);
+		String paymentId = argId(op, cmds);
 		Payment payment = convert(options, Payment.class);
-		printLine("Updating Payment...");
-		print(payment);
+		debug("Updating Payment: %s %s", paymentId, payment);
 		paymentsClient.updatePayment(payment, null);
-		Payment payment2 = null; paymentsClient.getPayment(paymentId, null);
-		print("Updated Payment:");
-		print(payment2);
-
+		if (isEcho()) {
+			Payment payment2 = paymentsClient.getPayment(paymentId, null);
+			printObj(payment2);			
+		}
 	}
 	
 	public void deletePayment(String type, String op, String[] cmds, Map<String, Object> options) {
-		String paymentId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Payment...");
-		printLine("ID:", paymentId);		
+		String paymentId = argId(op, cmds);
+		debug("Deleting Payment: %s", paymentId);
 		paymentsClient.deletePayment(paymentId, null);		
 	}
 	

@@ -1,6 +1,5 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.convert;
 import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
@@ -12,6 +11,7 @@ import org.einnovator.documents.client.config.DocumentsClientConfiguration;
 import org.einnovator.documents.client.model.Document;
 import org.einnovator.documents.client.model.Mount;
 import org.einnovator.documents.client.modelx.DocumentFilter;
+import org.einnovator.documents.client.modelx.DocumentOptions;
 import org.einnovator.documents.client.modelx.MountFilter;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
@@ -66,14 +66,18 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
-		config.setServer(server);
-		updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+		if (!init) {
+			super.init(cmds, options, template, interactive);
+			config.setServer(server);
+			updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
 
-		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-		super.init(cmds, options, template);
+			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+			super.init(cmds, options, template, interactive);
 
-		documentsClient = new DocumentsClient(template, config);
+			documentsClient = new DocumentsClient(template, config);
+			init = true;
+		}
 	}
 
 	@Override
@@ -155,41 +159,39 @@ public class Documents extends CommandRunnerBase {
 	public void list(String path, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		DocumentFilter filter = convert(options, DocumentFilter.class);
+		debug("Documents: %s %s", filter, pageable);
 		List<Document> documents = documentsClient.list(path, filter, pageable);
-		printLine("Listing Documents...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Documents:");
 		print(documents);
 	}
 
 	public void read(String path, Map<String, Object> options) {
-		String documentId = (String)get(new String[] {"id", "uuid", "documentname", "email"}, options);
+		String documentId = argId(null, cmds);
+		debug("Document: %s", path);
 		Document document = documentsClient.read(documentId, null);
-		printLine("Get Document...");
-		printLine("ID:", documentId);
-		printLine("Document:");
-		print(document);
+		printObj(document);
 	}
 
-	public void write(String path, Map<String, Object> options) {
+	public void write(String path, Map<String, Object> options) {		
 		Document document = convert(options, Document.class);
-		printLine("Creating Document...");
-		print(document);
+		debug("Write Document: %s", path);
 		URI uri = documentsClient.write(document, null);
-		printLine("URI:", uri);
+		if (isEcho()) {
+			printLine("Document URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Mount mount2 = null; documentsClient.read(id, DocumentOptions.META_ONLY);
+			printObj(mount2);			
+		}
 	}
 
 	public void mkdir(String path, Map<String, Object> options) {
-		printLine("mkdir " + path);
+		debug("mkdir " + path);
 		URI uri = documentsClient.mkdir(path, null);
-		printLine("URI:", uri);
+		debug("URI:", uri);
 	}
 	
 	public void delete(String path, Map<String, Object> options) {
-		String documentId = (String)get(new String[] {"id", "documentname"}, options);
-		printLine("Deleting Document...");
-		printLine("ID:", documentId);		
+		String documentId = argId(path, cmds);
+		debug("Deleting Document: %s", documentId);
 		documentsClient.delete(path, null);	
 	}
 
@@ -201,51 +203,45 @@ public class Documents extends CommandRunnerBase {
 	public void listMounts(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		MountFilter filter = convert(options, MountFilter.class);
+		debug("Mounts: %s %s", filter, pageable);
 		Page<Mount> mounts = null; // documentsClient.listMounts(filter, pageable);
-		printLine("Listing Mounts...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Mounts:");
 		print(mounts);
 	}
 	
 	public void getMount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, options);
+		String mountId = argId(op, cmds);
+		debug("Mount: %s", mountId);
 		Mount mount = null; //documentsClient.getMount(mountId, null);
-		printLine("Get Mount...");
-		printLine("ID:", mountId);
-		printLine("Mount:");
-		print(mount);
+		printObj(mount);
 	}
 	
 	public void createMount(String type, String op, String[] cmds, Map<String, Object> options) {
 		Mount mount = convert(options, Mount.class);
-		printLine("Creating Mount...");
-		print(mount);
-		URI uri = null; //documentsClient.createMount(mount, null);
-		printLine("URI:", uri);
-		String mountId = UriUtils.extractId(uri);
-		Mount mount2 = null; //documentsClient.getMount(mountId, null);
-		print("Created Mount:");
-		print(mount2);
+		debug("Creating Mount: %s", mount);
+		URI uri = null; //documentsClient.createMount(mount, new RequestOptions());
+		if (isEcho()) {
+			printLine("Mount URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Mount mount2 = null; //notificationsClient.getMount(id, null);
+			printObj(mount2);			
+		}
+		
 	}
 
 	public void updateMount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, options);
+		String mountId = argId(op, cmds);
 		Mount mount = convert(options, Mount.class);
-		printLine("Updating Mount...");
-		print(mount);
+		debug("Updating Mount: %s %s", mountId, mount);
 		//documentsClient.updateMount(mount, null);
-		Mount mount2 = null; //documentsClient.getMount(mountId, null);
-		print("Updated Mount:");
-		print(mount2);
-
+		if (isEcho()) {
+			Mount mount2 = null; //documentsClient.getMount(mountId, null);
+			printObj(mount2);			
+		}
 	}
 	
 	public void deleteMount(String type, String op, String[] cmds, Map<String, Object> options) {
-		String mountId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Mount...");
-		printLine("ID:", mountId);		
+		String mountId = argId(op, cmds);
+		debug("Deleting Mount: %s", mountId);
 		//documentsClient.deleteMount(mountId, null);		
 	}
 	

@@ -2,6 +2,7 @@ package org.einnovator.cli;
 
 import static org.springframework.util.StringUtils.hasText;
 
+import java.io.Console;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,16 +12,18 @@ import javax.annotation.PostConstruct;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.bouncycastle.util.Arrays;
+import org.einnovator.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 
 @SpringBootApplication
 public class CliRunner {
@@ -35,12 +38,27 @@ public class CliRunner {
 	DefaultOAuth2ClientContext context;
 	OAuth2RestTemplate template;
 	
+	private boolean interactive;
+	
+	static long t0, t1;
+	static boolean tcli;
 	public static void main(String[] args) {
+		Map<String, Object> options = makeArgsMap(args, null, false);
+		t0 = System.currentTimeMillis();
+		String t = (String)options.get("t");
+		if ("cli".equals(t)) {
+			tcli = true;
+			System.out.println("Starting...");
+		}
 		new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);
 	}
 	
 	@PostConstruct
 	public void init() {
+		long t1 = System.currentTimeMillis();
+		if (tcli) {
+			System.out.println(String.format("Init: %ms", t1-10));
+		}
 		List<CommandRunner> runners2 = new ArrayList<CommandRunner>();
 		for (CommandRunner runner: runners) {
 			String prefix = runner.getPrefix();
@@ -51,6 +69,9 @@ public class CliRunner {
 			runners2.add(runner);
 		}
 		runners = runners2;
+		for (CommandRunner runner: runners) {
+			runner.setRunners(runners);
+		}
 	}
 	
 	@Component
@@ -65,16 +86,42 @@ public class CliRunner {
 	}
 	
 	public void dispatch(String... args) {
+		long t2 = System.currentTimeMillis();
+		if (tcli) {
+			System.out.println(String.format("Init: %ms %ms", t2-t0, t2-t1));
+		}
+
 		if (args.length==0) {
 			printUsage();
-			System.exit(-1);
+			exit(-1);
 		}
 		List<String> cmds = new ArrayList<>();
 		options = makeArgsMap(args, cmds);
 		if (cmds.size()==0) {
 			System.err.println("Missing arguments...");
 			printUsage();
-			System.exit(-1);
+			exit(-1);
+			return;
+		}
+		
+
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		sso.setup(options);
+		setupEndpoints(sso.getAllEndpoints());
+		
+		if (options.get("i")!=null) {
+			runConsole(args);
+		}
+	}
+	
+	public void run(String... args) {
+		
+		List<String> cmds = new ArrayList<>();
+		options = makeArgsMap(args, cmds);
+		if (cmds.size()==0) {
+			System.err.println("Missing arguments...");
+			printUsage();
+			exit(-1);
 			return;
 		}
 		String prefix = cmds.get(0);
@@ -83,7 +130,7 @@ public class CliRunner {
 			if (cmds.size()==1) {
 				System.err.println("Missing command...");
 				printUsage();
-				System.exit(-1);
+				exit(-1);
 			}
 			cmds.remove(0);
 		} else {
@@ -92,12 +139,12 @@ public class CliRunner {
 		if (runner==null) {
 			System.err.println("Unknow service: " + prefix);
 			printUsage();
-			System.exit(-1);
+			exit(-1);
 		}
 		if (args.length==0) {
 			System.err.println("Missing arguments...");
 			runner.printUsage();
-			System.exit(-1);
+			exit(-1);
 			return;
 		}
 		String type = cmds.get(0).toLowerCase();
@@ -115,17 +162,24 @@ public class CliRunner {
 		OAuth2RestTemplate template = null;
 
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
-		sso.setup(options);
-		setupEndpoints(sso.getAllEndpoints());
-		
 		if (!(runner instanceof Sso)) {
-			sso.init(cmds_, options, null);
+			sso.init(cmds_, options, null, interactive);
 			template = sso.getTemplate();			
 		}
-		runner.init(cmds_, options, template);		
+		runner.init(cmds_, options, template, interactive);		
 
 		try {
 			runner.run(type, op, cmds_, options);			
+		} catch (InteractiveException e) {
+		} catch (HttpStatusCodeException e) {
+			if (options.get("dump")!=null) {
+				e.printStackTrace();
+			}
+			if (e.getStatusCode()!=HttpStatus.NOT_FOUND) {
+				error(String.format("not found!"));
+			} else {
+				error(String.format("%s", StringUtil.capitalize(StringUtil.toWords(e.getStatusText().toLowerCase()))));				
+			}		
 		} catch (RuntimeException e) {
 			if (options.get("dump")!=null) {
 				e.printStackTrace();
@@ -135,6 +189,47 @@ public class CliRunner {
 
 	}
 	
+	public static final String PROMPT = "ei>";
+	private void runConsole(String[] args) {
+		interactive = true;
+		initConsole(args);
+        do {
+            String line = readLine();		
+            if (!StringUtil.hasText(line)) {
+            	continue;
+            }
+            String[] args1 = line.split(" "); 
+            if (args1.length==0) {
+            	continue;
+            }
+            String op = args1[0];
+            if (!StringUtil.hasText(op)) {
+            	continue;
+            }
+            switch (op) {
+            case "exit": case "\\q":
+            	exit(-1);
+            	break;
+            default:
+                run(args1);
+            }
+    	} while (true);
+	}
+	
+	Console console = null;
+
+	public void initConsole(String[] args) {
+		console = System.console();
+        if (console == null) {
+            error("No console: not in interactive mode!");
+            exit(0);
+        }
+	}
+	public String readLine() {
+		String line = console.readLine(PROMPT);
+		return line;
+	}
+
 	public CommandRunner getRunnerByName(String name) {
 		for (CommandRunner runner: runners) {
 			String rprefix = runner.getPrefix();
@@ -175,8 +270,12 @@ public class CliRunner {
 
 	Map<String, Object> options;
 
-	
+
 	private Map<String, Object> makeArgsMap(String[] args, List<String> cmds) {
+		return makeArgsMap(args, cmds, interactive);
+	}
+
+	private static Map<String, Object> makeArgsMap(String[] args, List<String> cmds, boolean interactive) {
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
 		for (int i=0; i<args.length; i++) {
 			String a = args[i];
@@ -190,16 +289,17 @@ public class CliRunner {
 						map.put(a, "");						
 					} else {
 						System.err.println("ERROR: missing name before =");
-						System.exit(1);
+						if (!interactive) {
+							System.exit(-1);
+						}
 					}
 				}
 			} else if (a.startsWith("-")) {
 				if (a.length()>1) {
 					a = a.substring(1);
-					//if (a.length()>1) {
-					//	map.put(a.substring(0,1), a.substring(1));
-					//} else
-					if (i<args.length-1) {
+					if (a.length()>1) {
+						map.put(a.substring(0,1), a.substring(1));
+					} else if (i<args.length-1) {
 						map.put(a, args[i+1]);
 						i++;
 					} else {
@@ -207,10 +307,14 @@ public class CliRunner {
 					}
 				} else {
 					System.err.println("ERROR: missing name after -");
-					System.exit(1);					
+					if (!interactive) {
+						System.exit(-1);
+					}
 				}
 			} else {
-				cmds.add(a);
+				if (cmds!=null) {
+					cmds.add(a);					
+				}
 			}
 		}
 		return map;
@@ -241,7 +345,13 @@ public class CliRunner {
 		}
 	}
 
-
+	protected void exit(int code) {
+		if (interactive) {
+			throw new InteractiveException();
+		}
+		System.exit(code);		
+	}
+	
 	protected void error(String msg, Object... args) {
 		System.err.println(String.format("ERROR: " + msg, args));
 	}

@@ -1,6 +1,5 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.convert;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
@@ -13,16 +12,13 @@ import org.einnovator.social.client.model.Channel;
 import org.einnovator.social.client.model.Message;
 import org.einnovator.social.client.model.Reaction;
 import org.einnovator.social.client.modelx.ChannelFilter;
-import org.einnovator.sso.client.model.Client;
-import org.einnovator.sso.client.model.Role;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
+import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
-import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 
@@ -74,14 +70,18 @@ public class Social extends CommandRunnerBase {
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
-		config.setServer(server);
-		updateObjectFromNonNull(config, convert(options, SocialClientConfiguration.class));
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+		if (!init) {
+			super.init(cmds, options, template, interactive);
+			config.setServer(server);
+			updateObjectFromNonNull(config, convert(options, SocialClientConfiguration.class));
 
-		template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-		super.init(cmds, options, template);
-		
-		socialClient = new SocialClient(template, config);
+			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
+			super.init(cmds, options, template, interactive);
+			
+			socialClient = new SocialClient(template, config);
+			init = true;
+		}
 	}
 
 	@Override
@@ -141,51 +141,45 @@ public class Social extends CommandRunnerBase {
 	public void listChannels(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ChannelFilter filter = convert(options, ChannelFilter.class);
+		debug("Channel: %s %s", filter, pageable);
 		Page<Channel> channels = socialClient.listChannels(filter, pageable);
-		printLine("Listing Channels...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Channels:");
 		print(channels);
 	}
 	
 	public void getChannel(String type, String op, String[] cmds, Map<String, Object> options) {
-		String channelId = (String)get(new String[] {"id", "uuid"}, options);
-		Channel channel = null; socialClient.getChannel(channelId, null);
-		printLine("Get Channel...");
-		printLine("ID:", channelId);
-		printLine("Channel:");
-		print(channel);
+		String channelId = argId(op, cmds);
+		debug("Channel: %s", channelId);
+		Channel channel = socialClient.getChannel(channelId, null);
+		printObj(channel);
 	}
 	
 	public void createChannel(String type, String op, String[] cmds, Map<String, Object> options) {
 		Channel channel = convert(options, Channel.class);
-		printLine("Creating Channel...");
-		print(channel);
-		URI uri = null; socialClient.createChannel(channel, null);
-		printLine("URI:", uri);
-		String channelId = UriUtils.extractId(uri);
-		Channel channel2 = null; socialClient.getChannel(channelId, null);
-		print("Created Channel:");
-		print(channel2);
+		channel.setName(argName(op, cmds));
+		debug("Creating Channel: %s", channel);
+		URI uri = socialClient.createChannel(channel, new RequestOptions());
+		if (isEcho()) {
+			printLine("Channel URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Channel channel2 = socialClient.getChannel(id, null);
+			printObj(channel2);			
+		}
 	}
 
 	public void updateChannel(String type, String op, String[] cmds, Map<String, Object> options) {
-		String channelId = (String)get(new String[] {"id", "uuid"}, options);
+		String channelId = argId(op, cmds);
 		Channel channel = convert(options, Channel.class);
-		printLine("Updating Channel...");
-		print(channel);
+		debug("Updating Channel: %s %s", channelId, channel);
 		socialClient.updateChannel(channel, null);
-		Channel channel2 = null; socialClient.getChannel(channelId, null);
-		print("Updated Channel:");
-		print(channel2);
-
+		if (isEcho()) {
+			Channel channel2 = socialClient.getChannel(channelId, null);
+			printObj(channel2);			
+		}
 	}
 	
 	public void deleteChannel(String type, String op, String[] cmds, Map<String, Object> options) {
-		String channelId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Channel...");
-		printLine("ID:", channelId);		
+		String channelId = argId(op, cmds);
+		debug("Deleting Channel: %s", channelId);
 		socialClient.deleteChannel(channelId, null);		
 	}
 	

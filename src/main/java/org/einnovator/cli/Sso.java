@@ -1,6 +1,5 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.convert;
 import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.io.File;
@@ -27,13 +26,14 @@ import org.einnovator.sso.client.modelx.ClientFilter;
 import org.einnovator.sso.client.modelx.GroupFilter;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
+import org.einnovator.sso.client.modelx.MemberFilter;
 import org.einnovator.sso.client.modelx.RoleFilter;
 import org.einnovator.sso.client.modelx.UserFilter;
-import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
+import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
@@ -99,7 +99,6 @@ public class Sso extends CommandRunnerBase {
 	private String server = SSO_DEFAULT_SERVER;
 	private String api = API_DEFAULT;
 
-	boolean init;
 	
 	private Map<String, Object> allEndpoints;
 	 
@@ -126,27 +125,27 @@ public class Sso extends CommandRunnerBase {
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template) {
-		super.init(cmds, options, template);
-
-		init = true;
-		
-		if (token!=null && token.isExpired()) {
-			error("Token expired! Login again...");
-			System.exit(-1);
-			token = null;
-		}
-		if (template==null) {
-			ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
-			DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
-			if (token!=null) {
-				context.setAccessToken(token);					
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+		if (!init) {
+			super.init(cmds, options, template, interactive);
+			if (token!=null && token.isExpired()) {
+				error("Token expired! Login again...");
+				exit(-1);
+				token = null;
 			}
-			template = new OAuth2RestTemplate(resource, context);
-			template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());			
+			if (template==null) {
+				ResourceOwnerPasswordResourceDetails resource = getRequiredResourceDetails();
+				DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
+				if (token!=null) {
+					context.setAccessToken(token);					
+				}
+				template = new OAuth2RestTemplate(resource, context);
+				template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());			
+			}
+			setTemplate(template);
+			ssoClient = new SsoClient(template, config, false);			
+			init = true;
 		}
-		setTemplate(template);
-		ssoClient = new SsoClient(template, config, false);
 	}
 	
 	@Override
@@ -169,12 +168,12 @@ public class Sso extends CommandRunnerBase {
 		if (token==null) {
 			if (!StringUtil.hasText(tokenUsername)) {
 				error("missing username");
-				System.exit(-1);
+				exit(-1);
 				return null;
 			}
 			if (!StringUtil.hasText(tokenPassword)) {
 				error("missing password");
-				System.exit(-1);
+				exit(-1);
 				return null;
 			}			
 		} else {
@@ -369,13 +368,13 @@ public class Sso extends CommandRunnerBase {
 		}
 		if (api==null) {
 			error("missing api");
-			System.exit(-1);
+			exit(-1);
 			return;
 		}
 		Map<String, Object> endpoints = getEndpoints(api, cmds, options);
 		if (endpoints==null) {
 			error("unable to get endpoints from api: %s", api);
-			System.exit(-1);
+			exit(-1);
 			return;
 		}
 		allEndpoints = endpoints;
@@ -402,13 +401,13 @@ public class Sso extends CommandRunnerBase {
 		}
 		if (api==null) {
 			error("missing api");
-			System.exit(-1);
+			exit(-1);
 			return;
 		}
 		Map<String, Object> endpoints = getEndpoints(api, cmds, options);
 		if (endpoints==null) {
 			error("unable to get endpoints from api: %s", api);
-			System.exit(-1);
+			exit(-1);
 			return;
 		}
 		allEndpoints = endpoints;
@@ -592,14 +591,54 @@ public class Sso extends CommandRunnerBase {
 		context.put(KEY_TOKEN, token);
 		context.put(KEY_ENDPOINTS, endpoints);
 		context.put(KEY_USERNAME, tokenUsername);
-		Map<String, Object> settings = new LinkedHashMap<>();
+		Map<String, Object> settings = getSettings();
 		context.put(KEY_SETTINGS, settings);
-		settings.put("connection", this.config.getConnection());
-		settings.put("clientId", this.config.getClientId());
-		settings.put("clientSecret", this.config.getClientSecret());
 		return context;
 	}
 
+	public Map<String, Object> getAllSettings() {
+		if (runners!=null) {
+			Map<String, Object> settings = new LinkedHashMap<>();
+			for (CommandRunner runner: runners) {
+				Map<String, Object> settings1 = runner.getSettings();
+				if (settings1!=null) {
+					settings.put(runner.getPrefix(), settings1);
+				}
+			}
+			return settings;
+		}
+		return getSettings();
+	}
+	
+	public void loadAllSettings(Map<String, Object> settings) {
+		if (runners!=null) {
+			for (CommandRunner runner: runners) {
+				Map<String, Object> settings1 = (Map<String, Object>)settings.get(runner.getPrefix());
+				if (settings1!=null) {
+					runner.loadSettings(settings1);
+				}
+			}
+			return;
+		}
+		loadSettings(settings);
+	}
+
+	@Override
+	public Map<String, Object> getSettings() {
+		Map<String, Object> settings = new LinkedHashMap<>();
+		settings.put("connection", this.config.getConnection());
+		settings.put("clientId", this.config.getClientId());
+		settings.put("clientSecret", this.config.getClientSecret());
+		return settings;
+	}
+
+	@Override
+	public void loadSettings(Map<String, Object> settings) {
+		this.config.setClientId(get("clientId", settings, this.config.getClientId()));
+		this.config.setClientSecret(get("clientSecret", settings, this.config.getClientId()));
+		this.config.setConnection(get("clientId", settings, this.config.getConnection(), ConnectionConfiguration.class));
+	}
+	
 	@SuppressWarnings("unchecked")
 	private void setupForContext(Map<String, Object> context) {
 		if (context==null) {
@@ -615,14 +654,7 @@ public class Sso extends CommandRunnerBase {
 		tokenUsername = (String)context.get(KEY_USERNAME);
 
 		if (settings!=null) {
-			clientId = (String)settings.get("clientId");
-			clientSecret = (String)settings.get("clientSecret");
-			Map<String, Object> connectionMap = (Map<String, Object>) settings.get("connection"); 
-			if (connectionMap!=null) {
-				ConnectionConfiguration connection = new ConnectionConfiguration();
-				MappingUtils.fromMap(connection, connectionMap);
-				this.config.setConnection(connection);
-			}
+			loadAllSettings(settings);
 		}
 	}
 
@@ -664,52 +696,46 @@ public class Sso extends CommandRunnerBase {
 	public void listUsers(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		UserFilter filter = convert(options, UserFilter.class);
+		debug("Users: %s %s", filter, pageable);
 		Page<User> users = ssoClient.listUsers(filter, pageable);
-		printLine("Listing Users...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Users:");
 		print(users);
 	}
 
 	public void getUser(String type, String op, String[] cmds, Map<String, Object> options) {
-		String userId = (String)get(new String[] {"id", "uuid", "username", "email"}, options);
+		String userId = argId(op, cmds);
+		debug("User: %s", userId);
 		User user = ssoClient.getUser(userId, null);
-		printLine("Get User...");
-		printLine("ID:", userId);
-		printLine("User:");
-		print(user);
+		printObj(user);
 	}
 
 	public void createUser(String type, String op, String[] cmds, Map<String, Object> options) {
 		User user = convert(options, User.class);
-		printLine("Creating User...");
-		print(user);
-		URI uri = ssoClient.createUser(user, null);
-		printLine("URI:", uri);
-		print("Created User:");
-		String id = UriUtils.extractId(uri);
-		User user2 = ssoClient.getUser(id, null);
-		print(user2);
-
+		user.setUsername(argName(op, cmds));
+		debug("Creating User: %s", user);
+		URI uri = ssoClient.createUser(user, new RequestOptions());
+		if (isEcho()) {
+			printLine("User URI:", uri);
+			String id = UriUtils.extractId(uri);
+			User user2 = ssoClient.getUser(id, null);
+			printObj(user2);			
+		}
 	}
 
 	
 	public void updateUser(String type, String op, String[] cmds, Map<String, Object> options) {
-		String userId = (String)get("user", options);
+		String userId = argId(op, cmds);
 		User user = convert(options, User.class);
-		printLine("Updating User...");
-		print(user);
+		debug("Updating User: %s %s", userId, user);
 		ssoClient.updateUser(user, null);
-		print("Updated User:");
-		User user2 = ssoClient.getUser(userId, null);
-		print(user2);
+		if (isEcho()) {
+			User user2 = ssoClient.getUser(userId, null);
+			printObj(user2);			
+		}
 	}
 
 	public void deleteUser(String type, String op, String[] cmds, Map<String, Object> options) {
-		String userId = (String)get(new String[] {"id", "username"}, options);
-		printLine("Deleting User...");
-		printLine("ID:", userId);		
+		String userId = argId(op, cmds);
+		debug("Deleting User: %s", userId);
 		ssoClient.deleteUser(userId, null);	
 	}
 
@@ -720,51 +746,45 @@ public class Sso extends CommandRunnerBase {
 	public void listGroups(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		GroupFilter filter = convert(options, GroupFilter.class);
+		debug("Groups: %s %s", filter, pageable);
 		Page<Group> groups = ssoClient.listGroups(filter, pageable);
-		printLine("Listing Groups...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Groups:");
 		print(groups);
 	}
 	
 	public void getGroup(String type, String op, String[] cmds, Map<String, Object> options) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, options);
+		String groupId = argId(op, cmds);
+		debug("Group: %s", groupId);
 		Group group = ssoClient.getGroup(groupId, null);
-		printLine("Get Group...");
-		printLine("ID:", groupId);
-		printLine("Group:");
-		print(group);
+		printObj(group);
 	}
 	
 	public void createGroup(String type, String op, String[] cmds, Map<String, Object> options) {
 		Group group = convert(options, Group.class);
-		printLine("Creating Group...");
-		print(group);
-		URI uri = ssoClient.createGroup(group, null);
-		printLine("URI:", uri);
-		String groupId = UriUtils.extractId(uri);
-		Group group2 = ssoClient.getGroup(groupId, null);
-		print("Created Group:");
-		print(group2);
+		group.setName(argName(op, cmds));
+		debug("Creating Group: %s", group);
+		URI uri = ssoClient.createGroup(group, new RequestOptions());
+		if (isEcho()) {
+			printLine("Group URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Group group2 = ssoClient.getGroup(id, null);
+			printObj(group2);			
+		}
 	}
 
 	public void updateGroup(String type, String op, String[] cmds, Map<String, Object> options) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, options);
+		String groupId = argId(op, cmds);
 		Group group = convert(options, Group.class);
-		printLine("Updating Group...");
-		print(group);
+		debug("Updating Group: %s %s", groupId, group);
 		ssoClient.updateGroup(group, null);
-		Group group2 = ssoClient.getGroup(groupId, null);
-		print("Updated Group:");
-		print(group2);
-
+		if (isEcho()) {
+			Group group2 = ssoClient.getGroup(groupId, null);
+			printObj(group2);			
+		}
 	}
 	
 	public void deleteGroup(String type, String op, String[] cmds, Map<String, Object> options) {
-		String groupId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Group...");
-		printLine("ID:", groupId);		
+		String groupId = argId(op, cmds);
+		debug("Deleting Group: %s", groupId);
 		ssoClient.deleteGroup(groupId, null);		
 	}
 
@@ -779,7 +799,7 @@ public class Sso extends CommandRunnerBase {
 		String groupId = (String)get("group", options);
 		printLine("Adding Member...");
 		printLine("User:", userId);		
-		printLine("Group:", groupId);		
+		printLine("Group:", groupId);	
 		ssoClient.addMemberToGroup(userId, groupId, null);
 	}
 
@@ -794,11 +814,11 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void listGroupMembers(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		MemberFilter filter = convert(options, MemberFilter.class);
 		String groupId = (String)get("group", options);
-		printLine("Listing Group Members...");
-		printLine("Group:", groupId);
+		debug("Members: %s %s %s", groupId, filter, pageable);
 		Page<Member> members = ssoClient.listGroupMembers(groupId, null, null);
-		printLine("Members:", groupId);
 		print(members);
 	}
 
@@ -810,58 +830,54 @@ public class Sso extends CommandRunnerBase {
 
 	public void invite(String type, String op, String[] cmds, Map<String, Object> options) {
 		Invitation invitation = convert(options, Invitation.class);
+		InvitationOptions options_ = convert(options, InvitationOptions.class);
 		Boolean sendMail = get("sendMail", options, true);
-		printLine(Boolean.TRUE.equals(sendMail) ? "Sending Invitation..." : "Creating Invitation...");
-		printLine("Invitation", invitation);
-		URI uri = ssoClient.invite(invitation, new InvitationOptions().withSendMail(sendMail));
-		printLine("URI:", uri);
-		String id = UriUtils.extractId(uri);
-		Invitation invitation2 = ssoClient.getInvitation(id, null);
-		print("Created Invitation:");
-		print(invitation2);
-		print("Token URI:");
-		URI tokenUri = ssoClient.getInvitationToken(id, new InvitationOptions().withSendMail(false));
-		print(tokenUri);
+		options_.setSendMail(sendMail);
+		invitation.setInvitee(argName(op, cmds));
+		debug((Boolean.TRUE.equals(sendMail) ? "Sending Invitation:" : "Creating Invitation:") + "%s", invitation);
+		URI uri = ssoClient.invite(invitation, options_);
+		if (isEcho()) {
+			printLine("Invitation URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Invitation invitation2 = ssoClient.getInvitation(id, null);
+			printObj(invitation2);		
+			URI tokenUri = ssoClient.getInvitationToken(id, new InvitationOptions().withSendMail(false));
+			printLine(String.format("Token URI: %s", tokenUri));
+		}
 	}
 	
 	
 	public void listInvitations(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		InvitationFilter filter = convert(options, InvitationFilter.class);
+		debug("Invitations: %s %s", filter, pageable);
 		Page<Invitation> invitations = ssoClient.listInvitations(filter, pageable);
-		printLine("Listing Invitations...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Invitations:");
 		print(invitations);
 	}
 
 	public void getInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
-		String invitationId = (String)get(new String[] {"id", "uuid"}, options);
+		String invitationId = argId(op, cmds);
+		debug("Invitation: %s", invitationId);
 		Invitation invitation = ssoClient.getInvitation(invitationId, null);
-		printLine("Get Invitation...");
-		printLine("ID:", invitationId);
-		printLine("Invitation:");
-		print(invitation);
+		printObj(invitation);
 	}
 
 
 	
 	public void updateInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
-		String invitationId = (String)get("invitation", options);
+		String invitationId = argId(op, cmds);
 		Invitation invitation = convert(options, Invitation.class);
-		printLine("Updating Invitation...");
-		print(invitation);
+		debug("Updating Invitation: %s %s", invitationId, invitation);
 		ssoClient.updateInvitation(invitation, null);
-		print("Updated Invitation:");
-		Invitation invitation2 = ssoClient.getInvitation(invitationId, null);
-		print(invitation2);
+		if (isEcho()) {
+			Invitation invitation2 = ssoClient.getInvitation(invitationId, null);
+			printObj(invitation2);			
+		}
 	}
 
 	public void deleteInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
-		String invitationId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Invitation...");
-		printLine("ID:", invitationId);		
+		String invitationId = argId(op, cmds);
+		debug("Deleting Invitation: %s", invitationId);
 		ssoClient.deleteInvitation(invitationId, null);	
 	}
 
@@ -873,54 +889,47 @@ public class Sso extends CommandRunnerBase {
 	public void listRoles(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		RoleFilter filter = convert(options, RoleFilter.class);
+		debug("Role: %s %s", filter, pageable);
 		Page<Role> roles = ssoClient.listRoles(filter, pageable);
-		printLine("Listing Roles...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Roles:");
 		print(roles);
 	}
 	
 	public void getRole(String type, String op, String[] cmds, Map<String, Object> options) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, options);
+		String roleId = argId(op, cmds);
+		debug("Role: %s", roleId);
 		Role role = ssoClient.getRole(roleId, null);
-		printLine("Get Role...");
-		printLine("ID:", roleId);
-		printLine("Role:");
-		print(role);
+		printObj(role);
 	}
 	
 	public void createRole(String type, String op, String[] cmds, Map<String, Object> options) {
 		Role role = convert(options, Role.class);
-		printLine("Creating Role...");
-		print(role);
-		URI uri = ssoClient.createRole(role, null);
-		printLine("URI:", uri);
-		String roleId = UriUtils.extractId(uri);
-		Role role2 = ssoClient.getRole(roleId, null);
-		print("Created Role:");
-		print(role2);
+		role.setName(argName(op, cmds));
+		debug("Creating Role: %s", role);
+		URI uri = ssoClient.createRole(role, new RequestOptions());
+		if (isEcho()) {
+			printLine("Role URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Role role2 = ssoClient.getRole(id, null);
+			printObj(role2);			
+		}
 	}
 
 	public void updateRole(String type, String op, String[] cmds, Map<String, Object> options) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, options);
+		String roleId = argId(op, cmds);
 		Role role = convert(options, Role.class);
-		printLine("Updating Role...");
-		print(role);
+		debug("Updating Role: %s %s", roleId, role);
 		ssoClient.updateRole(role, null);
-		Role role2 = ssoClient.getRole(roleId, null);
-		print("Updated Role:");
-		print(role2);
-
+		if (isEcho()) {
+			Role role2 = ssoClient.getRole(roleId, null);
+			printObj(role2);			
+		}
 	}
 	
 	public void deleteRole(String type, String op, String[] cmds, Map<String, Object> options) {
-		String roleId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Role...");
-		printLine("ID:", roleId);		
+		String roleId = argId(op, cmds);
+		debug("Deleting Role: %s", roleId);
 		ssoClient.deleteRole(roleId, null);		
 	}
-
 
 
 	//
@@ -931,52 +940,46 @@ public class Sso extends CommandRunnerBase {
 	public void listClients(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ClientFilter filter = convert(options, ClientFilter.class);
+		debug("Client: %s %s", filter, pageable);
 		Page<Client> clients = ssoClient.listClients(filter, pageable);
-		printLine("Listing Clients...");
-		printLine("Filter:", filter);
-		printLine("Pageable:", pageable);
-		printLine("Clients:");
 		print(clients);
 	}
 
 	public void getClient(String type, String op, String[] cmds, Map<String, Object> options) {
-		String clientId = (String)get(new String[] {"id", "uuid"}, options);
+		String clientId = argId(op, cmds);
+		debug("Client: %s", clientId);
 		Client client = ssoClient.getClient(clientId, null);
-		printLine("Get Client...");
-		printLine("ID:", clientId);
-		printLine("Client:");
-		print(client);
+		printObj(client);
 	}
 
 	public void createClient(String type, String op, String[] cmds, Map<String, Object> options) {
 		Client client = convert(options, Client.class);
-		printLine("Creating Client...");
-		print(client);
-		URI uri = ssoClient.createClient(client, null);
-		printLine("URI:", uri);
-		print("Created Client:");
-		String id = UriUtils.extractId(uri);
-		Client client2 = ssoClient.getClient(id, null);
-		print(client2);
-
+		client.setClientId(argName(op, cmds));
+		debug("Creating Client: %s", client);
+		URI uri = ssoClient.createClient(client, new RequestOptions());
+		if (isEcho()) {
+			printLine("Client URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Client client2 = ssoClient.getClient(id, null);
+			printObj(client2);			
+		}
 	}
 
 	
 	public void updateClient(String type, String op, String[] cmds, Map<String, Object> options) {
-		String clientId = (String)get("client", options);
+		String clientId = argId(op, cmds);
 		Client client = convert(options, Client.class);
-		printLine("Updating Client...");
-		print(client);
+		debug("Updating Client: %s %s", clientId, client);
 		ssoClient.updateClient(client, null);
-		print("Updated Client:");
-		Client client2 = ssoClient.getClient(clientId, null);
-		print(client2);
+		if (isEcho()) {
+			Client client2 = ssoClient.getClient(clientId, null);
+			printObj(client2);			
+		}
 	}
 
 	public void deleteClient(String type, String op, String[] cmds, Map<String, Object> options) {
-		String clientId = (String)get(new String[] {"id", "uuid"}, options);
-		printLine("Deleting Client...");
-		printLine("ID:", clientId);		
+		String clientId = argId(op, cmds);
+		debug("Deleting Client: %s", clientId);
 		ssoClient.deleteClient(clientId, null);	
 	}
 
