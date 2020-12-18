@@ -1,0 +1,19 @@
+
+devops = Devops operations
+devops.cluster = Cluster operations
+devops.space = Space operations
+devops.deployment = Deployment operations
+devops.job = Job operations
+devops.cronjob = Cronjob operations
+devops.domain = Domain operations
+devops.registry = Registry operations
+devops.vcs = GIT VCS operations
+devops.catalog = Catalog operations
+devops.solution = Solution operations
+
+sso = SSO operations
+sso.users = User operations
+sso.group = Group operations
+sso.invitation = Invitation operations
+sso.role = Role operations
+sso.member = Member operations

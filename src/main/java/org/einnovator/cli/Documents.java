@@ -5,6 +5,7 @@ import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.documents.client.DocumentsClient;
 import org.einnovator.documents.client.config.DocumentsClientConfiguration;
@@ -55,25 +56,26 @@ public class Documents extends CommandRunnerBase {
 		return DOCUMENTS_PREFIX;
 	}
 
-	String[] DOCUMENTS_COMMANDS = new String[] { 
-		"documents", "document", "docs", "doc", "d",
-		"mounts", "mount", "m",
+	String[][] DOCUMENTS_COMMANDS = new String[][] { 
+		new String[] {"documents", "document", "docs", "doc", "d"},
+		new String[] {"mounts", "mount", "m"},
 		};
 
 	@Override
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return DOCUMENTS_COMMANDS;
 	}
 
+
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
 
 			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 
 			documentsClient = new DocumentsClient(template, config);
 			init = true;
@@ -92,6 +94,9 @@ public class Documents extends CommandRunnerBase {
 
 		String path = op;
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "documents": case "document": case "docs": case "doc": case "d":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":

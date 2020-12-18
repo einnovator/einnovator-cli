@@ -3,15 +3,19 @@ package org.einnovator.cli;
 import static org.springframework.util.StringUtils.hasText;
 
 import java.io.Console;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
@@ -24,6 +28,9 @@ import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 @SpringBootApplication
 public class CliRunner {
@@ -55,6 +62,7 @@ public class CliRunner {
 	
 	@PostConstruct
 	public void init() {
+		
 		long t1 = System.currentTimeMillis();
 		if (tcli) {
 			System.out.println(String.format("Init: %ms", t1-10));
@@ -162,11 +170,13 @@ public class CliRunner {
 		OAuth2RestTemplate template = null;
 
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+
+		bundle = getResourceBundle();
 		if (!(runner instanceof Sso)) {
-			sso.init(cmds_, options, null, interactive);
+			sso.init(cmds_, options, null, interactive, bundle);
 			template = sso.getTemplate();			
 		}
-		runner.init(cmds_, options, template, interactive);		
+		runner.init(cmds_, options, template, interactive, bundle);		
 
 		try {
 			runner.run(type, op, cmds_, options);			
@@ -354,5 +364,23 @@ public class CliRunner {
 	
 	protected void error(String msg, Object... args) {
 		System.err.println(String.format("ERROR: " + msg, args));
+	}
+	
+	public String resolve(String key) {
+		ResourceBundle bundle = getResourceBundle();
+		return bundle.getString(key);		
+	}
+
+	ResourceBundle bundle;
+	
+	public ResourceBundle getResourceBundle() {
+		if (bundle==null) {
+			bundle = ResourceBundle.getBundle("messages", getLocale());
+		}
+		return bundle;
+	}
+	
+	public Locale getLocale() {
+		return Locale.getDefault();
 	}
 }

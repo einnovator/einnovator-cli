@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
@@ -107,27 +108,27 @@ public class Sso extends CommandRunnerBase {
 		return SSO_PREFIX;
 	}
 
-	String[] SSO_COMMANDS = new String[] { 
-		"login",
-		"api",
-		"token", "tk", "t",
-		"users", "user", "u",
-		"groups", "group", "g",
-		"member", "members", "m",
-		"role", "roles", "r",
-		"invitation", "invitations", "invites", "inv", "i",
-		"clients", "client", "c",
+	String[][] SSO_COMMANDS = new String[][] { 
+		new String[] {"login"},
+		new String[] {"api"},
+		new String[] {"token", "tk", "t"},
+		new String[] {"users", "user", "u"},
+		new String[] {"groups", "group", "g"},
+		new String[] {"member", "members", "mem"},
+		new String[] {"role", "roles", "rol"},
+		new String[] {"invitation", "invitations", "invites", "inv", "i"},
+		new String[] {"clients", "client", "cli"},
 		};
 
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return SSO_COMMANDS;
 	}
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			if (token!=null && token.isExpired()) {
 				error("Token expired! Login again...");
 				exit(-1);
@@ -189,6 +190,9 @@ public class Sso extends CommandRunnerBase {
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
 
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "login": case "l":
 			login(type, op, cmds, options);
 			return;

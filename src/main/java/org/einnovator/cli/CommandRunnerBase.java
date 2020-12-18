@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.UUID;
 
 import org.bouncycastle.util.Arrays;
@@ -38,6 +39,8 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	protected boolean interactive;
 	protected boolean init;
 	
+	protected ResourceBundle bundle;
+
 	protected static YAMLFactory yamlFactory = new YAMLFactory();
 
 	@Autowired
@@ -45,31 +48,97 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	
 	@Override
 	public boolean supports(String cmd) {
-		return StringUtil.containsIgnoreCase(getCommands(), cmd);
+		String[][] cmds = getCommands();
+		if (cmds!=null) {
+			for (String[] cmds2: cmds) {
+				if (StringUtil.containsIgnoreCase(cmds2, cmd)) {
+					return true;
+				}				
+			}
+		}
+		return false;
 	}
 
 
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return null;
 	}
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		this.cmds = cmds;
 		this.options = options;
 		this.template = template;
 		this.interactive = interactive;
+		this.bundle = bundle;
 	}
 
 
 	@Override
 	public void printUsage() {
-		System.err.println("usage: " + CliRunner.CLI_NAME + " " + getPrefix() + " " + getUsage());
-		System.exit(-1);
+		String[][] cmds = getCommands();
+		if (cmds!=null) {
+			String descr = resolve(getPrefix());
+			System.out.println(String.format("[%s] %s", descr));			
+			for (String[] cmds_: cmds) {
+				descr = resolve(cmds_);
+				System.out.println(String.format("  %s %s", cmds_[0], descr));	
+				if (cmds_.length>1) {
+					String alias = String.join("|", cmds_);
+					alias = alias.substring(alias.indexOf("|"));
+					System.out.println(String.format("  %s", alias));								
+				}
+	
+			}
+		}
+		if (interactive) {
+			System.out.println(String.format("usage: %s %s", getPrefix(), getUsage()));			
+		} else {
+			System.out.println(String.format("usage: %s %s %s", CliRunner.CLI_NAME, getPrefix(), getUsage()));			
+		}
+		exit(0);
 	}
 	
+	private String resolve(String[] cmds_) {
+		for (String cmd: cmds_) {
+			String s = resolve(cmd);
+			if (StringUtil.hasText(s)) {
+				return s.trim();
+			}
+		}
+		return "";
+	}
+
+
+	private String resolve(String key) {
+		if (bundle!=null) {
+			try {
+				String s = bundle.getString(key);						
+				return s;
+			} catch (RuntimeException e) {
+			}			
+		}
+		return "?" + key + "?";
+	}
+
+
 	protected String getUsage() {
 		StringBuilder sb = new StringBuilder();
+		String[][] cmds = getCommands();
+		if (cmds!=null) {
+			int i = 0;
+			for (String[] cmds_: cmds) {
+				int j = 0;
+				for (String cmd: cmds_) {
+					sb.append(cmd);
+					if (sb.length()>0) {
+						sb.append(" | ");
+					}
+					j++;
+				}
+				i++;
+			}
+		}
 		return sb.toString();
 	}
 
@@ -858,5 +927,6 @@ public abstract class CommandRunnerBase implements CommandRunner {
 			return;
 		}
 	}
+
 	
 }

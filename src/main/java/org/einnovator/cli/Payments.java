@@ -4,6 +4,7 @@ import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.payments.client.PaymentsClient;
 import org.einnovator.payments.client.config.PaymentsClientConfiguration;
@@ -71,25 +72,24 @@ public class Payments extends CommandRunnerBase {
 		return "payments";
 	}
 
-	String[] PAYMENTS_COMMANDS = new String[] { 
-		"accounts", "account", "acc",
-		"payments", "payment", "pay"
-		};
+	String[][] PAYMENTS_COMMANDS = new String[][] { 
+		new String[] {"accounts", "account", "acc"},
+		new String[] {"payments", "payment", "pay"}
+	};
 
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return PAYMENTS_COMMANDS;
 	}
 
 
-
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(PAYMENTS_DEFAULT_SERVER);
 			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
 
 			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 
 			paymentsClient = new PaymentsClient(template, config);
 			init = true;
@@ -106,6 +106,9 @@ public class Payments extends CommandRunnerBase {
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
 
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "accounts": case "account": case "acc":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":

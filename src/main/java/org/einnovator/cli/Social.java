@@ -4,6 +4,7 @@ import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.social.client.SocialClient;
 import org.einnovator.social.client.config.SocialClientConfiguration;
@@ -59,25 +60,25 @@ public class Social extends CommandRunnerBase {
 		return "social";
 	}
 
-	String[] SOCIALS_COMMANDS = new String[] { 
-		"channels", "channel", "ch",
-		};
+	String[][] SOCIALS_COMMANDS = new String[][] { 
+		new String[] {"channels", "channel", "ch"},
+	};
 
 	@Override
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return SOCIALS_COMMANDS;
 	}
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, SocialClientConfiguration.class));
 
 			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			
 			socialClient = new SocialClient(template, config);
 			init = true;
@@ -95,6 +96,9 @@ public class Social extends CommandRunnerBase {
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
 
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "channel": case "channels": case "m":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":

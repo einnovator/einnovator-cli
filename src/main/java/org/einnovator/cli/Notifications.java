@@ -4,6 +4,7 @@ import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.notifications.client.NotificationsClient;
 import org.einnovator.notifications.client.config.NotificationsClientConfiguration;
@@ -67,30 +68,30 @@ public class Notifications extends CommandRunnerBase {
 		return "notifications";
 	}
 
-	String[] NOTIFICATIONS_COMMANDS = new String[] { 
-		"events", "event", "ev", "e",
-		"notifications", "notification", "notific", "n",
-		"notification-types", "notific-type", "ntype", "nt",
-		"templates", "template", "templ", 
-		"jobs", "job", "j",
+	String[][] NOTIFICATIONS_COMMANDS = new String[][] { 
+		new String[] {"events", "event", "ev", "e"},
+		new String[] {"notifications", "notification", "notific", "n"},
+		new String[] {"notification-types", "notific-type", "ntype", "nt"},
+		new String[] {"templates", "template", "templ"}, 
+		new String[] {"jobs", "job", "j"},
 		};
 
 	@Override
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return NOTIFICATIONS_COMMANDS;
 	}
 
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, NotificationsClientConfiguration.class));
 
 			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			notificationsClient = new NotificationsClient(template, config);			
 			init = true;
 		}
@@ -107,6 +108,9 @@ public class Notifications extends CommandRunnerBase {
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
 
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "events": case "event": case "ev": case "e":
 			switch (op) {
 			case "publish": case "pub": case "p":

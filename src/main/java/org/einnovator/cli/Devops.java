@@ -5,6 +5,7 @@ import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.einnovator.devops.client.DevopsClient;
 import org.einnovator.devops.client.config.DevopsClientConfiguration;
@@ -116,9 +117,9 @@ public class Devops extends CommandRunnerBase {
 	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive) {
+	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive);
+			super.init(cmds, options, template, interactive, bundle);
 			updateObjectFrom(config, convert(options, DevopsClientConfiguration.class));
 			config.setServer(server);
 			devopsClient = new DevopsClient(template, config);
@@ -153,27 +154,30 @@ public class Devops extends CommandRunnerBase {
 		space = get("space", settings, space);
 	}
 
-	String[] DEVOPS_COMMANDS = new String[] { 
-		"cluster", "clusters", "c",
-		"space", "spaces", "namespace", "namespaces", "ns",
-		"deploy", "deployment", "deploys", "deployments",
-		"job", "jobs",
-		"cronjob", "cronjobs",
-		"domain", "domains",
-		"registry", "registries", "docker",
-		"vcs", "vcss", "v", "git",
-		"catalog", "catalogs",
-		"solution", "solutions",
-		};
+	String[][] DEVOPS_COMMANDS = new String[][] { 
+		new String[] {"cluster", "clusters", "c"},
+		new String[] {"space", "spaces", "namespace", "namespaces", "ns"},
+		new String[] {"deploy", "deployment", "deploys", "deployments"},
+		new String[] {"job", "jobs"},
+		new String[] {"cronjob", "cronjobs"},
+		new String[] {"domain", "domains", "dom"},
+		new String[] {"registry", "registries", "reg", "docker"},
+		new String[] {"vcs", "vcss", "v", "git"},
+		new String[] {"catalog", "catalogs", "cat"},
+		new String[] {"solution", "solutions", "sol"},
+	};
 
 	@Override
-	protected String[] getCommands() {
+	protected String[][] getCommands() {
 		return DEVOPS_COMMANDS;
 	}
 
-	
+
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {		
 		switch (type) {
+		case "help":
+			printUsage();
+			break;
 		case "cluster": case "clusters": case "c":
 			switch (op) {
 			case "get": case "g": case "show": case "s": case "view": case "v":

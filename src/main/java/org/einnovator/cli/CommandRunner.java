@@ -5,6 +5,7 @@ package org.einnovator.cli;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 
@@ -22,7 +23,7 @@ public interface CommandRunner {
 
 	void printUsage();
 	
-	void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template, boolean interactive);
+	void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle);
 
 	void run(String type, String op, String[] args, Map<String, Object> options);
 
