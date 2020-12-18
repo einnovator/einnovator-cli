@@ -210,6 +210,12 @@ public class Devops extends CommandRunnerBase {
 			case "list": case "l": case "":
 				listSpace(type, op, cmds, options);
 				break;
+			case "set":
+				setSpace(type, op, cmds, options);
+				break;
+			case "unset":
+				unsetSpace(type, op, cmds, options);
+				break;
 			case "schema": case "meta":
 				schemaSpace(type, op, cmds, options);
 				break;
@@ -558,7 +564,19 @@ public class Devops extends CommandRunnerBase {
 		printObj(space);
 	}
 	
-
+	public void setSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argId(op, cmds);
+		debug("Set Space: %s", spaceId);
+		this.space = spaceId;
+		writeConfig();
+	}
+	public void unsetSpace(String type, String op, String[] cmds, Map<String, Object> options) {
+		String spaceId = argId(op, cmds);
+		debug("Unset Space: %s", spaceId);
+		this.space = null;
+		writeConfig();
+	}
+	
 	public void schemaSpace(String type, String op, String[] cmds, Map<String, Object> options) {
 		printLine(schemaToString(Space.class));
 	}
@@ -1566,7 +1584,7 @@ public class Devops extends CommandRunnerBase {
 		if (spaceId!=null) {
 			return spaceId;
 		}
-		return null;
+		return space;
 	}
 
 }

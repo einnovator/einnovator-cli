@@ -522,7 +522,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getToken(String type, String op, String[] cmds, Map<String, Object> options) {
-		info("Credentials: %s %s", tokenUsername, tokenPassword);
+		//debug("Credentials: %s %s", tokenUsername, tokenPassword);
 		debug("Config: %s", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		debug("Token: %s", token);
@@ -544,6 +544,11 @@ public class Sso extends CommandRunnerBase {
 		}		
 	}
 	
+	@Override
+	protected void writeConfig() {
+		writeConfig(this.api, this.allEndpoints, this.token!=null ? this.token.toString() : null, this.options);
+	}
+
 	public void setup(Map<String, Object> options) {
 		Map<String, Object> config = readConfig(options);
 		if (config!=null) {
@@ -551,6 +556,9 @@ public class Sso extends CommandRunnerBase {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> context = findContext(current, (List<Map<String, Object>>)config.get("contexts"));
 			setupForContext(context);
+			if (current!=null) {
+				this.api = current;				
+			}
 		}
 				
 		this.config.setServer(server);
@@ -558,7 +566,7 @@ public class Sso extends CommandRunnerBase {
 		this.config.setClientSecret(clientSecret);
 		tokenUsername = (String)get("u", options, tokenUsername);
 		tokenPassword = (String)get("p", options, tokenPassword);
-		updateObjectFromNonNull(config, convert(options, SsoClientConfiguration.class));
+		updateObjectFromNonNull(this.config, convert(options, SsoClientConfiguration.class));
 
 		
 	}
@@ -595,7 +603,7 @@ public class Sso extends CommandRunnerBase {
 		context.put(KEY_TOKEN, token);
 		context.put(KEY_ENDPOINTS, endpoints);
 		context.put(KEY_USERNAME, tokenUsername);
-		Map<String, Object> settings = getSettings();
+		Map<String, Object> settings = getAllSettings();
 		context.put(KEY_SETTINGS, settings);
 		return context;
 	}
@@ -617,6 +625,7 @@ public class Sso extends CommandRunnerBase {
 	public void loadAllSettings(Map<String, Object> settings) {
 		if (runners!=null) {
 			for (CommandRunner runner: runners) {
+				@SuppressWarnings("unchecked")
 				Map<String, Object> settings1 = (Map<String, Object>)settings.get(runner.getPrefix());
 				if (settings1!=null) {
 					runner.loadSettings(settings1);
@@ -640,7 +649,7 @@ public class Sso extends CommandRunnerBase {
 	public void loadSettings(Map<String, Object> settings) {
 		this.config.setClientId(get("clientId", settings, this.config.getClientId()));
 		this.config.setClientSecret(get("clientSecret", settings, this.config.getClientId()));
-		this.config.setConnection(get("clientId", settings, this.config.getConnection(), ConnectionConfiguration.class));
+		this.config.setConnection(get("connection", settings, this.config.getConnection(), ConnectionConfiguration.class));
 	}
 	
 	@SuppressWarnings("unchecked")

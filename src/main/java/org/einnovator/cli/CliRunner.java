@@ -3,7 +3,10 @@ package org.einnovator.cli;
 import static org.springframework.util.StringUtils.hasText;
 
 import java.io.Console;
+import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +26,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -63,9 +67,9 @@ public class CliRunner {
 	@PostConstruct
 	public void init() {
 		
-		long t1 = System.currentTimeMillis();
+		t1 = System.currentTimeMillis();
 		if (tcli) {
-			System.out.println(String.format("Init: %ms", t1-10));
+			System.out.println(String.format("Init: %sms", t1-t0));
 		}
 		List<CommandRunner> runners2 = new ArrayList<CommandRunner>();
 		for (CommandRunner runner: runners) {
@@ -96,7 +100,7 @@ public class CliRunner {
 	public void dispatch(String... args) {
 		long t2 = System.currentTimeMillis();
 		if (tcli) {
-			System.out.println(String.format("Init: %ms %ms", t2-t0, t2-t1));
+			System.out.println(String.format("Init: %sms %sms", t2-t0, t2-t1));
 		}
 
 		if (args.length==0) {
@@ -119,7 +123,9 @@ public class CliRunner {
 		
 		if (options.get("i")!=null) {
 			runConsole(args);
+			return;
 		}
+		run(args);
 	}
 	
 	public void run(String... args) {

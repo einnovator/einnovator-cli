@@ -298,6 +298,8 @@ public abstract class CommandRunnerBase implements CommandRunner {
 				Object obj = MetaUtil.newInstance(type);
 				MappingUtils.fromMap(obj, (Map<String,Object>)value);
 				value = (T)obj;
+			} else if (value instanceof String) {
+				value = (T)MappingUtils.fromJson((String)value, type);
 			}
 		}
 		return value;
@@ -928,5 +930,18 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		}
 	}
 
+	public CommandRunner getRunnerByName(String name) {
+		for (CommandRunner runner: runners) {
+			String rprefix = runner.getPrefix();
+			if (name.equalsIgnoreCase(rprefix)) {
+				return runner;
+			}
+		}
+		return null;
+	}
 	
+	protected void writeConfig() {
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		sso.writeConfig();
+	}
 }
