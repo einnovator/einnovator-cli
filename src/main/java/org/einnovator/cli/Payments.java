@@ -68,7 +68,7 @@ public class Payments extends CommandRunnerBase {
 	
 	
 	@Override
-	public String getPrefix() {
+	public String getName() {
 		return "payments";
 	}
 

@@ -3,22 +3,15 @@ package org.einnovator.cli;
 import static org.springframework.util.StringUtils.hasText;
 
 import java.io.Console;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.ResourceBundle;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
@@ -26,33 +19,33 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
-@SpringBootApplication
-public class CliRunner {
+//@SpringBootApplication
+@Component
+public class CliRunner extends RunnerBase {
 
 	public static String CLI_NAME = "ei";
 
 	private final Log logger = LogFactory.getLog(getClass());
 
-	@Autowired
-	private List<CommandRunner> runners;
-	
-	DefaultOAuth2ClientContext context;
-	OAuth2RestTemplate template;
-	
-	private boolean interactive;
 	
 	static long t0, t1;
 	static boolean tcli;
+	
+	public CliRunner() {
+	}
+	
+	//@Autowired
+	public CliRunner(List<CommandRunner> runners) {
+		this.runners = runners;
+	}
+
+	
 	public static void main(String[] args) {
 		Map<String, Object> options = makeArgsMap(args, null, false);
 		t0 = System.currentTimeMillis();
@@ -61,7 +54,19 @@ public class CliRunner {
 			tcli = true;
 			System.out.println("Starting...");
 		}
-		new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);
+		boolean boot = true;
+		if (boot) {
+			new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);			
+		} else {
+			CliRunner cli = new CliRunner();
+			String[] loggers = { "org.apache.commons.beanutils.converters.ArrayConverter"};
+			for (String logger : loggers) {
+				org.apache.log4j.Logger log = org.apache.log4j.Logger.getLogger(logger);
+				log.setLevel(org.apache.log4j.Level.OFF);
+			}
+			cli.init();
+			cli.dispatch(args);
+		}
 	}
 	
 	@PostConstruct
@@ -72,10 +77,14 @@ public class CliRunner {
 			System.out.println(String.format("Init: %sms", t1-t0));
 		}
 		List<CommandRunner> runners2 = new ArrayList<CommandRunner>();
+		if (runners==null) {
+			AppConfig config = new AppConfig();
+			runners = config.getAllRunners();
+		}
 		for (CommandRunner runner: runners) {
-			String prefix = runner.getPrefix();
-			if (!hasText(prefix)) {
-				logger.warn(CommandRunner.class.getSimpleName() + " missing prefix");
+			String NAME = runner.getName();
+			if (!hasText(NAME)) {
+				logger.warn(CommandRunner.class.getSimpleName() + " missing NAME");
 				continue;
 			}
 			runners2.add(runner);
@@ -117,7 +126,7 @@ public class CliRunner {
 		}
 		
 
-		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 		sso.setup(options);
 		setupEndpoints(sso.getAllEndpoints());
 		
@@ -129,7 +138,6 @@ public class CliRunner {
 	}
 	
 	public void run(String... args) {
-		
 		List<String> cmds = new ArrayList<>();
 		options = makeArgsMap(args, cmds);
 		if (cmds.size()==0) {
@@ -138,8 +146,8 @@ public class CliRunner {
 			exit(-1);
 			return;
 		}
-		String prefix = cmds.get(0);
-		CommandRunner runner = getRunnerByName(prefix);
+		String NAME = cmds.get(0);
+		CommandRunner runner = getRunnerByName(NAME);
 		if (runner!=null) {
 			if (cmds.size()==1) {
 				System.err.println("Missing command...");
@@ -148,10 +156,10 @@ public class CliRunner {
 			}
 			cmds.remove(0);
 		} else {
-			runner = getRunnerByCommand(prefix);
+			runner = getRunnerByCommand(NAME);
 		}
 		if (runner==null) {
-			System.err.println("Unknow service: " + prefix);
+			System.err.println("Unknow service: " + NAME);
 			printUsage();
 			exit(-1);
 		}
@@ -170,12 +178,11 @@ public class CliRunner {
 		}
 
 		debug("Type: " + type + " ; Op: " + op + " ; Args:" + options + " ; Runner:" + runner.getClass().getSimpleName());
-
 		String[] cmds_ = cmds.toArray(new String[cmds.size()]);
 
 		OAuth2RestTemplate template = null;
 
-		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 
 		bundle = getResourceBundle();
 		if (!(runner instanceof Sso)) {
@@ -200,7 +207,7 @@ public class CliRunner {
 			if (options.get("dump")!=null) {
 				e.printStackTrace();
 			}			
-			error(e.toString());
+			error(e);
 		}
 
 	}
@@ -246,24 +253,6 @@ public class CliRunner {
 		return line;
 	}
 
-	public CommandRunner getRunnerByName(String name) {
-		for (CommandRunner runner: runners) {
-			String rprefix = runner.getPrefix();
-			if (name.equalsIgnoreCase(rprefix)) {
-				return runner;
-			}
-		}
-		return null;
-	}
-
-	public CommandRunner getRunnerByCommand(String prefix) {
-			for (CommandRunner runner: runners) {
-			if (runner.supports(prefix)) {
-				return runner;
-			}
-		}
-		return null;
-	}
 	
 	public void printUsage() {
 		StringBuilder sb = new StringBuilder();
@@ -271,12 +260,12 @@ public class CliRunner {
 		sb.append(CLI_NAME);
 		int i = 0;
 		for (CommandRunner runner: runners) {
-			String prefix = runner.getPrefix();
+			String NAME = runner.getName();
 			sb.append(" ");								
 			if (i>0) {
 				sb.append("| ");				
 			}
-			sb.append(prefix);
+			sb.append(NAME);
 			i++;
 		}
 		sb.append(" args... [-option value]* [--options==value]*");				
@@ -351,7 +340,7 @@ public class CliRunner {
 	public void setupEndpoints(Map<String, Object> endpoints) {
 		if (endpoints!=null) {
 			for (CommandRunner runner: runners) {
-				String name = runner.getPrefix();
+				String name = runner.getName();
 				@SuppressWarnings("unchecked")
 				Map<String, Object> endpoints1 = (Map<String, Object>)endpoints.get(name);
 				if (endpoints1!=null) {
@@ -361,32 +350,4 @@ public class CliRunner {
 		}
 	}
 
-	protected void exit(int code) {
-		if (interactive) {
-			throw new InteractiveException();
-		}
-		System.exit(code);		
-	}
-	
-	protected void error(String msg, Object... args) {
-		System.err.println(String.format("ERROR: " + msg, args));
-	}
-	
-	public String resolve(String key) {
-		ResourceBundle bundle = getResourceBundle();
-		return bundle.getString(key);		
-	}
-
-	ResourceBundle bundle;
-	
-	public ResourceBundle getResourceBundle() {
-		if (bundle==null) {
-			bundle = ResourceBundle.getBundle("messages", getLocale());
-		}
-		return bundle;
-	}
-	
-	public Locale getLocale() {
-		return Locale.getDefault();
-	}
 }

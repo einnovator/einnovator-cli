@@ -17,7 +17,7 @@ import org.springframework.security.oauth2.client.OAuth2RestTemplate;
  */
 public interface CommandRunner {
 
-	String getPrefix();
+	String getName();
 
 	boolean supports(String cmd);
 

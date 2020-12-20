@@ -30,7 +30,7 @@ public class Documents extends CommandRunnerBase {
 	public static final String DOCUMENTS_DEFAULT_SERVER = "http://localhost:2020";
 	public static final String DOCUMENTS_MONITOR_SERVER = "http://localhost:2021";
 
-	public static final String DOCUMENTS_PREFIX = "documents";
+	public static final String DOCUMENTS_NAME = "documents";
 
 
 	private static final String DOCUMENT_DEFAULT_FORMAT = "name,type,contentLength:size,owner,lastModified";
@@ -52,8 +52,8 @@ public class Documents extends CommandRunnerBase {
 
 	
 	@Override
-	public String getPrefix() {
-		return DOCUMENTS_PREFIX;
+	public String getName() {
+		return DOCUMENTS_NAME;
 	}
 
 	String[][] DOCUMENTS_COMMANDS = new String[][] { 

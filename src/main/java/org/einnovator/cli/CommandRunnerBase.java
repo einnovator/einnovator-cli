@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.einnovator.util.StringUtil;
 import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.meta.MetaUtil;
 import org.einnovator.util.model.EntityBase;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -30,7 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 
-public abstract class CommandRunnerBase implements CommandRunner {
+public abstract class CommandRunnerBase  extends RunnerBase implements CommandRunner {
 
 
 	protected String[] cmds;
@@ -43,8 +41,6 @@ public abstract class CommandRunnerBase implements CommandRunner {
 
 	protected static YAMLFactory yamlFactory = new YAMLFactory();
 
-	@Autowired
-	protected List<CommandRunner> runners;
 	
 	@Override
 	public boolean supports(String cmd) {
@@ -66,61 +62,69 @@ public abstract class CommandRunnerBase implements CommandRunner {
 
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
+		super.init(interactive, bundle);
 		this.cmds = cmds;
 		this.options = options;
 		this.template = template;
-		this.interactive = interactive;
-		this.bundle = bundle;
+	}
+
+	protected OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource,
+			DefaultOAuth2ClientContext context, ConnectionConfiguration connection) {
+		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
+		if (connection!=null) {			
+			template.setRequestFactory(connection.makeClientHttpRequestFactory());			
+		}
+		return template;
 	}
 
 
 	@Override
 	public void printUsage() {
+		String descr = resolve(getName());
+		System.out.println(String.format("[%s] %s", getName(), descr));			
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
-			String descr = resolve(getPrefix());
-			System.out.println(String.format("[%s] %s", descr));			
 			for (String[] cmds_: cmds) {
-				descr = resolve(cmds_);
-				System.out.println(String.format("  %s %s", cmds_[0], descr));	
-				if (cmds_.length>1) {
-					String alias = String.join("|", cmds_);
-					alias = alias.substring(alias.indexOf("|"));
-					System.out.println(String.format("  %s", alias));								
-				}
-	
+				printUsage(cmds_[0], cmds_, false);	
 			}
 		}
 		if (interactive) {
-			System.out.println(String.format("usage: %s %s", getPrefix(), getUsage()));			
+			System.out.println(String.format("usage: %s %s", getName(), getUsage()));			
 		} else {
-			System.out.println(String.format("usage: %s %s %s", CliRunner.CLI_NAME, getPrefix(), getUsage()));			
+			System.out.println(String.format("usage: %s %s %s", CliRunner.CLI_NAME, getName(), getUsage()));			
 		}
 		exit(0);
 	}
+
+	public void printUsage(String cmd) {
+		String[] alias = findCommand(cmd);
+		printUsage(cmd, alias, true);
+	}
+
+	public void printUsage(String cmd, String[] alias, boolean showAlias) {
+		String descr = resolve(getName() + "." + cmd);
+		System.out.println(String.format("  %s %s", cmd, descr));	
+		if (showAlias && alias!=null && alias.length>1) {
+			String salias = String.join("|", alias);
+			salias = salias.substring(salias.indexOf("|"));
+			System.out.println(String.format("  Alias: %s", salias));								
+		}
+	}
 	
-	private String resolve(String[] cmds_) {
-		for (String cmd: cmds_) {
-			String s = resolve(cmd);
-			if (StringUtil.hasText(s)) {
-				return s.trim();
+	protected String[] findCommand(String cmd) {
+		String[][] cmds = getCommands();
+		if (cmds!=null) {
+			for (String[] alias: cmds) {
+				if (alias.length>0) {
+					if (cmd.equals(alias[0])) {
+						return alias;
+					}
+				}
 			}
 		}
-		return "";
+		return null;
 	}
-
-
-	private String resolve(String key) {
-		if (bundle!=null) {
-			try {
-				String s = bundle.getString(key);						
-				return s;
-			} catch (RuntimeException e) {
-			}			
-		}
-		return "?" + key + "?";
-	}
-
+	
 
 	protected String getUsage() {
 		StringBuilder sb = new StringBuilder();
@@ -573,7 +577,7 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		Map<String, Object> map = MappingUtils.toMap(obj);
 		if (map==null) {
 			sb.append("???");
-		} else if (fmt=="+") {
+		} else if ("all".equals(fmt)) {
 			for (Map.Entry<String, Object> e: map.entrySet()) {
 				if (sb.length()>0) {
 					sb.append(" ");						
@@ -600,7 +604,7 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		List<String> values = new ArrayList<>();
 		Map<String, Object> map = MappingUtils.toMap(obj);
 		if (map==null) {
-		} else if (fmt=="+") {
+		} else if ("all".equals(fmt)) {
 			for (Map.Entry<String, Object> e: map.entrySet()) {
 				Object value = getPropertyValue(obj, e.getKey());
 				values.add(formatSimple(value));						
@@ -681,7 +685,14 @@ public abstract class CommandRunnerBase implements CommandRunner {
 
 	protected boolean isDebug() {
 		String s = (String)options.get("debug");
-		return s!=null;
+		if (s!=null) {
+			return true;
+		}
+		s = (String)options.get("v");
+		if (s!=null) {
+			return true;
+		}
+		return false;
 	}
 	
 	//
@@ -854,9 +865,11 @@ public abstract class CommandRunnerBase implements CommandRunner {
 	protected String argId(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 0, required);
 	}
-
 	protected String argId1(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 1, required);
+	}
+	protected String argId2(String op, String[] cmds, boolean required) {
+		return argn(op, cmds, 2, required);
 	}
 
 	protected String argName(String op, String[] cmds, boolean required) {
@@ -930,18 +943,9 @@ public abstract class CommandRunnerBase implements CommandRunner {
 		}
 	}
 
-	public CommandRunner getRunnerByName(String name) {
-		for (CommandRunner runner: runners) {
-			String rprefix = runner.getPrefix();
-			if (name.equalsIgnoreCase(rprefix)) {
-				return runner;
-			}
-		}
-		return null;
-	}
 	
 	protected void writeConfig() {
-		Sso sso = (Sso)getRunnerByName(Sso.SSO_PREFIX);
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 		sso.writeConfig();
 	}
 }

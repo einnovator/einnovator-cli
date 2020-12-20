@@ -56,7 +56,7 @@ public class Social extends CommandRunnerBase {
 	
 	
 	@Override
-	public String getPrefix() {
+	public String getName() {
 		return "social";
 	}
 

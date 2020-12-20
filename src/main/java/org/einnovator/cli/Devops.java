@@ -4,6 +4,7 @@ import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -16,8 +17,10 @@ import org.einnovator.devops.client.model.Connector;
 import org.einnovator.devops.client.model.CronJob;
 import org.einnovator.devops.client.model.Deployment;
 import org.einnovator.devops.client.model.Domain;
+import org.einnovator.devops.client.model.Instance;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.Mount;
+import org.einnovator.devops.client.model.Pod;
 import org.einnovator.devops.client.model.Registry;
 import org.einnovator.devops.client.model.Resources;
 import org.einnovator.devops.client.model.Route;
@@ -36,6 +39,7 @@ import org.einnovator.devops.client.modelx.DeploymentOptions;
 import org.einnovator.devops.client.modelx.DomainFilter;
 import org.einnovator.devops.client.modelx.DomainOptions;
 import org.einnovator.devops.client.modelx.ExecOptions;
+import org.einnovator.devops.client.modelx.InstallOptions;
 import org.einnovator.devops.client.modelx.JobFilter;
 import org.einnovator.devops.client.modelx.JobOptions;
 import org.einnovator.devops.client.modelx.LogOptions;
@@ -58,7 +62,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Devops extends CommandRunnerBase {
-	public static final String DEVOPS_PREFIX = "devops";
+	public static final String DEVOPS_NAME = "devops";
 
 	public static final String DEVOPS_DEFAULT_SERVER = "http://localhost:2500";
 	public static final String DEVOPS_MONITOR_SERVER = "http://localhost:2501";
@@ -91,8 +95,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String CATALOG_DEFAULT_FORMAT = "id,name,type,enabled";
 	private static final String CATALOG_WIDE_FORMAT = "id,name,type,enabled";
 
-	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,type,url";
-	private static final String SOLUTION_WIDE_FORMAT = "id,name,type,url";
+	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,type,kind,category,keywords";
+	private static final String SOLUTION_WIDE_FORMAT = "id,name,type,kind,category,keywords,url";
 
 	private static final String BINDING_DEFAULT_FORMAT = "selector";
 	private static final String BINDING_WIDE_FORMAT = "selector";
@@ -100,11 +104,17 @@ public class Devops extends CommandRunnerBase {
 	private static final String CONNECTOR_DEFAULT_FORMAT = "id,name";
 	private static final String CONNECTOR_WIDE_FORMAT = "id,name";
 
-	private static final String ROUTE_DEFAULT_FORMAT = "id,name,dns,tls";
-	private static final String ROUTE_WIDE_FORMAT = "id,name,dns,tls";
+	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain,tls";
+	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain,tls";
 
 	private static final String MOUNT_DEFAULT_FORMAT = "id,name,type,mountPath";
 	private static final String MOUNT_WIDE_FORMAT = "id,name,type,mountPath";
+
+	private static final String VAR_DEFAULT_FORMAT = "id,name,type,value,configMap,secret";
+	private static final String VAR_WIDE_FORMAT = "id,name,type,value,configMap,secret";
+
+	private static final String POD_DEFAULT_FORMAT = "name,status,restarts,creationDateFormatted:age";
+	private static final String POD_WIDE_FORMAT = "name,status,restarts,creationDateFormatted:age,ip,node";
 
 	private DevopsClient devopsClient;
 
@@ -136,8 +146,8 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	@Override
-	public String getPrefix() {
-		return DEVOPS_PREFIX;
+	public String getName() {
+		return DEVOPS_NAME;
 	}
 	
 	@Override
@@ -178,24 +188,27 @@ public class Devops extends CommandRunnerBase {
 		case "help":
 			printUsage();
 			break;
-		case "cluster": case "clusters": case "c":
+		case "cluster": case "clusters": 
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("cluster");
+				break;
+			case "get": case "show": case "view":
 				getCluster(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listCluster(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaCluster(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createCluster(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateCluster(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteCluster(type, op, cmds, options);
 				break;
 			default: 
@@ -204,10 +217,13 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "space": case "spaces": case "g":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("space");
+				break;
+			case "get": case "show": case "view":
 				getSpace(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listSpace(type, op, cmds, options);
 				break;
 			case "set":
@@ -219,13 +235,13 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaSpace(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createSpace(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateSpace(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteSpace(type, op, cmds, options);
 				break;
 			default: 
@@ -233,24 +249,27 @@ public class Devops extends CommandRunnerBase {
 				break;
 			}
 			break;
-		case "deploy": case "deployment": case "deploys": case "deployments":
+		case "deployment": case "deploy": case "deploys": case "deployments":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("deployment");
+				break;
+			case "get": case "show": case "view":
 				getDeployment(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "ps": case "":
 				listDeployment(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaDeployment(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createDeployment(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateDeployment(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm": case "kill":
 				deleteDeployment(type, op, cmds, options);
 				break;
 			case "scale":
@@ -277,6 +296,9 @@ public class Devops extends CommandRunnerBase {
 			case "log": case "logs":
 				logDeployment(type, op, cmds, options);
 				break;
+			case "instances": case "instance": case "replica": case "replicas": case "pods": case "pod":
+				instancesDeployment(type, op, cmds, options);
+				break;
 			case "route":
 				routeDeployment(type, op, cmds, options);
 				break;
@@ -299,23 +321,29 @@ public class Devops extends CommandRunnerBase {
 			break;			
 		case "job":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("job");
+				break;
+			case "get": case "show": case "view":
 				getJob(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "ps": case "":
 				listJob(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaJob(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createJob(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateJob(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm": case "kill":
 				deleteJob(type, op, cmds, options);
+				break;
+			case "instances": case "instance": case "replica": case "replicas": case "pods": case "pod":
+				instancesJob(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -324,23 +352,29 @@ public class Devops extends CommandRunnerBase {
 			break;			
 		case "cronjob":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("cronjob");
+				break;
+			case "get": case "show": case "view":
 				getCronJob(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "ps": case "":
 				listCronJob(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaCronJob(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createCronJob(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateCronJob(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm": case "kill":
 				deleteCronJob(type, op, cmds, options);
+				break;
+			case "jobs": case "job":
+				jobsCronJob(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -349,22 +383,25 @@ public class Devops extends CommandRunnerBase {
 			break;			
 		case "domain": case "domains":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("domain");
+				break;
+			case "get": case "show": case "view":
 				getDomain(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listDomain(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaDomain(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createDomain(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateDomain(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteDomain(type, op, cmds, options);
 				break;
 			default: 
@@ -374,22 +411,25 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "registry": case "registries": case "r":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("registry");
+				break;
+			case "get": case "show": case "view":
 				getRegistry(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listRegistry(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaRegistry(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createRegistry(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateRegistry(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteRegistry(type, op, cmds, options);
 				break;
 			default: 
@@ -397,24 +437,27 @@ public class Devops extends CommandRunnerBase {
 				break;
 			}
 			break;
-		case "vcs": case "vcss": case "v": case "git":
+		case "vcs": case "vcss": case "git":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("vcs");
+				break;
+			case "get": case "show": case "view":
 				getVcs(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listVcs(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaVcs(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createVcs(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateVcs(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteVcs(type, op, cmds, options);
 				break;
 			default: 
@@ -424,23 +467,29 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "catalog": case "catalogs":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("catalog");
+				break;
+			case "get": case "show": case "view":
 				getCatalog(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listCatalog(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaCatalog(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createCatalog(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateCatalog(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteCatalog(type, op, cmds, options);
+				break;
+			case "install":
+				installFromCatalog(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -449,29 +498,47 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "solution": case "solutions":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help":
+				printUsage("solution");
+				break;
+			case "get": case "show": case "view":
 				getSolution(type, op, cmds, options);
 				break;
-			case "list": case "l": case "":
+			case "list": case "ls": case "":
 				listSolution(type, op, cmds, options);
 				break;
 			case "schema": case "meta":
 				schemaSolution(type, op, cmds, options);
 				break;
-			case "create": case "c":
+			case "create": 
 				createSolution(type, op, cmds, options);
 				break;
-			case "update": case "u":
+			case "update": 
 				updateSolution(type, op, cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm":
 				deleteSolution(type, op, cmds, options);
+				break;
+			case "install":
+				installSolution(type, op, cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
+		case "marketplace": case "market":
+			switch (op) {
+			case "help":
+				printUsage("marketplace");
+				break;
+			case "list": case "ls": case "":
+				listMarketplace(type, op, cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}
 		default:
 			System.err.println("Invalid command: " + type + " " + op);
 			printUsage();
@@ -551,8 +618,8 @@ public class Devops extends CommandRunnerBase {
 	public void listSpace(String type, String op, String[] cmds, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		SpaceFilter filter = convert(options, SpaceFilter.class);
-		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
 		debug("Spaces: %s %s", filter, pageable);
+		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
 		print(spaces, Space.class);
 	}
 	
@@ -567,7 +634,12 @@ public class Devops extends CommandRunnerBase {
 	public void setSpace(String type, String op, String[] cmds, Map<String, Object> options) {
 		String spaceId = argId(op, cmds);
 		debug("Set Space: %s", spaceId);
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		Space space = devopsClient.getSpace(spaceId, options_);
 		this.space = spaceId;
+		if (isEcho()) {
+			printObj(space);
+		}
 		writeConfig();
 	}
 	public void unsetSpace(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -759,19 +831,40 @@ public class Devops extends CommandRunnerBase {
 		String out = devopsClient.logDeployment(deployId, options_);			
 		System.out.println(out);
 	}
-
+	
+	public void instancesDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String deployId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Instances of: %s", deployId);		
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Instance> instances = devopsClient.listInstances(deployId, options_);			
+			print(instances);
+			break;
+		}
+		case "kill": case "remove": case "rm": case "delete": case "del": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			String pod = argId2(op, cmds, true);
+			debug("Delete Instance: %s %s", deployId, pod);		
+			devopsClient.deleteInstance(deployId, pod, options_);
+			break;
+		}
+		}
+	}
+	
 	public void routeDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		String deployId = argIdx1(op, cmds);
 		switch (op2) {
-		case "list": case "": {
+		case "list": case "ls": case "": {
 			debug("Routes: %s", deployId);		
-			RequestOptions options_ = convert(options, RequestOptions.class);
-			Route route = convert(options, Route.class);
-			devopsClient.addRoute(deployId, route, options_);			
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Route> routes = devopsClient.listRoutes(deployId, options_);			
+			print(routes);
 			break;
 		}
-		case "add": {
+		case "add": case "create": {
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Route route = convert(options, Route.class);
 			debug("Add Route: %s %s", deployId, route);		
@@ -795,20 +888,20 @@ public class Devops extends CommandRunnerBase {
 		}
 		}
 	}
-	
+
 
 	public void mountDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		String deployId = argIdx1(op, cmds);
 		switch (op2) {
-		case "list": case "": {
+		case "list": case "ls": case "": {
 			debug("Mounts: %s", deployId);		
-			RequestOptions options_ = convert(options, RequestOptions.class);
-			Mount mount = convert(options, Mount.class);
-			devopsClient.addMount(deployId, mount, options_);			
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Mount> mounts = devopsClient.listMounts(deployId, options_);			
+			print(mounts);
 			break;
 		}
-		case "add": {
+		case "add": case "create": {
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
 			debug("Add Mount: %s %s", deployId, mount);		
@@ -837,14 +930,14 @@ public class Devops extends CommandRunnerBase {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		String deployId = argIdx1(op, cmds);
 		switch (op2) {
-		case "list": case "": {
-			debug("Vars: %s", deployId);		
-			RequestOptions options_ = convert(options, RequestOptions.class);
-			Variable var = convert(options, Variable.class);
-			devopsClient.addVariable(deployId, var, options_);			
+		case "list": case "ls": case "": {
+			debug("EnvVars: %s", deployId);		
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Variable> vars = devopsClient.listVariables(deployId, options_);			
+			print(vars);
 			break;
 		}
-		case "add": {
+		case "add": case "create": {
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
 			debug("Add Var: %s %s", deployId, var);		
@@ -873,14 +966,14 @@ public class Devops extends CommandRunnerBase {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		String deployId = argIdx1(op, cmds);
 		switch (op2) {
-		case "list": case "": {
+		case "list": case "ls": case "": {
 			debug("Bindings: %s", deployId);		
-			RequestOptions options_ = convert(options, RequestOptions.class);
-			Binding binding = convert(options, Binding.class);
-			devopsClient.addBinding(deployId, binding, options_);			
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Binding> bindings = devopsClient.listBindings(deployId, options_);			
+			print(bindings);
 			break;
 		}
-		case "add": {
+		case "add": case "create": {
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Binding binding = convert(options, Binding.class);
 			debug("Add Binding: %s %s", deployId, binding);		
@@ -909,14 +1002,14 @@ public class Devops extends CommandRunnerBase {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		String deployId = argIdx1(op, cmds);
 		switch (op2) {
-		case "list": case "": {
+		case "list": case "ls": case "": {
 			debug("Connectors: %s", deployId);		
-			RequestOptions options_ = convert(options, RequestOptions.class);
-			Connector connector = convert(options, Connector.class);
-			devopsClient.addConnector(deployId, connector, options_);			
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			List<Connector> connectors = devopsClient.listConnectors(deployId, options_);		
+			printObj(connectors);
 			break;
 		}
-		case "add": {
+		case "add": case "create": {
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Connector connector = convert(options, Connector.class);
 			debug("Add Connector: %s %s", deployId, connector);		
@@ -1006,6 +1099,135 @@ public class Devops extends CommandRunnerBase {
 		devopsClient.deleteJob(jobId, null);		
 	}
 
+	public void instancesJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String jobId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Instances for Job: %s", jobId);		
+			JobOptions options_ = convert(options, JobOptions.class);
+			List<Instance> instances = devopsClient.listInstancesForJob(jobId, options_);			
+			print(instances);
+			break;
+		}
+		case "kill": case "remove": 	case "rm": case "delete": case "del": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			String pod = argId2(op, cmds, true);
+			debug("Delete Instance of Job: %s %s", jobId, pod);		
+			devopsClient.deleteInstance(jobId, pod, options_);
+			break;
+		}
+		}
+	}
+
+	public void mountJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String jobId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Job Mounts: %s", jobId);		
+			JobOptions options_ = convert(options, JobOptions.class);
+			List<Mount> mounts = devopsClient.listMountsJob(jobId, options_);			
+			print(mounts);
+			break;
+		}
+		case "add": case "create": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Mount mount = convert(options, Mount.class);
+			debug("Add Job Mount: %s %s", jobId, mount);		
+			devopsClient.addMountJob(jobId, mount, options_);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			String mountId = argId1(op2, cmds);
+			debug("Remove Job Mount: %s %s", jobId, mountId);		
+			devopsClient.removeMountJob(jobId, mountId, options_);
+			break;
+		}
+		case "update": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Mount mount = convert(options, Mount.class);
+			String mountId = argId1(op2, cmds);
+			debug("Update Job Mount: %s %s %s", jobId, mountId, mount);		
+			devopsClient.updateMountJob(jobId, mountId, mount, options_);
+			break;
+		}
+		}
+	}
+
+	public void varJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String jobId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Job EnvVars: %s", jobId);		
+			JobOptions options_ = convert(options, JobOptions.class);
+			List<Variable> vars = devopsClient.listVariablesJob(jobId, options_);			
+			print(vars);
+			break;
+		}
+		case "add": case "create": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Variable var = convert(options, Variable.class);
+			debug("Add Job EnvVar: %s %s", jobId, var);		
+			devopsClient.addVariableJob(jobId, var, options_);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			String varId = argId1(op2, cmds);
+			debug("Remove EnvVar: %s %s", jobId, varId);		
+			devopsClient.removeVariableJob(jobId, varId, options_);
+			break;
+		}
+		case "update": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Variable var = convert(options, Variable.class);
+			String varId = argId1(op2, cmds);
+			debug("Update Job EnvVar: %s %s %s", jobId, varId, var);		
+			devopsClient.updateVariableJob(jobId, varId, var, options_);
+			break;
+		}
+		}
+	}
+
+	public void bindingJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String jobId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Job Bindings: %s", jobId);		
+			JobOptions options_ = convert(options, JobOptions.class);
+			List<Binding> bindings = devopsClient.listBindingsJob(jobId, options_);			
+			print(bindings);
+			break;
+		}
+		case "add": case "create": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Binding binding = convert(options, Binding.class);
+			debug("Add Job Binding: %s %s", jobId, binding);		
+			devopsClient.addBindingJob(jobId, binding, options_);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			String bindingId = argId1(op2, cmds);
+			debug("Remove Job Binding: %s %s", jobId, bindingId);		
+			devopsClient.removeBindingJob(jobId, bindingId, options_);
+			break;
+		}
+		case "update": {
+			RequestOptions options_ = convert(options, RequestOptions.class);
+			Binding binding = convert(options, Binding.class);
+			String bindingId = argId1(op2, cmds);
+			debug("Update Binding: %s %s %s", jobId, bindingId, binding);		
+			devopsClient.updateBindingJob(jobId, bindingId, binding, options_);
+			break;
+		}
+		}
+	}
+
 	//
 	// CronJobs
 	//
@@ -1070,6 +1292,20 @@ public class Devops extends CommandRunnerBase {
 		String cronjobId = argIdx(op, cmds);
 		debug("Deleting CronJob: %s", cronjobId);
 		devopsClient.deleteCronJob(cronjobId, null);		
+	}
+	
+	public void jobsCronJob(String type, String op, String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		String cronjobId = argIdx1(op, cmds);
+		switch (op2) {
+		case "list": case "ls": case "": {
+			debug("Jobs for CronJob: %s", cronjobId);		
+			CronJobOptions options_ = convert(options, CronJobOptions.class);
+			List<Job> jobs = devopsClient.listJobsForCronJob(cronjobId, options_);			
+			print(jobs);
+			break;
+		}
+		}
 	}
 
 	//
@@ -1300,6 +1536,18 @@ public class Devops extends CommandRunnerBase {
 	}
 
 
+	public void installFromCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
+		String catalogId = argId(op, cmds);
+		String solutionId = argId1(op, cmds);
+		InstallOptions options_ = convert(options, InstallOptions.class);
+		debug("Install Solution from Catalog: %s %s", solutionId, options_);
+		URI uri = devopsClient.install(catalogId, solutionId, options_);
+		if (isEcho()) {
+			Object deploy = getAny(uri, options);
+			printObj(deploy);
+		}
+	}
+	
 	//
 	// Solution
 	//
@@ -1355,8 +1603,48 @@ public class Devops extends CommandRunnerBase {
 		devopsClient.deleteSolution(solutionId, null);	
 	}
 
+	public void installSolution(String type, String op, String[] cmds, Map<String, Object> options) {
+		String solutionId = argId(op, cmds);
+		InstallOptions options_ = convert(options, InstallOptions.class);
+		debug("Install Solution: %s %s", solutionId, options_);
+		URI uri = devopsClient.install(solutionId, options_);
+		if (isEcho()) {
+			Object deploy = getAny(uri, options);
+			printObj(deploy);
+		}
+	}
 
+	private Object getAny(URI uri, Map<String, Object> options) {
+		String path = uri.getPath();
+		String id = UriUtils.extractId(uri);
+		if (path.indexOf("/deploy/")>=0) {
+			DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+			return devopsClient.getDeployment(id, options_);
+		}
+		if (path.indexOf("/job/")>=0) {
+			JobOptions options_ = convert(options, JobOptions.class);
+			return devopsClient.getJob(id, options_);
+		}
+		if (path.indexOf("/deploy/")>=0) {
+			CronJobOptions options_ = convert(options, CronJobOptions.class);
+			return devopsClient.getCronJob(id, options_);
+		}
+		return null;
+	}
 
+	//
+	// Markeplace
+	//
+
+	public void listMarketplace(String type, String op, String[] cmds, Map<String, Object> options) {
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		CatalogFilter filter = convert(options, CatalogFilter.class);
+		debug("Vcs: %s %s", filter, pageable);
+		Page<Catalog> catalogs = devopsClient.listCatalogs(filter, pageable);
+		print(catalogs, Catalog.class);
+		//TODO
+	}
+	
 	@Override
 	protected String getDefaultFormat(Class<? extends Object> type) {
 		if (Cluster.class.equals(type)) {
@@ -1404,6 +1692,13 @@ public class Devops extends CommandRunnerBase {
 		if (Mount.class.equals(type)) {
 			return MOUNT_DEFAULT_FORMAT;
 		}
+		if (Variable.class.equals(type)) {
+			return VAR_DEFAULT_FORMAT;
+		}
+		if (Pod.class.equals(type) || Instance.class.equals(type)) {
+			return POD_DEFAULT_FORMAT;
+		}
+
 		return null;
 	}
 
@@ -1454,6 +1749,13 @@ public class Devops extends CommandRunnerBase {
 		if (Mount.class.equals(type)) {
 			return MOUNT_WIDE_FORMAT;
 		}
+		if (Variable.class.equals(type)) {
+			return VAR_WIDE_FORMAT;
+		}
+		if (Pod.class.equals(type) || Instance.class.equals(type)) {
+			return POD_WIDE_FORMAT;
+		}
+
 		return null;
 	}
 	
@@ -1569,6 +1871,12 @@ public class Devops extends CommandRunnerBase {
 			return new String[] {};
 		}
 		if (Mount.class.equals(type)) {
+			return new String[] {};
+		}
+		if (Variable.class.equals(type)) {
+			return new String[] {};
+		}
+		if (Pod.class.equals(type) || Instance.class.equals(type)) {
 			return new String[] {};
 		}
 		return null;

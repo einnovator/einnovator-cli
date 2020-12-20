@@ -64,7 +64,7 @@ public class Notifications extends CommandRunnerBase {
 	
 	
 	@Override
-	public String getPrefix() {
+	public String getName() {
 		return "notifications";
 	}
 

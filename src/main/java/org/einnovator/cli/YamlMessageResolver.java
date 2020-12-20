@@ -13,7 +13,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 public class YamlMessageResolver {
 	protected static YAMLFactory yamlFactory = new YAMLFactory();
 
-	public static final String RESOURCE_FILE_PREFIX = "messages";
+	public static final String RESOURCE_FILE_NAME = "messages";
 	public static final String RESOURCE_FILE_SUFFIX = ".yml";
 	
 	public String locale;
@@ -64,7 +64,7 @@ public class YamlMessageResolver {
 	}
 
 	private String makeFilename(String infix) {
-		return RESOURCE_FILE_PREFIX + infix + RESOURCE_FILE_SUFFIX;
+		return RESOURCE_FILE_NAME + infix + RESOURCE_FILE_SUFFIX;
 	}
 	
 	public Map<String, String> loadMessages(String path) {
@@ -76,7 +76,7 @@ public class YamlMessageResolver {
 	}
 
 	@SuppressWarnings("unchecked")
-	public Map<String, String> flatMap(Map<String, Object> map, Map<String, String> out, String prefix) {
+	public Map<String, String> flatMap(Map<String, Object> map, Map<String, String> out, String NAME) {
 		if (map==null) {
 			return null;
 		}
@@ -86,7 +86,7 @@ public class YamlMessageResolver {
 			if (value==null) {
 				continue;
 			}
-			String key = prefix!=null ? prefix + "." + e.getKey() : e.getKey();
+			String key = NAME!=null ? NAME + "." + e.getKey() : e.getKey();
 			if (value instanceof Map) {
 				flatMap((Map<String, Object>)value, out, key);
 			} else {

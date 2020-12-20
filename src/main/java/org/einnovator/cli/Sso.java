@@ -54,7 +54,7 @@ public class Sso extends CommandRunnerBase {
 	private static final String SSO_DEFAULT_SERVER = "http://localhost:2000";
 	private static final String SSO_MONITOR_SERVER = "http://localhost:2001";
 
-	public static final String SSO_PREFIX = "sso";
+	public static final String SSO_NAME = "sso";
 
 	public static String CONFIG_FOLDER = ".ei";
 	public static String CONFIG_FILE = "config.json";
@@ -104,8 +104,8 @@ public class Sso extends CommandRunnerBase {
 	private Map<String, Object> allEndpoints;
 	 
 	@Override
-	public String getPrefix() {
-		return SSO_PREFIX;
+	public String getName() {
+		return SSO_NAME;
 	}
 
 	String[][] SSO_COMMANDS = new String[][] { 
@@ -522,7 +522,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getToken(String type, String op, String[] cmds, Map<String, Object> options) {
-		//debug("Credentials: %s %s", tokenUsername, tokenPassword);
+		debug("Credentials: %s %s", tokenUsername, tokenPassword);
 		debug("Config: %s", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		debug("Token: %s", token);
@@ -614,7 +614,7 @@ public class Sso extends CommandRunnerBase {
 			for (CommandRunner runner: runners) {
 				Map<String, Object> settings1 = runner.getSettings();
 				if (settings1!=null) {
-					settings.put(runner.getPrefix(), settings1);
+					settings.put(runner.getName(), settings1);
 				}
 			}
 			return settings;
@@ -626,7 +626,7 @@ public class Sso extends CommandRunnerBase {
 		if (runners!=null) {
 			for (CommandRunner runner: runners) {
 				@SuppressWarnings("unchecked")
-				Map<String, Object> settings1 = (Map<String, Object>)settings.get(runner.getPrefix());
+				Map<String, Object> settings1 = (Map<String, Object>)settings.get(runner.getName());
 				if (settings1!=null) {
 					runner.loadSettings(settings1);
 				}
