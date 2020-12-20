@@ -2120,11 +2120,17 @@ public class Devops extends CommandRunnerBase {
 		debug("Marketplace: %s %s", filter, pageable);
 		Page<Catalog> catalogs = devopsClient.listCatalogs(filter, pageable);
 		if (catalogs.getContent()!=null) {
+			int i = 0;
 			for (Catalog catalog: catalogs.getContent()) {
+				if (i>0) {
+					System.out.println();
+				}
 				System.out.println(String.format("%s %s", catalog.getId(), catalog.getName()));
+				System.out.println();
 				SolutionFilter filter2 = convert(options, SolutionFilter.class);
 				Page<Solution> solutions = devopsClient.listSolutionsFor(catalog.getUuid(), filter2, pageable);				
 				print(solutions, Solution.class);
+				i++;
 			}			
 		}
 	}

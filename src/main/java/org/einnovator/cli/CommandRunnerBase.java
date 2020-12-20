@@ -99,7 +99,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
 			for (String[] cmds_: cmds) {
-				printUsage(cmds_[0], cmds_, false, false);	
+				printUsage(cmds_[0], cmds_, false, false, true);	
 			}
 		}
 		if (interactive) {
@@ -112,21 +112,21 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	public void printUsage(String cmd) {
 		String[] alias = findCommand(cmd);
-		printUsage(cmd, alias, true, true);
+		printUsage(cmd, alias, true, true, false);
 	}
 
 	public void printUsage(String cmd, String subcmd) {
 		String[] alias = findSubCommand(cmd, subcmd);
-		printUsage(cmd, subcmd, alias, true, true);
+		printUsage(cmd, subcmd, 0, alias, true, true);
 	}
 
-	protected void printUsage(String cmd, String[] alias, boolean showAlias, boolean sub) {
+	protected void printUsage(String cmd, String[] alias, boolean showAlias, boolean sub, boolean indent) {
 		String descr = resolve(getName() + "." + cmd);
-		System.out.println(String.format("  %s %s", cmd, descr));	
+		System.out.println(String.format((indent ? "  " : "") + "%s %s", cmd, descr));	
 		if (showAlias && alias!=null && alias.length>1) {
 			String salias = String.join("|", alias);
 			salias = salias.substring(salias.indexOf("|")+1);
-			System.out.println(String.format("  Alias: %s", salias));								
+			System.out.println(String.format("Alias: %s", salias));								
 		}
 		if (sub) {
 			if (alias!=null && alias.length>0) {
@@ -134,24 +134,32 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			}
 			String[][] subcmds = getSubCommands(cmd);
 			if (subcmds!=null) {
+				int width = 0;
 				for (String[] subcmd: subcmds) {
-					printUsage(cmd, subcmd[0], subcmd, false, false);
+					if (cmd.length() + 1 + subcmd[0].length()>width) {
+						width = cmd.length() + 1 + subcmd[0].length();
+					}
 				}
+				for (String[] subcmd: subcmds) {
+					printUsage(cmd, subcmd[0], width, subcmd, false, false);
+				}
+
 			}
 		}
 	}
 
-	protected void printUsage(String cmd, String subcmd, String[] alias, boolean showAlias, boolean sub) {
+	protected void printUsage(String cmd, String subcmd, int width, String[] alias, boolean showAlias, boolean sub) {
 		String subcmd_ = subcmd;
 		if (subcmd.isEmpty()) {
 			subcmd = "ls";
 		}
 		String descr = resolve(getName() + "." + cmd + "." + subcmd_);
-		System.out.println(String.format("  %s %s", cmd + (!subcmd.isEmpty() ? " " + subcmd : ""), descr));	
+		String qname = cmd + (!subcmd.isEmpty() ? " " + subcmd : "");
+		System.out.println(String.format((width>1 ? "%-"+width+"s" : "") + "   %s", qname, descr));	
 		if (showAlias && alias!=null && alias.length>1) {
 			String salias = String.join("|", alias);
 			salias = salias.substring(salias.indexOf("|")+1);
-			System.out.println(String.format("  Alias: %s", salias));								
+			System.out.println(String.format("Alias: %s", salias));								
 		}
 		if (sub) {
 			if (alias!=null && alias.length>0) {
@@ -159,16 +167,27 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			}
 			String[] subcmds = findSubCommand(cmd, subcmd);
 			if (subcmds!=null) {
+				width = 0;
+				for (String subsubcmd: subcmds) {
+					if (cmd.length() + subcmd.length() + 2 + subsubcmd.length()>width) {
+						width = cmd.length() + subcmd.length() + 2 + subsubcmd.length();
+					}
+				}
 				for (String subsubcmd: subcmds) {
 					String subsubcmd_ = subsubcmd;
 					if (subsubcmd.isEmpty()) {
 						subsubcmd_ = "ls";
 					}
 					descr = resolve(getName() + "." + cmd + "." + subcmd + "." + subsubcmd_);
-					System.out.println(String.format("  %s %s", cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : ""), descr));	
+					qname = cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : "");
+					System.out.println("  " + String.format((width>1 ? "%-"+width+"s" : "") + "   %s", descr));	
 				}
 			}
 		}
+	}
+	
+	protected void printCommands(Map<String, String> descr) {
+		
 	}
 
 	protected String[] findCommand(String cmd) {
@@ -726,6 +745,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return getPropertyValue(obj_, name.substring(i+1)); //consume and recurse
 	}
 
+	public static final int MAX_COL_SIZE = 32;
+	
 	private String formatSimple(Object value) {
 		if (value==null) {
 			return "";
@@ -748,11 +769,17 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 		if (value instanceof Collection) {
 			StringBuilder sb = new StringBuilder();
+			int i = 0;
 			for (Object item: (Collection<?>)value) {
 				if (sb.length()>0) {
 					sb.append(",");
 				}
 				String s = formatSimple(item);
+				if (i>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
+					sb.append("...");
+					break;
+				}
+				i++;
 				if (s!=null && !s.isEmpty()) {
 					sb.append(s);
 				}
@@ -763,12 +790,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			StringBuilder sb = new StringBuilder();
 			Object[] a = (Object[])value;
 			int length = Array.getLength(a);
-		    for (int i = 0; i < length; i ++) {
-		        Object item = Array.get(a, i);
+			int j = 0;
+			for (int i = 0; i < length; i ++) {
 		        if (sb.length()>0) {
 					sb.append(",");
 				}
+				Object item = Array.get(a, i);
 				String s = formatSimple(item);
+				if (j>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
+					sb.append("...");
+					break;
+				}
+				j++;
 				if (s!=null && !s.isEmpty()) {
 					sb.append(s);
 				}
