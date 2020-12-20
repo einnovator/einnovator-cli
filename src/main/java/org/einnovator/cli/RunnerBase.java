@@ -108,7 +108,8 @@ public abstract class RunnerBase {
 	}
 
 	protected void error(Exception e) {
-		System.err.println(e);
+		String s = e.toString();
+		System.err.println("ERROR: " + (!s.isEmpty() ? s : e.getClass().getSimpleName()));
 	}
 	
 	public String resolve(String[] cmds_) {

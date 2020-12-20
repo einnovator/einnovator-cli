@@ -1,9 +1,11 @@
 package org.einnovator.cli;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +62,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return null;
 	}
 
+	protected Map<String, String[][]> getSubCommands() {
+		return null;
+	}
+
+	protected String[][] getSubCommands(String cmd) {
+		Map<String, String[][]> subcmds = getSubCommands();
+		if (subcmds!=null) {
+			return subcmds.get(cmd);
+		}
+		return null;
+	}
+	
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		super.init(interactive, bundle);
@@ -85,7 +99,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
 			for (String[] cmds_: cmds) {
-				printUsage(cmds_[0], cmds_, false);	
+				printUsage(cmds_[0], cmds_, false, false);	
 			}
 		}
 		if (interactive) {
@@ -98,33 +112,94 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	public void printUsage(String cmd) {
 		String[] alias = findCommand(cmd);
-		printUsage(cmd, alias, true);
+		printUsage(cmd, alias, true, true);
 	}
 
-	public void printUsage(String cmd, String[] alias, boolean showAlias) {
+	public void printUsage(String cmd, String subcmd) {
+		String[] alias = findSubCommand(cmd, subcmd);
+		printUsage(cmd, subcmd, alias, true, true);
+	}
+
+	protected void printUsage(String cmd, String[] alias, boolean showAlias, boolean sub) {
 		String descr = resolve(getName() + "." + cmd);
 		System.out.println(String.format("  %s %s", cmd, descr));	
 		if (showAlias && alias!=null && alias.length>1) {
 			String salias = String.join("|", alias);
-			salias = salias.substring(salias.indexOf("|"));
+			salias = salias.substring(salias.indexOf("|")+1);
 			System.out.println(String.format("  Alias: %s", salias));								
 		}
+		if (sub) {
+			if (alias!=null && alias.length>0) {
+				cmd = alias[0];
+			}
+			String[][] subcmds = getSubCommands(cmd);
+			if (subcmds!=null) {
+				for (String[] subcmd: subcmds) {
+					printUsage(cmd, subcmd[0], subcmd, false, false);
+				}
+			}
+		}
 	}
-	
+
+	protected void printUsage(String cmd, String subcmd, String[] alias, boolean showAlias, boolean sub) {
+		String subcmd_ = subcmd;
+		if (subcmd.isEmpty()) {
+			subcmd = "ls";
+		}
+		String descr = resolve(getName() + "." + cmd + "." + subcmd_);
+		System.out.println(String.format("  %s %s", cmd + (!subcmd.isEmpty() ? " " + subcmd : ""), descr));	
+		if (showAlias && alias!=null && alias.length>1) {
+			String salias = String.join("|", alias);
+			salias = salias.substring(salias.indexOf("|")+1);
+			System.out.println(String.format("  Alias: %s", salias));								
+		}
+		if (sub) {
+			if (alias!=null && alias.length>0) {
+				cmd = alias[0];
+			}
+			String[] subcmds = findSubCommand(cmd, subcmd);
+			if (subcmds!=null) {
+				for (String subsubcmd: subcmds) {
+					String subsubcmd_ = subsubcmd;
+					if (subsubcmd.isEmpty()) {
+						subsubcmd_ = "ls";
+					}
+					descr = resolve(getName() + "." + cmd + "." + subcmd + "." + subsubcmd_);
+					System.out.println(String.format("  %s %s", cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : ""), descr));	
+				}
+			}
+		}
+	}
+
 	protected String[] findCommand(String cmd) {
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
 			for (String[] alias: cmds) {
-				if (alias.length>0) {
-					if (cmd.equals(alias[0])) {
-						return alias;
-					}
+				if (StringUtil.contains(alias, cmd)) {
+					return alias;
 				}
 			}
 		}
 		return null;
 	}
-	
+
+	protected String[] findSubCommand(String cmd, String subcmd) {
+		Map<String, String[][]> map = getSubCommands();
+		if (map!=null) {
+			for (Map.Entry<String, String[][]> e: map.entrySet()) {
+				String[][] cmds = e.getValue();
+				if (cmds!=null) {
+					for (String[] alias: cmds) {
+						if (StringUtil.contains(alias, cmd)) {
+							return alias;
+						}
+					}
+				}				
+			}
+		}
+		return null;
+	}
+
 
 	protected String getUsage() {
 		StringBuilder sb = new StringBuilder();
@@ -669,6 +744,36 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					value = out;
 				}
 			}
+			return value.toString();
+		}
+		if (value instanceof Collection) {
+			StringBuilder sb = new StringBuilder();
+			for (Object item: (Collection<?>)value) {
+				if (sb.length()>0) {
+					sb.append(",");
+				}
+				String s = formatSimple(item);
+				if (s!=null && !s.isEmpty()) {
+					sb.append(s);
+				}
+			}
+			return sb.toString();
+		}
+		if (value.getClass().isArray()) {
+			StringBuilder sb = new StringBuilder();
+			Object[] a = (Object[])value;
+			int length = Array.getLength(a);
+		    for (int i = 0; i < length; i ++) {
+		        Object item = Array.get(a, i);
+		        if (sb.length()>0) {
+					sb.append(",");
+				}
+				String s = formatSimple(item);
+				if (s!=null && !s.isEmpty()) {
+					sb.append(s);
+				}
+		    }
+			return sb.toString();
 		}
 		return value.toString();
 	}
@@ -886,6 +991,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected String argId1(String op, String[] cmds) {
 		return argId1(op, cmds, true);
 	}
+	protected String argId2(String op, String[] cmds) {
+		return argId2(op, cmds, true);
+	}
 	
 	protected String argPID(Map<String, Object> options) {
 		return null;
@@ -948,4 +1056,32 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 		sso.writeConfig();
 	}
+	
+	
+	public static String[] c(String... ss) {
+		String[] a = new String[ss.length];
+		int i = 0;
+		for (String s: ss) {
+			a[i] = s;
+			i++;
+		}
+		return a;
+	}
+
+	public static String[][] c(String[]... sss) {
+		String[][] a = new String[sss.length][];
+		int i = 0;
+		for (String[] ss: sss) {
+			a[i] = ss;
+			i++;
+		}
+		return a;
+	}
+	
+	public static Map<String, String[][]> m(String key, Map<String, Map<String, String[][]>> parent) {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		parent.put(key, map);
+		return map;
+	}
+
 }

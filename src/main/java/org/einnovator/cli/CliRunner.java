@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 
 //@SpringBootApplication
@@ -198,7 +199,7 @@ public class CliRunner extends RunnerBase {
 			if (options.get("dump")!=null) {
 				e.printStackTrace();
 			}
-			if (e.getStatusCode()!=HttpStatus.NOT_FOUND) {
+			if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
 				error(String.format("not found!"));
 			} else {
 				error(String.format("%s", StringUtil.capitalize(StringUtil.toWords(e.getStatusText().toLowerCase()))));				
