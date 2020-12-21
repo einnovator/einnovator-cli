@@ -190,9 +190,11 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
-
+		if (isHelp()) {
+			printUsage();
+		}
 		switch (type) {
-		case "help":
+		case "help": case "":
 			printUsage();
 			break;
 		case "login": case "l":

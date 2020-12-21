@@ -211,29 +211,29 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (alias0!=null && alias0.length>0) {
 			kcmd = alias0[0];
 		}
-		String[] alias1 = findSubCommand(cmd, subcmd);
 		String ksubcmd = subcmd.replaceAll(" ", ".");
-		if (alias1!=null && alias1.length>0) {
-			ksubcmd = alias1[0];
+		if (alias!=null && alias.length>0) {
+			ksubcmd = alias[0];
 		}
 		String key = getName() + "." + kcmd + "." + ksubcmd;
 		String descr = resolve(key);
 		String qname = cmd + (!subcmd.isEmpty() ? " " + subcmd : "");
 		System.out.println(String.format((!sub && indent ? "  " : "") + (sub ? "[" + getName() + "] ":"") + (width>1 ? "%-"+width+"s" : "%s") + (!sub ? "   %s" : "  --  %s"), qname, descr));	
+
 		if (sub) {
 			printUsageDetails(key, alias);
 			if (alias!=null && alias.length>0) {
 				cmd = alias[0];
 			}
 			String[][] subcmds = findSubSubCommands(kcmd, subcmd);
-			printCmds(cmd + " " + subcmd, subcmds, true);
+			printCmds(kcmd + " " + ksubcmd, subcmds, true);
 		}
 	}
 	
 	protected void printUsageDetails(String key, String[] alias) {
 		if (alias!=null && alias.length>1) {
 			String salias = String.join(" | ", alias);
-			System.out.println(String.format("Alias: %s", salias));								
+			System.out.println(String.format("  Alias: %s", salias));								
 		}
 		String descr2 = resolve(key + ".descr", false);
 		if (descr2!=null) {
@@ -318,7 +318,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				String[][] cmds = e.getValue();
 				if (cmds!=null) {
 					for (String[] alias: cmds) {
-						if (StringUtil.contains(alias, cmd)) {
+						if (StringUtil.contains(alias, subcmd)) {
 							return alias;
 						}
 					}

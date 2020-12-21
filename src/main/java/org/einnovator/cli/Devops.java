@@ -74,7 +74,7 @@ public class Devops extends CommandRunnerBase {
 	public static final String DEVOPS_MONITOR_SERVER = "http://localhost:2501";
 
 	private static final String CLUSTER_DEFAULT_FORMAT = "id,name,displayName,provider,region";
-	private static final String CLUSTER_WIDE_FORMAT = "id,name,displayName,provider,region";
+	private static final String CLUSTER_WIDE_FORMAT = "id,name,displayName,provider,region,enabled,master";
 
 	private static final String SPACE_DEFAULT_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 	private static final String SPACE_WIDE_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
@@ -130,8 +130,11 @@ public class Devops extends CommandRunnerBase {
 	private String server = DEVOPS_DEFAULT_SERVER;
 	
 	private String cluster;
-
 	private String space;
+	private String domain;
+	private String registry;
+	private String catalog;
+
 
 	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
@@ -162,8 +165,22 @@ public class Devops extends CommandRunnerBase {
 	@Override
 	public Map<String, Object> getSettings() {
 		Map<String, Object> settings = new LinkedHashMap<>();
-		settings.put("cluster", cluster);
-		settings.put("space", space);
+		if (StringUtil.hasText(cluster)) {
+			settings.put("cluster", cluster);			
+		}
+		if (StringUtil.hasText(space)) {
+			settings.put("space", space);
+		}
+		if (StringUtil.hasText(domain)) {
+			settings.put("domain", domain);			
+		}
+		if (StringUtil.hasText(registry)) {
+			settings.put("registry", registry);
+		}
+		if (StringUtil.hasText(catalog)) {
+			settings.put("catalog", catalog);
+		}
+
 		return settings;
 	}
 
@@ -171,6 +188,9 @@ public class Devops extends CommandRunnerBase {
 	public void loadSettings(Map<String, Object> settings) {
 		cluster = get("cluster", settings, cluster);
 		space = get("space", settings, space);
+		domain = get("domain", settings, domain);
+		registry = get("registry", settings, registry);
+		catalog = get("catalog", settings, catalog);
 	}
 
 	static String[][] DEVOPS_COMMANDS = c(
@@ -188,7 +208,9 @@ public class Devops extends CommandRunnerBase {
 		c("ps"),
 		c("kill"),
 		c("run"),
-		c("install")
+		c("install"),
+		c("pwd"),
+		c("cd")
 	);
 	
 	@Override
@@ -201,46 +223,46 @@ public class Devops extends CommandRunnerBase {
 	static {
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		subcommands = map;
-		map.put("cluster", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		map.put("cluster", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("create", "import"), c("update"), c("delete", "del", "rm"),
 			c("set"), c("unset"),
 			c("help")));
-		map.put("space", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete"), c("del"), c("rm"), 
+		map.put("space", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("attach"),
 			c("set"), c("unset"),
 			c("help")));
-		map.put("deployment", c(c("ls", "list", "ps", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), 
+		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("route"), c("mount"), c("env", "var"), c("binding"), c("connector"),
 			c("help")));
-		map.put("job", c(c("ls", "list", "ps", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), 
+		map.put("job", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("exec"), c("logs", "log"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));
-		map.put("cronjob", c(c("ls", "list", "ps", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"),
+		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"),
 			c("job", "jobs"),
 			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));			
-		map.put("domain", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), c("help")));
-		map.put("registry", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), c("help")));
-		map.put("vcs", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), c("help")));
-		map.put("catalog", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-				c("create"), c("update"), c("delete", "del", "rm"), 
+		map.put("domain", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("registry", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("vcs", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("catalog", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+				c("create"), c("update"), c("delete", "del", "remove", "rm"), 
 				c("solution", "solutions"),
 				c("help")));
-		map.put("solution", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "rm"), c("help")));
+		map.put("solution", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("marketplace", c(c("", "ls", "list"), c("help")));
 
 	}
@@ -256,35 +278,35 @@ public class Devops extends CommandRunnerBase {
 		Map<String, Map<String, String[][]>> map = new LinkedHashMap<>();
 		subsubcommands = map;
 		Map<String, String[][]> deploy = m("deployment", map);
-		deploy.put("route", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		deploy.put("route", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("env", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		deploy.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("mount", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		deploy.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("binding", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		deploy.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("connector", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		deploy.put("connector", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("pod", c(c("ls", "list", ""), c("kill", "delete", "del", "rm"), c("help")));
+		deploy.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "rm"), c("help")));
 
 		Map<String, String[][]> job = m("job", map);
-		job.put("env", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		job.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		job.put("mount", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		job.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		job.put("binding", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		job.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		job.put("pod", c(c("ls", "list", ""), c("kill", "delete", "del", "rm"), c("help")));
+		job.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "rm"), c("help")));
 
 		Map<String, String[][]> cronjob = m("cronjob", map);
-		cronjob.put("env", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		cronjob.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		cronjob.put("mount", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		cronjob.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		cronjob.put("binding", c(c("ls", "list", ""), c("get"), c("schema", "meta"), 
+		cronjob.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		cronjob.put("job", c(c("ls", "list", ""), c("help")));
+		cronjob.put("job", c(c("ls", "list"), c("help")));
 
 	}
 	
@@ -309,6 +331,12 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "install": 
 			install(type, op, cmds, options);
+			break;
+		case "pwd": 
+			pwd(type, op, cmds, options);
+			break;
+		case "cd": 
+			cd(type, op, cmds, options);
 			break;
 		case "cluster": case "clusters": 
 			switch (op) {
@@ -443,6 +471,11 @@ public class Devops extends CommandRunnerBase {
 				connectorDeployment(type, op, cmds, options);
 				break;
 			default: 
+				if (isHelp()) {
+					printUsage();
+					exit(0);
+					return;
+				}
 				invalidOp(type, op);
 				break;
 			}
@@ -775,12 +808,16 @@ public class Devops extends CommandRunnerBase {
 		}
 		printLine(schemaToString(Cluster.class));
 	}
-	
+
 	public void setCluster(String type, String op, String[] cmds, Map<String, Object> options) {
 		if (isHelp("cluster", "set")) {
 			return;
 		}
 		String clusterId = argId(op, cmds);
+		setCluster(clusterId, options);
+	}
+
+	public void setCluster(String clusterId, Map<String, Object> options) {
 		debug("Set Cluster: %s", clusterId);
 		ClusterOptions options_ = convert(options, ClusterOptions.class);
 		Cluster cluster = devopsClient.getCluster(clusterId, options_);
@@ -816,6 +853,9 @@ public class Devops extends CommandRunnerBase {
 			required = false;
 		}
 		cluster.setName(argName(op, cmds, required));
+		if (cluster.getDisplayName()!=null) {
+			cluster.setDisplayName(cluster.getName());
+		}
 		debug("Creating Cluster: %s", cluster);
 		URI uri = devopsClient.createCluster(cluster, null);
 		if (isEcho()) {
@@ -841,7 +881,7 @@ public class Devops extends CommandRunnerBase {
 					exit(-1);
 					return;
 				}
-
+				cluster.setKubeconfig(kubeconfig);
 			} else {
 				cluster.setKubeconfig(file);				
 			}
@@ -903,6 +943,10 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String spaceId = argId(op, cmds);
+		setSpace(spaceId, options);
+	}
+	
+	public void setSpace(String spaceId, Map<String, Object> options) {
 		debug("Set Space: %s", spaceId);
 		SpaceOptions options_ = convert(options, SpaceOptions.class);
 		Space space = devopsClient.getSpace(spaceId, options_);
@@ -1134,6 +1178,55 @@ public class Devops extends CommandRunnerBase {
 			installFromCatalog(type, op, cmds, options);;
 		} else {
 			installSolution(type, op, cmds, options);
+		}
+	}
+	
+	public void cd(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("cd")) {
+			return;
+		}
+		if (op==null || op.isEmpty()) {
+			error(String.format("missing argument cluster[/space]"));
+			exit(-1);
+			return;
+		}
+		int i = op.indexOf("/");
+		if (i<0) {
+			setSpace(op, options);
+		} else if (i>0) {
+			if (i==op.length()-1) {
+				op = op.substring(0, i);
+				setCluster(op, options);				
+			} else {
+				setSpace(op, options);				
+			}
+		} else if (i==0) {
+			op = op.substring(1);
+			setSpace(op, options);
+		} else if (i<0) {
+			setCluster(op, options);
+		}
+	}
+	
+	
+	public void pwd(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("pwd")) {
+			return;
+		}
+		if (StringUtil.hasText(cluster)) {
+			System.out.println(String.format("Cluster: %s", cluster));			
+		}
+		if (StringUtil.hasText(space)) {
+			System.out.println(String.format("Space: %space", space));			
+		}
+		if (StringUtil.hasText(domain)) {
+			System.out.println(String.format("Domain: %s", domain));			
+		}
+		if (StringUtil.hasText(registry)) {
+			System.out.println(String.format("Registry: %s", registry));			
+		}
+		if (StringUtil.hasText(catalog)) {
+			System.out.println(String.format("Catalog: %s", catalog));			
 		}
 	}
 	

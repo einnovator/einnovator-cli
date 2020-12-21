@@ -91,10 +91,12 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
-
+		if (isHelp()) {
+			printUsage();
+		}
 		String path = op;
 		switch (type) {
-		case "help":
+		case "help": case "":
 			printUsage();
 			break;
 		case "documents": case "document": case "docs": case "doc": case "d":
