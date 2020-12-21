@@ -151,8 +151,8 @@ public class CliRunner extends RunnerBase {
 		CommandRunner runner = getRunnerByName(NAME);
 		if (runner!=null) {
 			if (cmds.size()==1) {
-				System.err.println("Missing command...");
-				printUsage();
+				System.err.println(String.format("Missing command for %s!", runner.getName()));
+				runner.printUsage();
 				exit(-1);
 			}
 			cmds.remove(0);
@@ -170,9 +170,9 @@ public class CliRunner extends RunnerBase {
 			exit(-1);
 			return;
 		}
+		String op = "";
 		String type = cmds.get(0).toLowerCase();
 		cmds.remove(0);
-		String op = "";
 		if (cmds.size()>0) {
 			op = cmds.get(0).toLowerCase();
 			cmds.remove(0);

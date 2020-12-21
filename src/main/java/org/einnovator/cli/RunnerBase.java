@@ -122,17 +122,27 @@ public abstract class RunnerBase {
 		return "";
 	}
 
-
 	public String resolve(String key) {
+		return resolve(key, true);
+	}
+
+
+	public String resolve(String key, boolean required) {
+		return resolve(key, required ? "?" + key + "?" : null);
+	}
+	
+	public String resolve(String key, String defaultValue) {
 		ResourceBundle bundle = getResourceBundle();
 		if (bundle!=null) {
 			try {
-				String s = bundle.getString(key);						
-				return s;
+				String s = bundle.getString(key);	
+				if (s!=null && !s.trim().isEmpty()) {
+					return s;					
+				}
 			} catch (RuntimeException e) {
 			}			
 		}
-		return "?" + key + "?";
+		return defaultValue;
 	}
 
 
