@@ -1176,6 +1176,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			exit(-1);
 			return null;
 		}
+		return makeIdx(id);
+	}
+	
+	protected String makeIdx(String id) {
 		try {
 			Long.parseLong(id);			
 			return id;
@@ -1186,14 +1190,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			return id;
 		} catch (IllegalArgumentException e) {			
 		}
-		String pid = argPID(options);
-		if (pid!=null) {
-			if (id.indexOf("/")<0) {
-				id = pid + "/" + id;
+		if (id.indexOf("/")<0) {
+			String pid = argPID(options);
+			if (pid!=null) {
+				id = pid.trim() + "/" + id.trim();
 			}
 		}
 		return id;
 	}
+
 	
 	protected void setId(EntityBase entity, String id) {
 		try {

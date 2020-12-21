@@ -119,20 +119,19 @@ public class CliRunner extends RunnerBase {
 		}
 		List<String> cmds = new ArrayList<>();
 		options = makeArgsMap(args, cmds);
-		if (cmds.size()==0) {
-			System.err.println("Missing arguments...");
-			printUsage();
-			exit(-1);
-			return;
-		}
-		
-
+	
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 		sso.setup(options);
 		setupEndpoints(sso.getAllEndpoints());
 		
 		if (options.get("i")!=null) {
 			runConsole(args);
+			return;
+		}
+		if (cmds.size()==0) {
+			System.err.println("Missing arguments...");
+			printUsage();
+			exit(-1);
 			return;
 		}
 		run(args);

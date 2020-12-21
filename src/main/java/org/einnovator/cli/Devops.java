@@ -1083,13 +1083,13 @@ public class Devops extends CommandRunnerBase {
 			switch (op1) {
 			case "": case "deployment": case "deploy": case "deployments": case "deploys":
 				deleteDeployment(id, options);
+				break;
 			case "job": case "jobs":
 				deleteJob(id, options);
+				break;
 			case "cronjob": case "cronjobs":
-				if (isHelp("kill", "cronjob")) {
-					return;
-				}
 				deleteCronJob(id, options);
+				break;
 			default:
 				error(String.format("missing resource type"));
 				exit(-1);
@@ -1290,6 +1290,7 @@ public class Devops extends CommandRunnerBase {
 			missingArg(type, op, "-n");
 			return;
 		}
+		processDeployOptions(cmds, options);
 		Deployment deployment = convert(options, Deployment.class);
 		deployment.setName(argName(op, cmds));
 		if (start) {
@@ -1304,13 +1305,22 @@ public class Devops extends CommandRunnerBase {
 			printObj(deployment2);
 		}
 	}
+	
+	void processDeployOptions(String[] cmds, Map<String, Object> options) {
+		String image = (String)options.get("image");
+		if (image!=null) {
+			options.remove("image");
+			options.put("image.name", image);
+		}
+	}
 
 	public void updateDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
 		if (isHelp("deployment", "update")) {
 			return;
 		}
-		String deployId = argIdx(op, cmds);
+		processDeployOptions(cmds, options);
 		Deployment deployment = convert(options, Deployment.class);
+		String deployId = argIdx(op, cmds);
 		setId(deployment, deployId);
 		debug("Updating Deployment: %s %s", deployId, deployment);
 		RequestOptions options_ = convert(options, RequestOptions.class);
@@ -1328,6 +1338,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void deleteDeployment(String deployId, Map<String, Object> options) {
+		deployId = makeIdx(deployId);
 		debug("Deleting Deployment: %s", deployId);	
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.deleteDeployment(deployId, options_);		
@@ -1808,6 +1819,7 @@ public class Devops extends CommandRunnerBase {
 			missingArg(type, op, "-n");
 			return;
 		}
+		processDeployOptions(cmds, options);
 		Job job = convert(options, Job.class);
 		job.setName(argName(op, cmds));
 		if (start) {
@@ -1828,6 +1840,7 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argIdx(op, cmds);
+		processDeployOptions(cmds, options);
 		Job job = convert(options, Job.class);
 		debug("Updating Job: %s %s", jobId, job);
 		setId(job, jobId);
@@ -1850,6 +1863,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void deleteJob(String jobId, Map<String, Object> options) {
+		jobId = makeIdx(jobId);
 		debug("Deleting Job: %s", jobId);	
 		JobOptions options_ = convert(options, JobOptions.class);
 		devopsClient.deleteJob(jobId, options_);	
@@ -2199,6 +2213,7 @@ public class Devops extends CommandRunnerBase {
 			missingArg(type, op, "-n");
 			return;
 		}
+		processDeployOptions(cmds, options);
 		CronJob cronjob = convert(options, CronJob.class);
 		cronjob.setName(argName(op, cmds));
 		if (start) {
@@ -2219,6 +2234,7 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String cronjobId = argIdx(op, cmds);
+		processDeployOptions(cmds, options);
 		CronJob cronjob = convert(options, CronJob.class);
 		setId(cronjob, cronjobId);
 		debug("Updating CronJob: %s %s", cronjobId, cronjob);
@@ -2238,6 +2254,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void deleteCronJob(String cronjobId, Map<String, Object> options) {
+		cronjobId = makeIdx(cronjobId);
 		debug("Deleting CronJob: %s", cronjobId);
 		devopsClient.deleteCronJob(cronjobId, null);	
 		if (isEcho()) {
