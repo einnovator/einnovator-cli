@@ -3,6 +3,7 @@ package org.einnovator.cli;
 import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,10 +52,15 @@ import org.einnovator.devops.client.modelx.SpaceFilter;
 import org.einnovator.devops.client.modelx.SpaceOptions;
 import org.einnovator.devops.client.modelx.VcsFilter;
 import org.einnovator.devops.client.modelx.VcsOptions;
+import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
+import org.einnovator.util.ResourceUtils;
+import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
@@ -97,6 +103,9 @@ public class Devops extends CommandRunnerBase {
 
 	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,type,kind,category,keywords";
 	private static final String SOLUTION_WIDE_FORMAT = "id,name,type,kind,category,keywords,url";
+
+	private static final String CATALOG_SOLUTION_DEFAULT_FORMAT = "name,category,keywords";
+	private static final String CATALOG_SOLUTION_WIDE_FORMAT = "name,category,keywords,url";
 
 	private static final String BINDING_DEFAULT_FORMAT = "selector";
 	private static final String BINDING_WIDE_FORMAT = "selector";
@@ -291,12 +300,16 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "ps": 
 			ps(type, op, cmds, options);
+			break;
 		case "kill": 
 			kill(type, op, cmds, options);
+			break;
 		case "run": 
 			runop(type, op, cmds, options);
+			break;
 		case "install": 
 			install(type, op, cmds, options);
+			break;
 		case "cluster": case "clusters": 
 			switch (op) {
 			case "help": case "":
@@ -704,10 +717,10 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "marketplace": case "market":
 			switch (op) {
-			case "help": case "":
+			case "help":
 				printUsage("marketplace");
 				break;
-			case "ls": case "list":
+			case "ls": case "list": case "":
 				listMarketplace(type, op, cmds, options);
 				break;
 			default: 
@@ -797,7 +810,12 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		Cluster cluster = convert(options, Cluster.class);
-		cluster.setName(argName(op, cmds));
+		boolean required = true;
+		processClusterConfigOption(cluster, options);
+		if (StringUtil.hasText(cluster.getKubeconfig())) {
+			required = false;
+		}
+		cluster.setName(argName(op, cmds, required));
 		debug("Creating Cluster: %s", cluster);
 		URI uri = devopsClient.createCluster(cluster, null);
 		if (isEcho()) {
@@ -808,7 +826,27 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
-	
+	void processClusterConfigOption(Cluster cluster, Map<String, Object> options) {
+		String file = (String)options.get("f");
+		if (StringUtil.hasText(file)) {
+			if (!file.startsWith("http:") && !file.startsWith("https:")) {
+				String kubeconfig = ResourceUtils.readResource(file, false);
+				if (kubeconfig==null) {
+					error("unable to read kubeconfig file: %s", file);
+					exit(-1);
+					return;
+				}
+				if (!StringUtil.hasText(kubeconfig)) {
+					error("kubeconfig is empty: %s", file);
+					exit(-1);
+					return;
+				}
+
+			} else {
+				cluster.setKubeconfig(file);				
+			}
+		}
+	}
 	public void updateCluster(String type, String op, String[] cmds, Map<String, Object> options) {
 		if (isHelp("cluster", "update")) {
 			return;
@@ -816,6 +854,7 @@ public class Devops extends CommandRunnerBase {
 		String clusterId = argId(op, cmds);
 		Cluster cluster = convert(options, Cluster.class);
 		setId(cluster, clusterId);
+		processClusterConfigOption(cluster, options);
 		debug("Updating Cluster: %s %s", clusterId, cluster);
 		devopsClient.updateCluster(cluster, null);
 		if (isEcho()) {
@@ -940,35 +979,34 @@ public class Devops extends CommandRunnerBase {
 	//
 
 	public void ps(String type, String op, String[] cmds, Map<String, Object> options) {
-		String[] ops = op.split(",");
-		for (String op1: ops) {
-			switch (op1) {
-			case "": case "deployment": case "deploy": case "deployments": case "deploys":
-				if (isHelp("ps", "deployment")) {
-					return;
-				}
-				listDeployment(type, "deployment", cmds, options);
-				break;
-			case "job": case "jobs":
-				if (isHelp("ps", "job")) {
-					return;
-				}
-				listJob(type, op1, cmds, options);
-				break;
-			case "cronjob": case "cronjobs":
-				if (isHelp("ps", "cronjob")) {
-					return;
-				}
-				listCronJob(type, op, cmds, options);
-				break;
-			default:
-				invalidOp(type, op);
-				break;
-			}			
+		if (isHelp("ps")) {
+			return;
+		}
+		if (options.get("r")!=null) {
+			options.put("status", "RUNNING");
+		}
+		boolean b = false;
+		if (options.get("d")!=null || options.get("a")!=null) {
+			listDeployment(type, "deployment", cmds, options);
+			b = true;
+		}
+		if (options.get("j")!=null || options.get("a")!=null) {
+			listJob(type, "job", cmds, options);
+			b = true;
+		}
+		if (options.get("c")!=null || options.get("a")!=null) {
+			listCronJob(type, op, cmds, options);
+			b = true;
+		}
+		if (!b) {
+			listDeployment(type, "deployment", cmds, options);
 		}
 	}
 
 	public void kill(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("kill")) {
+			return;
+		}
 		if (op==null || op.isEmpty()) {
 			error(String.format("missing resource id"));
 			exit(-1);
@@ -994,14 +1032,8 @@ public class Devops extends CommandRunnerBase {
 			}		
 			switch (op1) {
 			case "": case "deployment": case "deploy": case "deployments": case "deploys":
-				if (isHelp("kill", "deployment")) {
-					return;
-				}
 				deleteDeployment(id, options);
 			case "job": case "jobs":
-				if (isHelp("kill", "job")) {
-					return;
-				}
 				deleteJob(id, options);
 			case "cronjob": case "cronjobs":
 				if (isHelp("kill", "cronjob")) {
@@ -1017,6 +1049,9 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	public void runop(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("run")) {
+			return;
+		}
 		if (op==null || op.isEmpty()) {
 			error(String.format("missing resource id"));
 			exit(-1);
@@ -1050,19 +1085,10 @@ public class Devops extends CommandRunnerBase {
 			}
 			switch (op1) {
 			case "deployment": case "deploy": case "deployments": case "deploys":
-				if (isHelp("run", "deployment")) {
-					return;
-				}
 				createDeployment(true, "run", op1, c(id), options);
 			case "job": case "jobs":
-				if (isHelp("run", "job")) {
-					return;
-				}
 				createJob(true,  "run", op1, c(id), options);
 			case "cronjob": case "cronjobs":
-				if (isHelp("run", "cronjob")) {
-					return;
-				}
 				createCronJob(true,  "run", op1, c(id), options);
 			default:
 				error(String.format("missing resource type"));
@@ -1073,6 +1099,9 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void install(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("install")) {
+			return;
+		}
 		if (op==null || op.isEmpty()) {
 			error(String.format("missing solution id"));
 			exit(-1);
@@ -2647,8 +2676,34 @@ public class Devops extends CommandRunnerBase {
 		SolutionFilter filter = convert(options, SolutionFilter.class);
 		debug("Catalog Solutions: %s %s %s", catalogId, filter, pageable);
 		Page<Solution> solutions = devopsClient.listSolutionsFor(catalogId, filter, pageable);
-		print(solutions, Catalog.class);
+		Page<CatalogSolution> solutions2 = CatalogSolution.convert(solutions);
+		print(solutions2, CatalogSolution.class);
 	}
+	
+	public static class CatalogSolution extends Solution {
+		CatalogSolution(Solution solution) {
+			MappingUtils.updateObjectFrom(this, solution);
+		}
+
+		static Page<CatalogSolution> convert(Page<Solution> page) {
+			if (page==null) {
+				return null;
+			}
+			return new PageImpl<CatalogSolution>(convert(page.getContent()), new PageRequest(page.getNumber(), page.getSize()), page.getTotalElements());
+		}
+
+		static List<CatalogSolution> convert(List<Solution> solutions) {
+			if (solutions==null) {
+				return null;
+			}
+			List<CatalogSolution> solutions2 = new ArrayList<>();
+			for (Solution solution: solutions) {
+				solutions2.add(new CatalogSolution(solution));
+			}
+			return solutions2;
+		}
+	}
+	
 	//
 	// Solution
 	//
@@ -2770,7 +2825,7 @@ public class Devops extends CommandRunnerBase {
 	//
 
 	public void listMarketplace(String type, String op, String[] cmds, Map<String, Object> options) {
-		if (isHelp("marketplace", "ls")) {
+		if (isHelp("marketplace")) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -2787,7 +2842,8 @@ public class Devops extends CommandRunnerBase {
 				System.out.println();
 				SolutionFilter filter2 = convert(options, SolutionFilter.class);
 				Page<Solution> solutions = devopsClient.listSolutionsFor(catalog.getUuid(), filter2, pageable);				
-				print(solutions, Solution.class);
+				Page<CatalogSolution> solutions2 = CatalogSolution.convert(solutions);
+				print(solutions2, CatalogSolution.class);
 				i++;
 			}			
 		}
@@ -2827,6 +2883,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		if (Solution.class.equals(type)) {
 			return SOLUTION_DEFAULT_FORMAT;
+		}
+		if (CatalogSolution.class.equals(type)) {
+			return CATALOG_SOLUTION_DEFAULT_FORMAT;
 		}
 		if (Binding.class.equals(type)) {
 			return BINDING_DEFAULT_FORMAT;
@@ -2884,6 +2943,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		if (Solution.class.equals(type)) {
 			return SOLUTION_WIDE_FORMAT;
+		}
+		if (CatalogSolution.class.equals(type)) {
+			return CATALOG_SOLUTION_WIDE_FORMAT;
 		}
 		if (Binding.class.equals(type)) {
 			return BINDING_WIDE_FORMAT;
@@ -2958,6 +3020,9 @@ public class Devops extends CommandRunnerBase {
 			return null;
 		}
 		if (Solution.class.equals(type)) {
+			return null;
+		}
+		if (CatalogSolution.class.equals(type)) {
 			return null;
 		}
 		if (Binding.class.equals(type)) {

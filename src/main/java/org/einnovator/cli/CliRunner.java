@@ -306,8 +306,12 @@ public class CliRunner extends RunnerBase {
 					if (a.length()>1) {
 						map.put(a.substring(0,1), a.substring(1));
 					} else if (i<args.length-1) {
-						map.put(a, args[i+1]);
-						i++;
+						if (!args[i+1].startsWith("-")) {
+							map.put(a, args[i+1]);
+							i++;							
+						} else {
+							map.put(a, "");							
+						}
 					} else {
 						map.put(a, "");
 					}

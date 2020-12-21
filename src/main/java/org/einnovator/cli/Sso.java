@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,13 +57,14 @@ public class Sso extends CommandRunnerBase {
 
 	public static final String SSO_NAME = "sso";
 
-	public static String CONFIG_FOLDER = ".ei";
-	public static String CONFIG_FILE = "config.json";
-	public static String KEY_TOKEN = "token";
-	public static String KEY_API = "api";
-	public static String KEY_ENDPOINTS = "endpoints";
-	public static String KEY_USERNAME = "username";
-	public static String KEY_SETTINGS = "settings";
+	public static final String CONFIG_FOLDER = ".ei";
+	public static final String CONFIG_FILE = "config.json";
+	public static final String KEY_TOKEN = "token";
+	public static final String KEY_API = "api";
+	public static final String KEY_ENDPOINTS = "endpoints";
+	public static final String KEY_USERNAME = "username";
+	public static final String KEY_SETTINGS = "settings";
+	public static final String KEY_LASTMODIFIED = "lastModified";
 
 	public String DEFAULT_CLIENT = "application";
 	public String DEFAULT_SECRET = "application$123";
@@ -384,7 +386,7 @@ public class Sso extends CommandRunnerBase {
 		allEndpoints = endpoints;
 		if (endpoints!=null) {
 			writeConfig(api, endpoints, null, options);
-		}		
+		}
 		getToken(type, op, cmds, options);	
 		System.out.println(String.format("Logged in at: %s", api));
 	}
@@ -527,7 +529,7 @@ public class Sso extends CommandRunnerBase {
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		debug("Token: %s", token);
 		if (token!=null) {
-			writeConfig(api, allEndpoints, token.getValue(), options);			
+			writeConfig(api, allEndpoints, token.toString(), options);			
 		}
 	}
 
@@ -603,6 +605,7 @@ public class Sso extends CommandRunnerBase {
 		context.put(KEY_TOKEN, token);
 		context.put(KEY_ENDPOINTS, endpoints);
 		context.put(KEY_USERNAME, tokenUsername);
+		context.put(KEY_LASTMODIFIED, new Date().toInstant().toString());
 		Map<String, Object> settings = getAllSettings();
 		context.put(KEY_SETTINGS, settings);
 		return context;
