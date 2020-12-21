@@ -644,6 +644,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	void printObj(Object obj) {
+		if (obj==null) {
+			return;
+		}
 		String fmt = getFormat(obj);
 		if (isTabular()) {
 			List<String> values = getFields(obj, fmt);
@@ -984,14 +987,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected String getFormat(Object obj) {
 		String fmt = getFormat();
-		if (fmt==null || fmt.isEmpty()) {
-			fmt = getDefaultFormat(obj.getClass());
-		} else if ("wide".equals(fmt)) {
-			fmt = getWideFormat(obj.getClass());
-		}
-		String fmt0 = getFormat(fmt, obj.getClass());
-		if (fmt0!=null) {
-			fmt = fmt0;
+		if (obj!=null) {
+			if (fmt==null || fmt.isEmpty()) {
+				fmt = getDefaultFormat(obj.getClass());
+			} else if ("wide".equals(fmt)) {
+				fmt = getWideFormat(obj.getClass());
+			}
+			String fmt0 = getFormat(fmt, obj.getClass());
+			if (fmt0!=null) {
+				fmt = fmt0;
+			}			
 		}
 		return fmt;
 	}

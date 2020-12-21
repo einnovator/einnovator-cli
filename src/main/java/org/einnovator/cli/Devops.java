@@ -910,6 +910,9 @@ public class Devops extends CommandRunnerBase {
 		String clusterId = argId(op, cmds);
 		debug("Deleting Cluster: %s", clusterId);		
 		devopsClient.deleteCluster(clusterId, null);	
+		if (isEcho()) {
+			listCluster("cluster", "ls", cmds, options);
+		}
 	}
 
 	//
@@ -1014,7 +1017,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		String spaceId = argIdx(op, cmds);
 		debug("Deleting Space: %s", spaceId);		
-		devopsClient.deleteSpace(spaceId, null);		
+		devopsClient.deleteSpace(spaceId, null);
+		if (isEcho()) {
+			listSpace("space", "ls", cmds, options);
+		}
 	}
 		
 	
@@ -1175,9 +1181,9 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		if (catalogId!=null) {
-			installFromCatalog(type, op, cmds, options);;
+			installFromCatalog(catalogId, id, options);;
 		} else {
-			installSolution(type, op, cmds, options);
+			installSolution(id, options);
 		}
 	}
 	
@@ -1325,6 +1331,9 @@ public class Devops extends CommandRunnerBase {
 		debug("Deleting Deployment: %s", deployId);	
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.deleteDeployment(deployId, options_);		
+		if (isEcho()) {
+			listDeployment("deployment", "ls", cmds, options);
+		}
 	}
 	
 	public void scaleDeployment(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -1452,6 +1461,10 @@ public class Devops extends CommandRunnerBase {
 			String pod = argId2(op, cmds, true);
 			debug("Delete Instance: %s %s", deployId, pod);		
 			devopsClient.deleteInstance(deployId, pod, options_);
+			if (isEcho()) {
+				instancesDeployment("deployment", "ls", cmds, options);
+			}
+
 			break;
 		}
 		}
@@ -1494,6 +1507,9 @@ public class Devops extends CommandRunnerBase {
 			String routeId = argId1(op2, cmds);
 			debug("Remove Route: %s %s", deployId, routeId);		
 			devopsClient.removeRoute(deployId, routeId, options_);
+			if (isEcho()) {
+				routeDeployment("deployment", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -1549,6 +1565,9 @@ public class Devops extends CommandRunnerBase {
 			String mountId = argId1(op2, cmds);
 			debug("Remove Mount: %s %s", deployId, mountId);		
 			devopsClient.removeMount(deployId, mountId, options_);
+			if (isEcho()) {
+				mountDeployment("deployment", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -1603,6 +1622,9 @@ public class Devops extends CommandRunnerBase {
 			String varId = argId1(op2, cmds);
 			debug("Remove Var: %s %s", deployId, varId);		
 			devopsClient.removeVariable(deployId, varId, options_);
+			if (isEcho()) {
+				varDeployment("deployment", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -1657,6 +1679,9 @@ public class Devops extends CommandRunnerBase {
 			String bindingId = argId1(op2, cmds);
 			debug("Remove Binding: %s %s", deployId, bindingId);		
 			devopsClient.removeBinding(deployId, bindingId, options_);
+			if (isEcho()) {
+				bindingDeployment("deployment", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -1711,6 +1736,9 @@ public class Devops extends CommandRunnerBase {
 			String connectorId = argId1(op2, cmds);
 			debug("Remove Connector: %s %s", deployId, connectorId);		
 			devopsClient.removeConnector(deployId, connectorId, options_);
+			if (isEcho()) {
+				connectorDeployment("deployment", "connector", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -1816,6 +1844,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		String jobId = argIdx(op, cmds);
 		deleteJob(jobId, options);
+		if (isEcho()) {
+			listJob("job", "ls", cmds, options);
+		}
 	}
 	
 	public void deleteJob(String jobId, Map<String, Object> options) {
@@ -1915,7 +1946,7 @@ public class Devops extends CommandRunnerBase {
 			print(instances);
 			break;
 		}
-		case "kill": case "remove": 	case "rm": case "delete": case "del": {
+		case "kill": case "remove": case "rm": case "delete": case "del": {
 			if (isHelp("job", "pod", "kill")) {
 				return;
 			}
@@ -1924,6 +1955,9 @@ public class Devops extends CommandRunnerBase {
 			String pod = argId2(op, cmds, true);
 			debug("Delete Instance of Job: %s %s", jobId, pod);		
 			devopsClient.deleteInstance(jobId, pod, options_);
+			if (isEcho()) {
+				instancesJob("job", "env", cmds, options);
+			}
 			break;
 		}
 		}
@@ -1966,6 +2000,9 @@ public class Devops extends CommandRunnerBase {
 			String mountId = argId1(op2, cmds);
 			debug("Remove Job Mount: %s %s", jobId, mountId);		
 			devopsClient.removeMountJob(jobId, mountId, options_);
+			if (isEcho()) {
+				mountJob("job", "mount", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -2032,6 +2069,9 @@ public class Devops extends CommandRunnerBase {
 			String varId = argId1(op2, cmds);
 			debug("Remove EnvVar: %s %s", jobId, varId);		
 			devopsClient.removeVariableJob(jobId, varId, options_);
+			if (isEcho()) {
+				varJob("job", "env", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -2086,6 +2126,9 @@ public class Devops extends CommandRunnerBase {
 			String bindingId = argId1(op2, cmds);
 			debug("Remove Job Binding: %s %s", jobId, bindingId);		
 			devopsClient.removeBindingJob(jobId, bindingId, options_);
+			if (isEcho()) {
+				bindingJob("job", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -2197,6 +2240,9 @@ public class Devops extends CommandRunnerBase {
 	public void deleteCronJob(String cronjobId, Map<String, Object> options) {
 		debug("Deleting CronJob: %s", cronjobId);
 		devopsClient.deleteCronJob(cronjobId, null);	
+		if (isEcho()) {
+			listCronJob("cronojob", "ls", cmds, options);
+		}
 	}
 
 	
@@ -2317,6 +2363,9 @@ public class Devops extends CommandRunnerBase {
 			String mountId = argId1(op2, cmds);
 			debug("Remove CronJob Mount: %s %s", cronjobId, mountId);		
 			devopsClient.removeMountCronJob(cronjobId, mountId, options_);
+			if (isEcho()) {
+				mountCronJob("cronojb", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -2424,6 +2473,9 @@ public class Devops extends CommandRunnerBase {
 			String bindingId = argId1(op2, cmds);
 			debug("Remove CronJob Binding: %s %s", cronjobId, bindingId);		
 			devopsClient.removeBindingCronJob(cronjobId, bindingId, options_);
+			if (isEcho()) {
+				bindingCronJob("cronojb", "ls", cmds, options);
+			}
 			break;
 		}
 		case "update": {
@@ -2513,6 +2565,9 @@ public class Devops extends CommandRunnerBase {
 		String domainId = (String)get(new String[] {"id", "uuid"}, options);
 		debug("Deleting Domain: %s", domainId);
 		devopsClient.deleteDomain(domainId, null);	
+		if (isEcho()) {
+			listDomain(type, op, cmds, options);
+		}
 	}
 
 
@@ -2587,7 +2642,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		String registryId = argId(op, cmds);
 		debug("Deleting Registry: %s", registryId);		
-		devopsClient.deleteRegistry(registryId, null);		
+		devopsClient.deleteRegistry(registryId, null);	
+		if (isEcho()) {
+			listRegistry(type, op, cmds, options);
+		}
 	}
 
 
@@ -2666,6 +2724,9 @@ public class Devops extends CommandRunnerBase {
 		String vcsId = argId(op, cmds);
 		debug("Deleting Vcs: %s", vcsId);
 		devopsClient.deleteVcs(vcsId, null);	
+		if (isEcho()) {
+			listVcs(type, op, cmds, options);
+		}
 	}
 
 	//
@@ -2739,6 +2800,12 @@ public class Devops extends CommandRunnerBase {
 		String catalogId = argId(op, cmds);
 		debug("Deleting Catalog: %s", catalogId);		
 		devopsClient.deleteCatalog(catalogId, null);	
+		if (isEcho()) {
+			listCatalog(type, op, cmds, options);
+		}
+		if (isEcho()) {
+			listCatalog("catalog", "ls", cmds, options);
+		}
 	}
 
 	public void installFromCatalog(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -2752,6 +2819,13 @@ public class Devops extends CommandRunnerBase {
 
 	public void installFromCatalog(String catalogId, String solutionId, Map<String, Object> options) {
 		InstallOptions options_ = convert(options, InstallOptions.class);
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingArg("install", "", "-n");
+			return;
+		}
+		options_.setStart(true);
+		options_.setSpace(spaceId);
 		debug("Install Solution from Catalog: %s %s", solutionId, options_);
 		URI uri = devopsClient.install(catalogId, solutionId, options_);
 		if (isEcho()) {
@@ -2868,6 +2942,9 @@ public class Devops extends CommandRunnerBase {
 		String solutionId = argId(op, cmds);
 		debug("Deleting Solution: %s", solutionId);
 		devopsClient.deleteSolution(solutionId, null);	
+		if (isEcho()) {
+			listSolution("solution", "ls", cmds, options);
+		}
 	}
 
 	public void installSolution(String type, String op, String[] cmds, Map<String, Object> options) {
@@ -2876,17 +2953,19 @@ public class Devops extends CommandRunnerBase {
 		}
 		String solutionId = argId(op, cmds);
 		installSolution(solutionId, options);
-		InstallOptions options_ = convert(options, InstallOptions.class);
-		debug("Install Solution: %s %s", solutionId, options_);
-		URI uri = devopsClient.install(solutionId, options_);
-		if (isEcho()) {
-			Object deploy = getAny(uri, options);
-			printObj(deploy);
-		}
 	}
 
 	public void installSolution(String solutionId, Map<String, Object> options) {
 		InstallOptions options_ = convert(options, InstallOptions.class);
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingArg("install", "", "-n");
+			return;
+		}
+		options_.setSpace(spaceId);
+		options_.setStart(true);
+
+		
 		debug("Install Solution: %s %s", solutionId, options_);
 		URI uri = devopsClient.install(solutionId, options_);
 		if (isEcho()) {
