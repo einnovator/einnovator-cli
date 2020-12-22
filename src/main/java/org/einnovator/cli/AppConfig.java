@@ -7,6 +7,7 @@ public class AppConfig {
 
 	public List<CommandRunner> getAllRunners() {
 		List<CommandRunner> runners = new ArrayList<>();
+		runners.add(new Generic());
 		runners.add(new Sso());
 		runners.add(new Devops());
 		runners.add(new Notifications());

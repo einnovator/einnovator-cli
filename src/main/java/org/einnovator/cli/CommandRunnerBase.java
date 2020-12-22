@@ -62,6 +62,25 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return false;
 	}
 
+	@Override
+	public boolean supports(String cmd, Map<String, Object> options) {
+		if (!supports(cmd)) {
+			return false;
+		}
+		String[] options2 =  getOptions(cmd);
+		if (options2!=null) {
+			for (String option: options2) {
+				if ((options==null && (options==null || option.isEmpty())) || (options!=null && option!=null && options.get(option)!=null)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	protected String[] getOptions(String cmd) {
+		return null;
+	}
 
 	protected String[][] getCommands() {
 		return null;
@@ -956,7 +975,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			int length = Array.getLength(a);
 			int j = 0;
 			for (int i = 0; i < length; i ++) {
-		        if (sb.length()>0) {
+				if (sb.length()>0) {
 					sb.append(",");
 				}
 				Object item = Array.get(a, i);
@@ -969,7 +988,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				if (s!=null && !s.isEmpty()) {
 					sb.append(s);
 				}
-		    }
+			}
 			return sb.toString();
 		}
 		return value.toString();
@@ -1063,7 +1082,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 	
 	protected <T> T convert(Object obj, Class<T> type) {
-		return MappingUtils.convert(obj, type);
+		Map<String, Object> map = MappingUtils.toMap(obj);
+		return convert(map, type);
 	}
 
 	protected <T> T convert(Map<String, Object> map, Class<T> type) {
@@ -1082,10 +1102,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 							value = out;
 						}
 					} else {
-						Object out = parseEnum2(propType, s);
-						if (out!=null) {
-							value = out;
-						}
+						value = parseEnum2(propType, s);
 					}
 				}
 
@@ -1115,11 +1132,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		
 	}
 	protected Object parseEnum(Class<?> type, String name){
-	    for(Object e: type.getEnumConstants())
-	        if(((Enum<?>)e).name().equals(name)){
-	            return e;
-	        }
-	    return null;
+		for(Object e: type.getEnumConstants()) {
+			if(((Enum<?>)e).name().equalsIgnoreCase(name)){
+				return e;
+			}
+		}
+		String name2 = name.replaceAll("-", "_");
+		if (!name.equals(name2)) {
+			Object value = parseEnum(type, name2);
+			if (value!=null) {
+				return value;
+			}
+		}
+		return null;
 	}
 	
 	protected Object parseEnum2(Class<?> type, String name){
@@ -1335,6 +1360,11 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		parent.put(key, map);
 		return map;
+	}
+
+
+	@Override
+	public void setEndpoints(Map<String, Object> endpoints) {		
 	}
 
 }

@@ -337,14 +337,14 @@ public class Devops extends CommandRunnerBase {
 		case "install": 
 			install(cmds, options);
 			break;
+		case "ls": case "list":
+			ls(cmds, options);
+			break;
 		case "pwd": 
 			pwd(cmds, options);
 			break;
 		case "cd": 
 			cd(cmds, options);
-			break;
-		case "ls": case "list":
-			ls(cmds, options);
 			break;
 		case "cluster": case "clusters": 
 			switch (op) {
@@ -1036,6 +1036,19 @@ public class Devops extends CommandRunnerBase {
 	// Generic
 	//
 
+	@Override
+	protected String[] getOptions(String cmd) {
+		switch (cmd) {
+		case "ls":
+			return c("", "s", "ns", "c", "d", "r", "reg", "vcs", "git");
+		case "pwd":
+			return c("");
+		case "cd":
+			return c("");
+		}
+		return null;
+	}
+	
 	public void ls(String[] cmds, Map<String, Object> options) {
 		if (isHelp("ls")) {
 			return;

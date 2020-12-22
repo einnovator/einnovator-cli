@@ -20,12 +20,15 @@ public interface CommandRunner {
 	String getName();
 
 	boolean supports(String cmd);
+	
+	boolean supports(String cmd, Map<String, Object> options);
+
 
 	void printUsage();
 	
-	void init(String[] cmds, Map<String, Object> args, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle);
+	void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle);
 
-	void run(String type, String op, String[] args, Map<String, Object> options);
+	void run(String type, String op, String[] cmds, Map<String, Object> options);
 
 	void setEndpoints(Map<String, Object> endpoints);
 

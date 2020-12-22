@@ -77,20 +77,10 @@ public class CliRunner extends RunnerBase {
 		if (tcli) {
 			System.out.println(String.format("Init: %sms", t1-t0));
 		}
-		List<CommandRunner> runners2 = new ArrayList<CommandRunner>();
 		if (runners==null) {
 			AppConfig config = new AppConfig();
 			runners = config.getAllRunners();
 		}
-		for (CommandRunner runner: runners) {
-			String NAME = runner.getName();
-			if (!hasText(NAME)) {
-				logger.warn(CommandRunner.class.getSimpleName() + " missing NAME");
-				continue;
-			}
-			runners2.add(runner);
-		}
-		runners = runners2;
 		for (CommandRunner runner: runners) {
 			runner.setRunners(runners);
 		}
@@ -260,12 +250,15 @@ public class CliRunner extends RunnerBase {
 		sb.append(CLI_NAME);
 		int i = 0;
 		for (CommandRunner runner: runners) {
-			String NAME = runner.getName();
+			String name = runner.getName();
+			if (name==null || name.isEmpty()) {
+				continue;
+			}
 			sb.append(" ");								
 			if (i>0) {
 				sb.append("| ");				
 			}
-			sb.append(NAME);
+			sb.append(name);
 			i++;
 		}
 		sb.append(" args... [-option value]* [--options==value]*");				
@@ -336,7 +329,7 @@ public class CliRunner extends RunnerBase {
 	}
 	
 	private boolean isDebug() {
-		String s = (String)options.get("debug");
+		String s = (String)options.get("v");
 		return s!=null;
 	}
 	

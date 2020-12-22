@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.einnovator.devops.client.model.Space;
+import org.einnovator.devops.client.modelx.SpaceOptions;
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
 import org.einnovator.sso.client.model.Client;
@@ -26,6 +28,7 @@ import org.einnovator.sso.client.model.Role;
 import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
 import org.einnovator.sso.client.modelx.GroupFilter;
+import org.einnovator.sso.client.modelx.GroupOptions;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
 import org.einnovator.sso.client.modelx.MemberFilter;
@@ -101,7 +104,8 @@ public class Sso extends CommandRunnerBase {
 	private String server = SSO_DEFAULT_SERVER;
 	private String api = API_DEFAULT;
 
-	
+	private String group;
+
 	private Map<String, Object> allEndpoints;
 	 
 	@Override
@@ -118,7 +122,10 @@ public class Sso extends CommandRunnerBase {
 		c("member", "members"),
 		c("role", "roles"),
 		c("invitation", "invitations", "invites", "inv"),
-		c("client", "clients")
+		c("client", "clients"),
+		c("ls", "list"),
+		c("pwd"),
+		c("cd")
 	);
 
 	protected String[][] getCommands() {
@@ -136,6 +143,7 @@ public class Sso extends CommandRunnerBase {
 			c("help")));
 		map.put("group", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("set"), c("unset"),
 			c("help")));
 		map.put("invitation", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
@@ -242,6 +250,15 @@ public class Sso extends CommandRunnerBase {
 					break;
 			}
 			break;
+		case "ls": case "list":
+			ls(cmds, options);
+			break;
+		case "pwd": 
+			pwd(cmds, options);
+			break;
+		case "cd": 
+			cd(cmds, options);
+			break;
 		case "user": case "users":
 			switch (op) {
 			case "help": case "":
@@ -286,6 +303,12 @@ public class Sso extends CommandRunnerBase {
 				break;
 			case "delete": case "del": case "rm": case "remove":
 				deleteGroup(cmds, options);
+				break;
+			case "set":
+				setGroup(cmds, options);
+				break;
+			case "unset":
+				unsetGroup(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -407,6 +430,63 @@ public class Sso extends CommandRunnerBase {
 		return sb.toString();
 	}
 
+	//
+	// Generic
+	//
+	
+	@Override
+	protected String[] getOptions(String cmd) {
+		switch (cmd) {
+		case "ls":
+			return c("u", "g", "rl", "ca");
+		case "pwd":
+			return c("");
+		case "cd":
+			return c("g");
+		}
+		return null;
+	}
+	
+	public void ls(String[] cmds, Map<String, Object> options) {
+		if (isHelp("ls")) {
+			return;
+		}
+		if (options.get("u")!=null) {
+			listUsers(cmds, options);
+		}
+		if (options.get("g")!=null) {
+			listGroups(cmds, options);
+		}
+		if (options.get("rl")!=null) {
+			listRoles(cmds, options);
+		}
+		if (options.get("ca")!=null) {
+			listClients(cmds, options);
+		}
+	}
+
+	public void cd(String[] cmds, Map<String, Object> options) {
+		if (isHelp("cd")) {
+			return;
+		}
+		if (op==null || op.isEmpty()) {
+			error(String.format("missing argument for group"));
+			exit(-1);
+			return;
+		}
+		setGroup(op, options);
+	}
+	
+	
+	public void pwd(String[] cmds, Map<String, Object> options) {
+		if (isHelp("pwd")) {
+			return;
+		}
+		if (StringUtil.hasText(api)) {
+			System.out.println(String.format("API: %s", api));			
+		}
+	}
+	
 	//
 	// Login, API, Token
 	//
@@ -695,6 +775,9 @@ public class Sso extends CommandRunnerBase {
 		settings.put("connection", this.config.getConnection());
 		settings.put("clientId", this.config.getClientId());
 		settings.put("clientSecret", this.config.getClientSecret());
+		if (StringUtil.hasText(group)) {
+			settings.put("group", group);			
+		}
 		return settings;
 	}
 
@@ -702,7 +785,7 @@ public class Sso extends CommandRunnerBase {
 	public void loadSettings(Map<String, Object> settings) {
 		this.config.setClientId(get("clientId", settings, this.config.getClientId()));
 		this.config.setClientSecret(get("clientSecret", settings, this.config.getClientId()));
-		this.config.setConnection(get("connection", settings, this.config.getConnection(), ConnectionConfiguration.class));
+		this.group = get("group", settings, group);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -890,6 +973,34 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 
+	public void setGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "set")) {
+			return;
+		}
+		String groupId = argId(op, cmds);
+		setGroup(groupId, options);
+	}
+	
+	public void setGroup(String groupId, Map<String, Object> options) {
+		debug("Set Group: %s", groupId);
+		GroupFilter options_ = convert(options, GroupFilter.class);
+		Group group = ssoClient.getGroup(groupId, options_);
+		this.group = groupId;
+		if (isEcho()) {
+			printObj(group);
+		}
+		writeConfig();
+	}
+	
+	public void unsetGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "unset")) {
+			return;
+		}
+		String groupId = argId(op, cmds);
+		debug("Unset Group: %s", groupId);
+		this.group = null;
+		writeConfig();
+	}
 
 
 	//
