@@ -23,7 +23,6 @@ import org.einnovator.payments.client.modelx.TaxFilter;
 import org.einnovator.payments.client.modelx.TaxOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -54,10 +53,6 @@ public class Payments extends CommandRunnerBase {
 
 	private static final String TAX_DEFAULT_FORMAT = "id,name,type,owner";
 	private static final String TAX_WIDE_FORMAT = "id,name,type,owner,address.country";
-
-
-	@Autowired
-	Sso sso;
 
 	OAuth2AccessToken token;
 	
@@ -99,15 +94,16 @@ public class Payments extends CommandRunnerBase {
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 	}
 
+	@Override
+	protected Map<String, String[][]> getSubCommands() {
+		return subcommands;
+	}
+	
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
-			config.setServer(PAYMENTS_DEFAULT_SERVER);
+			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
-
-			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive, bundle);
-
 			paymentsClient = new PaymentsClient(template, config);
 			init = true;
 		}
@@ -126,6 +122,10 @@ public class Payments extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
+		}
+		setupToken();
+
+		switch (type) {
 		case "account": case "accounts": case "acc":
 			switch (op) {
 			case "help": case "":

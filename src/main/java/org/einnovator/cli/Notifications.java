@@ -24,7 +24,6 @@ import org.einnovator.notifications.client.modelx.TemplateFilter;
 import org.einnovator.notifications.client.modelx.TemplateOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -52,9 +51,6 @@ public class Notifications extends CommandRunnerBase {
 
 	private static final String TRACKEDEVENT_DEFAULT_FORMAT = "id,username,type,app,xid,xname,xtype,source.id,source.type,action.id,date";
 	private static final String TRACKEDEVENT_WIDE_FORMAT = "id,username,type,app,xid,xname,xtype,source.id,source.type,action.id,date,dateFormatted:date";
-
-	@Autowired
-	Sso sso;
 
 	OAuth2AccessToken token;
 	
@@ -105,6 +101,11 @@ public class Notifications extends CommandRunnerBase {
 		map.put("mjob", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 	}
+	
+	@Override
+	protected Map<String, String[][]> getSubCommands() {
+		return subcommands;
+	}
 
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
@@ -113,9 +114,6 @@ public class Notifications extends CommandRunnerBase {
 
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, NotificationsClientConfiguration.class));
-
-			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive, bundle);
 			notificationsClient = new NotificationsClient(template, config);			
 			init = true;
 		}
@@ -135,6 +133,9 @@ public class Notifications extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
+		}
+		setupToken();
+		switch (type) {
 		case "events": case "event": case "ev":
 			switch (op) {
 			case "help": case "":
@@ -188,6 +189,31 @@ public class Notifications extends CommandRunnerBase {
 				break;
 			case "delete": case "del": case "rm": case "remove":
 				deleteNotificationType(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}
+			break;
+		case "template": case "templates": case "templ": 
+			switch (op) {
+			case "help": case "":
+				printUsage("template");
+				break;
+			case "get": 
+				getTemplate(cmds, options);
+				break;
+			case "ls": case "list":
+				listTemplates(cmds, options);
+				break;
+			case "create": case "add":
+				createTemplate(cmds, options);
+				break;
+			case "update":
+				updateTemplate(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteTemplate(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);

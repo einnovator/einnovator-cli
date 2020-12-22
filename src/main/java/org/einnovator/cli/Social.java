@@ -23,7 +23,6 @@ import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.web.RequestOptions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -48,9 +47,6 @@ public class Social extends CommandRunnerBase {
 
 	private static final String ATTACHMENT_DEFAULT_FORMAT ="id,invitee,type,owner,status";
 	private static final String ATTACHMENT_WIDE_FORMAT ="id,invitee,type,owner,status,subject";
-	
-	@Autowired
-	Sso sso;
 
 	OAuth2AccessToken token;
 	
@@ -93,17 +89,17 @@ public class Social extends CommandRunnerBase {
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 	}
 
-
+	@Override
+	protected Map<String, String[][]> getSubCommands() {
+		return subcommands;
+	}
+	
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, SocialClientConfiguration.class));
-
-			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive, bundle);
-			
 			socialClient = new SocialClient(template, config);
 			init = true;
 		}
@@ -123,6 +119,9 @@ public class Social extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
+		}
+		setupToken();
+		switch (type) {
 		case "channel": case "channels":
 			switch (op) {
 			case "help": case "":

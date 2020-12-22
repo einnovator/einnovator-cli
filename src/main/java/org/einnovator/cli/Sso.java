@@ -229,7 +229,7 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		
-		getToken(type, op, cmds, options);
+		getToken(1, cmds, options);
 		
 		switch (type) {
 		case "token":
@@ -434,7 +434,7 @@ public class Sso extends CommandRunnerBase {
 		if (endpoints!=null) {
 			writeConfig(api, endpoints, null, options);
 		}
-		getToken(type, op, cmds, options);	
+		getToken(0, cmds, options);	
 		System.out.println(String.format("Logged in at: %s", api));
 	}
 
@@ -470,7 +470,7 @@ public class Sso extends CommandRunnerBase {
 		if (endpoints!=null) {
 			writeConfig(api, endpoints, null, options);
 		}		
-		getToken(type, op, cmds, options);	
+		getToken(0, cmds, options);	
 		System.out.println(String.format("Api set to: %s", api));
 	}
 
@@ -573,11 +573,11 @@ public class Sso extends CommandRunnerBase {
 		return endpoints;
 	}
 
-	public void getToken(String type, String op, String[] cmds, Map<String, Object> options) {
-		debug("Credentials: %s %s", tokenUsername, tokenPassword);
-		debug("Config: %s", config);
+	public void getToken(int level, String[] cmds, Map<String, Object> options) {
+		debug(1, "Credentials: %s %s", tokenUsername, tokenPassword!=null && !tokenPassword.isEmpty() ?  "****" : "");
+		debug(1, "Config: %s", config);
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
-		debug("Token: %s", token);
+		debug(level, "Token: %s", token);			
 		if (token!=null) {
 			writeConfig(api, allEndpoints, token.toString(), options);			
 		}

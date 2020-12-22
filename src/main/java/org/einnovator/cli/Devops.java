@@ -321,6 +321,10 @@ public class Devops extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
+		}
+		setupToken();
+
+		switch (type) {
 		case "ps": 
 			ps(cmds, options);
 			break;
@@ -342,7 +346,6 @@ public class Devops extends CommandRunnerBase {
 		case "ls": case "list":
 			ls(cmds, options);
 			break;
-
 		case "cluster": case "clusters": 
 			switch (op) {
 			case "help": case "":
@@ -1042,15 +1045,15 @@ public class Devops extends CommandRunnerBase {
 			listSpace(cmds, options);
 			b = true;
 		}
-		if (options.get("c")!=null || options.get("cluster")!=null) {
+		if (options.get("c")!=null) {
 			listCluster(cmds, options);
 			b = true;
 		}
-		if (options.get("d")!=null || options.get("domain")!=null) {
+		if (options.get("d")!=null) {
 			listDomain(cmds, options);
 			b = true;
 		}
-		if (options.get("r")!=null || options.get("reg")!=null || options.get("registry")!=null) {
+		if (options.get("r")!=null || options.get("reg")!=null) {
 			listRegistry(cmds, options);
 			b = true;
 		}

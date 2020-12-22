@@ -18,7 +18,6 @@ import org.einnovator.documents.client.modelx.MountFilter;
 import org.einnovator.documents.client.modelx.MountOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -40,9 +39,6 @@ public class Documents extends CommandRunnerBase {
 
 	private static final String MOUNT_DEFAULT_FORMAT = "name,type,path,scope,enabled,readonly";
 	private static final String MOUNT_WIDE_FORMAT = "name,type,path,scope,enabled,readonly,versioned,root";
-	
-	@Autowired
-	Sso sso;
 
 	OAuth2AccessToken token;
 	
@@ -63,6 +59,12 @@ public class Documents extends CommandRunnerBase {
 		c("fmount", "fmounts", "mount", "mounts")
 	);
 
+	
+	@Override
+	protected String[][] getCommands() {
+		return DOCUMENTS_COMMANDS;
+	}
+
 	static Map<String, String[][]> subcommands;
 
 	static {
@@ -75,22 +77,18 @@ public class Documents extends CommandRunnerBase {
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
 			c("help")));
 	}
-	
+
 	@Override
-	protected String[][] getCommands() {
-		return DOCUMENTS_COMMANDS;
+	protected Map<String, String[][]> getSubCommands() {
+		return subcommands;
 	}
-
-
+	
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
-
-			template = makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), config.getConnection());
-			super.init(cmds, options, template, interactive, bundle);
 
 			documentsClient = new DocumentsClient(template, config);
 			init = true;
@@ -112,6 +110,9 @@ public class Documents extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
+		}
+		setupToken();
+		switch (type) {
 		case "documents": case "document": case "doc": case "docs":
 			switch (op) {
 			case "help": case "":

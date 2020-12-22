@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -513,11 +514,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return String.join(separator, props.toArray(new String[props.size()]));
 	}
 	
-	OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource, ConnectionConfiguration conncConfig) {
+	protected OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource, ConnectionConfiguration conncConfig) {
 		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
 		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
 		template.setRequestFactory(conncConfig.makeClientHttpRequestFactory());
 		return template;
+	}
+
+	protected OAuth2RestTemplate makeOAuth2RestTemplate(ConnectionConfiguration conncConfig) {
+		Sso sso = getSso();
+		return makeOAuth2RestTemplate(sso.getRequiredResourceDetails(), conncConfig);
 	}
 
 	
@@ -975,18 +981,34 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 	}
 
+	protected void debug(int level, String s, Object... args) {
+		if (isDebug(level)) {
+			System.out.println(String.format(s, args));
+		}
+	}
+
 	protected void info(String s, Object... args) {
 		System.out.println(String.format(s, args));
 	}
 
 	protected boolean isDebug() {
+		return isDebug(null);
+	}
+	
+	protected boolean isDebug(Integer level) {
 		String s = (String)options.get("debug");
 		if (s!=null) {
 			return true;
 		}
 		s = (String)options.get("v");
 		if (s!=null) {
-			return true;
+			if (level==null || level<=0) {
+				return true;				
+			}
+			Integer level2 = parseInt(s);
+			if (level2!=null && level2>=level) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -1053,7 +1075,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				Class<?> propType = MetaUtil.getPropertyType(type, prop);
 				if (propType!=null && propType.isEnum()) {
 					String s = value.toString();
-					Method parse = MetaUtil.getMethod(propType, "parse");
+					Method parse = getMethod(propType, "parse", 1);
 					if (parse!=null) {
 						Object out = MetaUtil.invoke(value, parse, new Object[] {s});
 						if (out!=null) {
@@ -1073,7 +1095,25 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return MappingUtils.convert(map2, type);
 	}
 
-	
+	private Method getMethod(Class<?> type, String name, Integer arity) {
+		Method[] methods = MetaUtil.getMethods(type, name);
+		if (name!=null && methods!=null) {
+			for (Method method: methods) {
+				if (!name.equals(method.getName())) {
+					continue;
+				}
+				if (Modifier.isStatic(method.getModifiers())) {
+					continue;
+				}
+				if (arity!=null && method.getParameterCount()!=arity) {
+					continue;
+				}
+				return method;
+			}
+		}
+		return null;
+		
+	}
 	protected Object parseEnum(Class<?> type, String name){
 	    for(Object e: type.getEnumConstants())
 	        if(((Enum<?>)e).name().equals(name)){
@@ -1258,6 +1298,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		sso.writeConfig();
 	}
 	
+	protected void setupToken(String[] cmds, Map<String, Object> options) {
+		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
+		sso.getToken(2, cmds, options);
+	}
+
+	protected void setupToken() {
+		setupToken(cmds, options);
+	}
+
+	protected Sso getSso() {
+		return (Sso)getRunnerByName(Sso.SSO_NAME);
+	}
 	
 	public static String[] c(String... ss) {
 		String[] a = new String[ss.length];
