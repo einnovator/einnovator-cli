@@ -1,7 +1,5 @@
 package org.einnovator.cli;
 
-import static org.springframework.util.StringUtils.hasText;
-
 import java.io.Console;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -13,18 +11,14 @@ import javax.annotation.PostConstruct;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.einnovator.util.StringUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
-import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
 
 //@SpringBootApplication
 @Component
@@ -136,8 +130,8 @@ public class CliRunner extends RunnerBase {
 			exit(-1);
 			return;
 		}
-		String NAME = cmds.get(0);
-		CommandRunner runner = getRunnerByName(NAME);
+		String name = cmds.get(0);
+		CommandRunner runner = getRunnerByName(name);
 		if (runner!=null) {
 			if (cmds.size()==1) {
 				System.err.println(String.format("Missing command for %s!", runner.getName()));
@@ -146,10 +140,10 @@ public class CliRunner extends RunnerBase {
 			}
 			cmds.remove(0);
 		} else {
-			runner = getRunnerByCommand(NAME);
+			runner = getRunnerByCommand(name);
 		}
 		if (runner==null) {
-			System.err.println("Unknow service: " + NAME);
+			System.err.println("Unknow service: " + name);
 			printUsage();
 			exit(-1);
 		}
@@ -170,14 +164,15 @@ public class CliRunner extends RunnerBase {
 		debug("Type: " + type + " ; Op: " + op + " ; Args:" + options + " ; Runner:" + runner.getClass().getSimpleName());
 		String[] cmds_ = cmds.toArray(new String[cmds.size()]);
 
-		OAuth2RestTemplate template = null;
+		RestTemplate template = null;
 
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
-
 		bundle = getResourceBundle();
 		if (!(runner instanceof Sso)) {
 			sso.init(cmds_, options, null, interactive, bundle);
 			template = sso.getTemplate();			
+		} else {
+			sso.setLine(type, op, cmds_, options);
 		}
 		runner.init(cmds_, options, template, interactive, bundle);		
 

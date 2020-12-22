@@ -9,15 +9,18 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.net.URI;
+import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
-import org.einnovator.devops.client.model.Space;
-import org.einnovator.devops.client.modelx.SpaceOptions;
+import org.apache.http.auth.BasicUserPrincipal;
+import org.apache.http.auth.Credentials;
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
 import org.einnovator.sso.client.model.Client;
@@ -28,7 +31,6 @@ import org.einnovator.sso.client.model.Role;
 import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
 import org.einnovator.sso.client.modelx.GroupFilter;
-import org.einnovator.sso.client.modelx.GroupOptions;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
 import org.einnovator.sso.client.modelx.MemberFilter;
@@ -36,7 +38,6 @@ import org.einnovator.sso.client.modelx.RoleFilter;
 import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
-import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +47,7 @@ import org.springframework.security.oauth2.client.token.grant.password.ResourceO
 import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -54,7 +56,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class Sso extends CommandRunnerBase {
 
 	
-	private static final String SSO_DEFAULT_SERVER = "http://localhost:2000";
+	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
 	private static final String SSO_MONITOR_SERVER = "http://localhost:2001";
 
 	public static final String SSO_NAME = "sso";
@@ -63,6 +65,7 @@ public class Sso extends CommandRunnerBase {
 	public static final String CONFIG_FILE = "config.json";
 	public static final String KEY_TOKEN = "token";
 	public static final String KEY_API = "api";
+	public static final String KEY_SINGLEUSER = "singleuser";
 	public static final String KEY_ENDPOINTS = "endpoints";
 	public static final String KEY_USERNAME = "username";
 	public static final String KEY_SETTINGS = "settings";
@@ -90,6 +93,9 @@ public class Sso extends CommandRunnerBase {
 	private static final String INVITATION_DEFAULT_FORMAT ="id,invitee,type,owner,status";
 	private static final String INVITATION_WIDE_FORMAT ="id,invitee,type,owner,status,subject";
 
+	private static final String CONTEXT_DEFAULT_FORMAT = "api,singleuser";
+	private static final String CONTEXT_WIDE_FORMAT = "api,singleuser,servers";
+
 	OAuth2AccessToken token;
 	
 	private SsoClient ssoClient;
@@ -107,7 +113,11 @@ public class Sso extends CommandRunnerBase {
 	private String group;
 
 	private Map<String, Object> allEndpoints;
-	 
+
+	private List<Map<String, Object>> contexts;
+
+	private boolean setup;
+
 	@Override
 	public String getName() {
 		return SSO_NAME;
@@ -115,7 +125,7 @@ public class Sso extends CommandRunnerBase {
 
 	String[][] SSO_COMMANDS = c(
 		c("login", "l"),
-		c("api", "a"),
+		c("api"),
 		c("token"),
 		c("user", "users"),
 		c("group", "groups"),
@@ -138,8 +148,15 @@ public class Sso extends CommandRunnerBase {
 	static {
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		subcommands = map;
+		map.put("token", c(c("show"), c("get"),
+			c("delete", "del", "rm", "remove"),
+			c("help")));
+		map.put("api", c(c("ls", "list"), c("get"),
+			c("delete", "del", "rm", "remove"),
+			c("set"), c("unset"),
+			c("help")));
 		map.put("user", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "rm"),
+			c("create", "add"), c("update"), c("delete", "del", "rm", "remove"),
 			c("help")));
 		map.put("group", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
@@ -162,9 +179,48 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
+			if (type==null || isRemote(type, op)) {
+				initInternal(cmds, options);
+			}
+			init = true;
+		}
+	}
+
+	private boolean isRemote(String type, String op) {
+		switch (type) {
+		case "help": case "":
+		case "login": case "l":
+		case "api": case "a":
+			return false;
+		default:
+			return true;
+		}
+	}
+	
+	private void initInternal(String[] cmds, Map<String, Object> options) {
+		if (singleuser) {
+			debug(1, "Singleuser mode!");
+			if (template==null) {
+				template = new RestTemplate();
+				template.setRequestFactory(new BasicHttpRequestFactory(new Supplier<Credentials>() {
+					public Credentials get() {
+						return new Credentials() {
+							public Principal getUserPrincipal() {
+								return new BasicUserPrincipal(tokenUsername);
+							}
+							public String getPassword() {
+								return tokenPassword;
+							}
+						};
+					}
+				}));
+			}
+			setTemplate(template);
+			return;
+		} else {
 			if (token!=null && token.isExpired()) {
 				error("Token expired! Login again...");
 				exit(-1);
@@ -180,10 +236,10 @@ public class Sso extends CommandRunnerBase {
 				template.setRequestFactory(config.getConnection().makeClientHttpRequestFactory());			
 			}
 			setTemplate(template);
-			ssoClient = new SsoClient(template, config, false);			
-			init = true;
+			ssoClient = new SsoClient((OAuth2RestTemplate)template, config, false);				
 		}
 	}
+	
 	
 	@Override
 	public void setEndpoints(Map<String, Object> endpoints) {
@@ -198,9 +254,8 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public ResourceOwnerPasswordResourceDetails getRequiredResourceDetails() {
-		if (!init) {
+		if (!setup) {
 			setup(options);
-			init = true;
 		}
 		if (token==null) {
 			if (!StringUtil.hasText(tokenUsername)) {
@@ -228,26 +283,56 @@ public class Sso extends CommandRunnerBase {
 		switch (type) {
 		case "help": case "":
 			printUsage();
-			break;
+			return;
 		case "login": case "l":
 			login(type, op, cmds, options);
 			return;
 		case "api": case "a":
-			api(type, op, cmds, options);
-			return;
+			switch (op) {
+			case "help": case "":
+				printUsage("api");
+				return;
+			case "get": 
+				getApi(cmds, options);
+				return;
+			case "ls": case "list":
+				listApis(cmds, options);
+				return;
+			case "set":
+				setApi(cmds, options);
+				return;
+			case "unset":
+				unsetApi(cmds, options);
+				return;
+			case "delete": case "del": case "rm": case "remove":
+				deleteApi(cmds, options);
+				return;
+			default: 
+				invalidOp(type, op);
+				exit(-1);
+				return;
+			}
 		}
-		
 		getToken(1, cmds, options);
 		
 		switch (type) {
 		case "token":
 			switch (op) {
-				case "show": case "s": case "":
-					showToken();
-					break;
-				default: 
-					invalidOp(type, op);
-					break;
+			case "help": case "":
+				printUsage("token");
+				break;
+			case "get":
+				getToken(cmds, options);
+				break;
+			case "show":
+				showToken(cmds, options);
+				break;					
+			case "delete":
+				deleteToken(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
 			}
 			break;
 		case "ls": case "list":
@@ -482,6 +567,7 @@ public class Sso extends CommandRunnerBase {
 		if (isHelp("pwd")) {
 			return;
 		}
+		String api = getCurrentApi();
 		if (StringUtil.hasText(api)) {
 			System.out.println(String.format("API: %s", api));			
 		}
@@ -504,6 +590,10 @@ public class Sso extends CommandRunnerBase {
 			exit(-1);
 			return;
 		}
+		tokenUsername = (String)get("u", options, tokenUsername);
+		tokenPassword = (String)get("p", options, tokenPassword);
+		String singleuser_ = (String)get("s", options, null);
+		this.singleuser = singleuser_!=null;
 		Map<String, Object> endpoints = getEndpoints(api, cmds, options);
 		if (endpoints==null) {
 			error("unable to get endpoints from api: %s", api);
@@ -513,9 +603,17 @@ public class Sso extends CommandRunnerBase {
 		allEndpoints = endpoints;
 		if (endpoints!=null) {
 			writeConfig(api, endpoints, null, options);
+			Map<String, Object> sso = (Map<String, Object>)endpoints.get("sso");
+			if (sso!=null) {
+				server = get("server", sso, server);
+				config.setServer(server);
+			}
+		}
+		if (template==null) {
+			initInternal(cmds, options);
 		}
 		getToken(0, cmds, options);	
-		System.out.println(String.format("Logged in at: %s", api));
+		System.out.println(String.format("Logged in as %s at: %s", tokenUsername, api));
 	}
 
 	private static String API_LOCALHOST = "localhost";
@@ -523,23 +621,54 @@ public class Sso extends CommandRunnerBase {
 	private static String API_DOCKER = "https://localhost:5050";
 	private static String API_DEFAULT = API_LOCALHOST;
 
+	
+	public void listApis(String[] cmds, Map<String, Object> options) {
+		if (isHelp("api", "list")) {
+			return;
+		}
+		String api = getCurrentApi();
+		if (api==null) {
+			System.out.println("No API set!");
+		} else {
+			System.out.println(String.format("Current API: %s", api));			
+		}
+		if (this.contexts!=null) {
+			List<Context> contexts = Context.make(this.contexts);
+			print(contexts);
+		}
+	}
+	
+	public void getApi(String[] cmds, Map<String, Object> options) {
+		if (isHelp("api", "get")) {
+			return;
+		}
+		String api = getCurrentApi();
+		if (api==null) {
+			System.out.print("No API set!");
+			exit(-1);
+			return;
+		}
+		System.out.print(String.format("Current API: %s", api));
+	}
+	
 	public String getCurrentApi() {
 		return api;
 	}
 	
-	public void api(String type, String op, String[] cmds, Map<String, Object> options) {
-		if (isHelp("api")) {
+	public void setApi(String[] cmds, Map<String, Object> options) {
+		if (isHelp("api", "set")) {
 			return;
 		}
-		String api = (String)get("a", options, null);
+		String api = argId(op, cmds);
 		if (api==null) {
-			api = getCurrentApi();
-		}
-		if (api==null) {
-			error("missing api");
+			error("missing api argument");
 			exit(-1);
 			return;
 		}
+		setApi(api, options);
+	}
+
+	public void setApi(String api, Map<String, Object> options) {
 		Map<String, Object> endpoints = getEndpoints(api, cmds, options);
 		if (endpoints==null) {
 			error("unable to get endpoints from api: %s", api);
@@ -554,6 +683,76 @@ public class Sso extends CommandRunnerBase {
 		System.out.println(String.format("Api set to: %s", api));
 	}
 
+	public void unsetApi(String[] cmds, Map<String, Object> options) {
+		if (isHelp("api", "unset")) {
+			return;
+		}
+		this.api = null;
+		writeConfig(api, allEndpoints, (token!=null ? token.getValue() : null), options);
+	}
+
+	public void deleteApi(String[] cmds, Map<String, Object> options) {
+		if (isHelp("api", "delete")) {
+			return;
+		}
+		String api = argId(op, cmds);
+		if (api==null) {
+			error("missing api argument");
+			exit(-1);
+			return;
+		}
+		if (this.contexts==null) {
+			error("API not found: %s", api);
+			exit(-1);
+			return;
+		}		
+		if (removeContext(api, this.contexts)==null) {
+			error("API not found: %s", api);
+			exit(-1);
+			return;
+		}
+		if (this.api!=null && this.api.equals(api)) {
+			token = null;
+		}
+		this.api = null;
+		writeConfig(api, allEndpoints, (token!=null ? token.getValue() : null), options);
+	}
+
+
+	//
+	// Login Token
+	//
+	
+	public void getToken(String[] cmds, Map<String, Object> options) {
+		getToken(0, cmds, options);
+	}
+
+	public void showToken(String[] cmds, Map<String, Object> options) {
+		System.out.println(String.format("Token: %s", token));
+		if (token!=null) {
+			if (token.getScope()!=null) {
+				System.out.println(String.format("Scopes: %s", token.getScope()));				
+			}
+			if (token.getExpiration()!=null) {
+				System.out.println(String.format("Expiration: %s", token.getExpiration()));				
+			}
+			System.out.println(String.format("Is Expired: %s", token.isExpired()));	
+		}
+	}
+
+	public void deleteToken(String[] cmds, Map<String, Object> options) {
+		if (this.token==null) {
+			error("No token available to delete!");
+			exit(-1);
+			return;
+		}
+		this.token = null;
+		writeConfig(api, allEndpoints, null, options);
+	}
+	
+	//
+	// Setup
+	//
 	public Map<String, Object> getEndpoints(String api, String[] cmds, Map<String, Object> options) {
 		
 		if (api.equals(API_LOCALHOST)) {
@@ -577,9 +776,27 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	private Map<String, Object> getEndpointsRemote(String api, String[] cmds, Map<String, Object> options) {
-		return null;
+		return getEndpointsAdhoc(cmds, options, api);
 	}
 
+	@SuppressWarnings("unchecked")
+	public Map<String, Object> getEndpointsAdhoc(String[] cmds, Map<String, Object> options,
+			String devops_) {
+		Map<String, Object> endpoints = makeEndpointsStub(cmds, options);
+		Map<String, Object> sso = (Map<String, Object>)endpoints.get("sso");
+		Map<String, Object> devops = (Map<String, Object>)endpoints.get("devops");
+		Map<String, Object> documents = (Map<String, Object>)endpoints.get("documents");
+		Map<String, Object> notifications = (Map<String, Object>)endpoints.get("notifications");
+		Map<String, Object> payments = (Map<String, Object>)endpoints.get("payments");
+		Map<String, Object> social = (Map<String, Object>)endpoints.get("social");
+		sso.put("server", SSO_DEFAULT_SERVER);
+		devops.put("devops", devops_);
+		documents.put("documents", null);
+		notifications.put("notifications", null);
+		payments.put("payments", null);
+		social.put("server", null);
+		return endpoints;
+	}
 
 	private Map<String, Object> makeEndpointsStub(String[] cmds, Map<String, Object> options) {
 		Map<String, Object> endpoints = new LinkedHashMap<>();
@@ -655,7 +872,16 @@ public class Sso extends CommandRunnerBase {
 
 	public void getToken(int level, String[] cmds, Map<String, Object> options) {
 		debug(1, "Credentials: %s %s", tokenUsername, tokenPassword!=null && !tokenPassword.isEmpty() ?  "****" : "");
-		debug(1, "Config: %s", config);
+		debug(3, "Config: %s", config);
+		if (singleuser) {
+			debug("Singleuser mode. No Token used!");
+			return;
+		}
+		if (!StringUtil.hasText(tokenUsername)) {
+			error("missing username");
+			exit(-1);
+			return;
+		}
 		token = ssoClient.getToken(tokenUsername, tokenPassword);
 		debug(level, "Token: %s", token);			
 		if (token!=null) {
@@ -681,26 +907,24 @@ public class Sso extends CommandRunnerBase {
 		writeConfig(this.api, this.allEndpoints, this.token!=null ? this.token.toString() : null, this.options);
 	}
 
+	@SuppressWarnings("unchecked")
 	public void setup(Map<String, Object> options) {
+		this.options = options;
 		Map<String, Object> config = readConfig(options);
 		if (config!=null) {
 			String current = (String)config.get("current");
-			@SuppressWarnings("unchecked")
-			Map<String, Object> context = findContext(current, (List<Map<String, Object>>)config.get("contexts"));
+			this.contexts = (List<Map<String, Object>>)config.get("contexts");
+			Map<String, Object> context = findContext(current, contexts);
 			setupForContext(context);
 			if (current!=null) {
 				this.api = current;				
 			}
 		}
-				
 		this.config.setServer(server);
 		this.config.setClientId(clientId);
 		this.config.setClientSecret(clientSecret);
-		tokenUsername = (String)get("u", options, tokenUsername);
-		tokenPassword = (String)get("p", options, tokenPassword);
-		updateObjectFromNonNull(this.config, convert(options, SsoClientConfiguration.class));
-
-		
+		updateObjectFromNonNull(this.config, convert(options, SsoClientConfiguration.class));		
+		setup = true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -726,19 +950,57 @@ public class Sso extends CommandRunnerBase {
 		config.put("contexts", contexts);
 		Map<String, Object> context = makeContext(api, endpoints, token);
 		contexts.add(context);
+		if (this.contexts!=null) {
+			for (Map<String, Object> map: this.contexts) {
+				String api2 = (String)map.get(KEY_API);
+				if (api2!=null && !api2.equals(api)) {
+					contexts.add(context);
+				}
+			}
+		}
 		return config;
 	}
 	
 	private Map<String, Object> makeContext(String api, Map<String, Object> endpoints, String token) {
 		Map<String, Object> context = new LinkedHashMap<>();	
 		context.put(KEY_API, api);
-		context.put(KEY_TOKEN, token);
+		context.put(KEY_SINGLEUSER, singleuser);
+		if (!singleuser) {
+			context.put(KEY_TOKEN, token);						
+		} else {			
+			context.put(KEY_TOKEN, makeBasicCrendentials());						
+		}		
 		context.put(KEY_ENDPOINTS, endpoints);
 		context.put(KEY_USERNAME, tokenUsername);
 		context.put(KEY_LASTMODIFIED, new Date().toInstant().toString());
 		Map<String, Object> settings = getAllSettings();
 		context.put(KEY_SETTINGS, settings);
 		return context;
+	}
+
+	private String makeBasicCrendentials(){
+		return makeBasicCrendentials(tokenUsername, tokenPassword);
+	}
+
+	private String makeBasicCrendentials(String username, String password){
+		byte[] bytes = Base64.getEncoder().encode(new String(username + ":" + password).getBytes());
+		return new String(bytes);
+	}
+
+	private String setupFromBasicCrendentials(String encoded){
+		String decoded = new String(Base64.getDecoder().decode(encoded.getBytes()));
+		int i = decoded.indexOf(":");
+		if (i<0) {
+			error("Invalid BASIC credentials");
+			return null;
+		}
+		tokenUsername = decoded.substring(0, i);
+		if (i+1<decoded.length()) {
+			tokenPassword = decoded.substring(i+1);			
+		} else {
+			tokenPassword = "";
+		}
+		return tokenUsername;
 	}
 
 	public Map<String, Object> getAllSettings() {
@@ -796,11 +1058,19 @@ public class Sso extends CommandRunnerBase {
 		this.api = (String)context.get(KEY_API);
 		this.allEndpoints = (Map<String, Object>) context.get(KEY_ENDPOINTS);
 		Map<String, Object> settings = (Map<String, Object>) context.get(KEY_SETTINGS);
+		
+		Boolean singleuser = (Boolean)context.get(Sso.KEY_SINGLEUSER);
+		this.singleuser = Boolean.TRUE.equals(singleuser);
+		
 		String token = (String)context.get(KEY_TOKEN);
 		if (token!=null) {
-			this.token = new DefaultOAuth2AccessToken(token);
+			if (this.singleuser) {
+				setupFromBasicCrendentials(token);
+			} else {
+				this.token = new DefaultOAuth2AccessToken(token);
+			}			
 		}
-		tokenUsername = (String)context.get(KEY_USERNAME);
+		tokenUsername = (String)context.get(KEY_USERNAME);		
 
 		if (settings!=null) {
 			loadAllSettings(settings);
@@ -820,6 +1090,20 @@ public class Sso extends CommandRunnerBase {
 		return null;
 	}
 	
+	private Map<String, Object> removeContext(String name, List<Map<String, Object>> contexts) {
+		if (name!=null && contexts!=null) {
+			for (int i=0; i<contexts.size(); i++) {
+				Map<String, Object> context = contexts.get(i);
+				String api = (String)context.get(KEY_API);
+				if (name.equals(api)) {
+					contexts.remove(i);
+					return context;
+				}
+			}			
+		}
+		return null;
+	}
+	
 	private File getConfigFile(Map<String, Object> options) {
 		String home = System.getProperty("user.home");
 		if (home==null) {
@@ -832,12 +1116,6 @@ public class Sso extends CommandRunnerBase {
 		return new File(path);
 	}
 
-
-	public void showToken() {
-		System.out.println(String.format("Token: %s", token));
-	}
-
-	
 	//
 	// User
 	//
@@ -1286,6 +1564,9 @@ public class Sso extends CommandRunnerBase {
 		if (Role.class.equals(type)) {
 			return ROLE_DEFAULT_FORMAT;
 		}
+		if (Context.class.equals(type)) {
+			return CONTEXT_DEFAULT_FORMAT;
+		}
 		return null;
 	}
 
@@ -1308,6 +1589,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		if (Role.class.equals(type)) {
 			return ROLE_WIDE_FORMAT;
+		}
+		if (Context.class.equals(type)) {
+			return CONTEXT_WIDE_FORMAT;
 		}
 		return null;
 	}

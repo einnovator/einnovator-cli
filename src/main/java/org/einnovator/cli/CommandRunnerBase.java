@@ -27,6 +27,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,12 +40,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected String[] cmds;
 	protected Map<String, Object> options;
-	protected OAuth2RestTemplate template;
+	protected RestTemplate template;
 	protected boolean interactive;
 	protected boolean init;
 	protected String type;
 	protected String op;
-	
+	protected boolean singleuser;
+
 	protected ResourceBundle bundle;
 
 	protected static YAMLFactory yamlFactory = new YAMLFactory();
@@ -104,7 +107,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 	
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		super.init(interactive, bundle);
 		this.cmds = cmds;
 		this.options = options;
@@ -426,7 +429,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	 *
 	 * @return the value of {@code template}
 	 */
-	public OAuth2RestTemplate getTemplate() {
+	public RestTemplate getTemplate() {
 		return template;
 	}
 
@@ -436,7 +439,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	 *
 	 * @param template the value of {@code template}
 	 */
-	public void setTemplate(OAuth2RestTemplate template) {
+	public void setTemplate(RestTemplate template) {
 		this.template = template;
 	}
 
@@ -471,6 +474,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected void error(String msg, Object... args) {
 		System.err.println(String.format("ERROR: " + msg, args));
+	}
+
+	protected void singleuserNotSupported() {
+		error(String.format("[%s] Single user mode not supported", this.getName()));
 	}
 
 	protected void noresources(String type, Map<String, Object> args) {
@@ -796,9 +803,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	String[] getFormatProps(String fmt) {
+		if (!StringUtils.hasText(fmt)) {
+			return null;
+		}
 		String[] cols = fmt.split(",");
 		for (int i =0; i<cols.length; i++) {
-			String col = cols[i];
+			String col = cols[i].trim();
 			int j = col.indexOf(":");
 			if (j>0 && j<col.length()-1) {
 				cols[i] = col.substring(0, j);
@@ -888,9 +898,11 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			}
 		} else {
 			String[] props = getFormatProps(fmt);
-			for (String s: props) {
-				Object value = getPropertyValue(obj, s);
-				values.add(formatSimple(value));						
+			if (props!=null) {
+				for (String s: props) {
+					Object value = getPropertyValue(obj, s);
+					values.add(formatSimple(value));						
+				}				
 			}
 		}
 		return values;

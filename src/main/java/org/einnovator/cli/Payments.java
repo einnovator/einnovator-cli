@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 
 @Component
@@ -99,12 +100,17 @@ public class Payments extends CommandRunnerBase {
 		return subcommands;
 	}
 	
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
-			paymentsClient = new PaymentsClient(template, config);
+			if (template instanceof OAuth2RestTemplate) {
+				paymentsClient = new PaymentsClient((OAuth2RestTemplate)template, config);				
+			} else {
+				singleuserNotSupported();
+				exit(-1);
+			}
 			init = true;
 		}
 	}

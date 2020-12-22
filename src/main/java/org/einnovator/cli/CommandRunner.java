@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * A {@code CommandRunner}.
@@ -26,7 +26,7 @@ public interface CommandRunner {
 
 	void printUsage();
 	
-	void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle);
+	void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle);
 
 	void run(String type, String op, String[] cmds, Map<String, Object> options);
 

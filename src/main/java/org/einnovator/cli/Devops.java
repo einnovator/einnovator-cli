@@ -52,6 +52,7 @@ import org.einnovator.devops.client.modelx.SpaceFilter;
 import org.einnovator.devops.client.modelx.SpaceOptions;
 import org.einnovator.devops.client.modelx.VcsFilter;
 import org.einnovator.devops.client.modelx.VcsOptions;
+import org.einnovator.documents.client.DocumentsClient;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.ResourceUtils;
@@ -63,6 +64,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 
 @Component
@@ -138,12 +140,16 @@ public class Devops extends CommandRunnerBase {
 	private DevopsClientConfiguration config = new DevopsClientConfiguration();
 
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(cmds, options, template, interactive, bundle);
 			updateObjectFrom(config, convert(options, DevopsClientConfiguration.class));
 			config.setServer(server);
-			devopsClient = new DevopsClient(template, config);
+			if (template instanceof OAuth2RestTemplate) {
+				devopsClient = new DevopsClient((OAuth2RestTemplate)template, config);
+			} else {
+				devopsClient = new DevopsClient(template, config);				
+			}
 			init = true;
 		}
 	}
