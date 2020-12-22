@@ -106,6 +106,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
+		setLine(type, op, cmds, options);
 		if (isHelp()) {
 			printUsage();
 		}

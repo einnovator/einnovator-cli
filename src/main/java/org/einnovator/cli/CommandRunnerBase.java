@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,6 +18,7 @@ import org.einnovator.devops.client.model.NamedEntity;
 import org.einnovator.util.MapUtil;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.StringUtil;
+import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.meta.MetaUtil;
 import org.einnovator.util.model.EntityBase;
@@ -38,6 +40,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected OAuth2RestTemplate template;
 	protected boolean interactive;
 	protected boolean init;
+	protected String type;
+	protected String op;
 	
 	protected ResourceBundle bundle;
 
@@ -87,6 +91,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		this.template = template;
 	}
 
+	protected void setLine(String type, String op, String[] cmds, Map<String, Object> options) {	
+		this.type = type;
+		this.op = op;
+		this.cmds = cmds;
+		this.options = options;
+	}
+		
 	protected OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource,
 			DefaultOAuth2ClientContext context, ConnectionConfiguration connection) {
 		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
@@ -446,20 +457,40 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		System.err.println(String.format("Resources not found: %s", type));		
 	}
 
+	protected void noresources(Map<String, Object> args) {
+		noresources(type, args);
+	}
+
 	protected void operationFailed(String type, String op, Map<String, Object> args) {
 		System.err.println(String.format("ERROR: operation faield: %s %s", type, op));
+	}
+
+	protected void operationFailed(Map<String, Object> args) {
+		operationFailed(args);
 	}
 
 	protected void invalidOp(String type, String op) {
 		System.err.println(String.format("ERROR: invalid operation: %s %s", type, op));
 	}
 
+	protected void invalidOp() {
+		invalidOp(type, op);
+	}
+
 	protected void invalidType(String type) {
 		System.err.println(String.format("ERROR: invalid resource type: %s", type));
 	}
-	
+
+	protected void invalidType() {
+		invalidType(type);
+	}
+
 	protected void missingArg(String type, String op, String name) {
 		System.err.println(String.format("ERROR: missing argument %s: %s %s", name, type, op));
+	}
+	
+	protected void missingArg(String name) {
+		missingArg(name, op, name);
 	}
 	
 	protected Object get(String name, Map<String, Object> map) {
@@ -1218,6 +1249,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 	}
 
+	protected String extractId(URI uri) {
+		return UriUtils.extractId(uri);
+	}
 	
 	protected void writeConfig() {
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
