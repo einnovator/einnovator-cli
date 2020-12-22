@@ -33,7 +33,6 @@ import org.einnovator.sso.client.modelx.RoleFilter;
 import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
-import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
@@ -110,22 +109,49 @@ public class Sso extends CommandRunnerBase {
 		return SSO_NAME;
 	}
 
-	String[][] SSO_COMMANDS = new String[][] { 
-		new String[] {"login"},
-		new String[] {"api"},
-		new String[] {"token", "tk", "t"},
-		new String[] {"users", "user", "u"},
-		new String[] {"groups", "group", "g"},
-		new String[] {"member", "members", "mem"},
-		new String[] {"role", "roles", "rol"},
-		new String[] {"invitation", "invitations", "invites", "inv", "i"},
-		new String[] {"clients", "client", "cli"},
-		};
+	String[][] SSO_COMMANDS = c(
+		c("login", "l"),
+		c("api", "a"),
+		c("token"),
+		c("users", "user"),
+		c("groups", "group"),
+		c("member", "members"),
+		c("role", "roles"),
+		c("invitation", "invitations", "invites", "inv"),
+		c("clients", "client")
+	);
 
 	protected String[][] getCommands() {
 		return SSO_COMMANDS;
 	}
 
+	
+	static Map<String, String[][]> subcommands;
+	
+	static {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		subcommands = map;
+		map.put("user", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "rm"),
+			c("help")));
+		map.put("group", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+		map.put("invitation", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("member", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("role", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("client", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+	}
+	
+	@Override
+	protected Map<String, String[][]> getSubCommands() {
+		return subcommands;
+	}
 
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
@@ -209,7 +235,7 @@ public class Sso extends CommandRunnerBase {
 		getToken(type, op, cmds, options);
 		
 		switch (type) {
-		case "token": case "tk": case "t":
+		case "token":
 			switch (op) {
 				case "show": case "s": case "":
 					showToken();
@@ -219,133 +245,151 @@ public class Sso extends CommandRunnerBase {
 					break;
 			}
 			break;
-		case "user": case "users": case "u":
+		case "user": case "users":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getUser(type, op, cmds, options);
+			case "help": case "":
+				printUsage("user");
 				break;
-			case "list": case "l": case "":
-				listUsers(type, op, cmds, options);
+			case "get": 
+				getUser(cmds, options);
 				break;
-			case "create": case "c":
-				createUser(type, op, cmds, options);
+			case "ls": case "list":
+				listUsers(cmds, options);
 				break;
-			case "update": case "u":
-				updateUser(type, op, cmds, options);
+			case "create": case "add":
+				createUser(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteUser(type, op, cmds, options);
+			case "update":
+				updateUser(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteUser(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "group": case "groups": case "g":
+		case "group": case "groups":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getGroup(type, op, cmds, options);
+			case "help":
+				printUsage("group");
 				break;
-			case "list": case "l": case "":
-				listGroups(type, op, cmds, options);
+			case "get": 
+				getGroup(cmds, options);
 				break;
-			case "create": case "c":
-				createGroup(type, op, cmds, options);
+			case "ls": case "list":
+				listGroups(cmds, options);
 				break;
-			case "update": case "u":
-				updateGroup(type, op, cmds, options);
+			case "create": case "add":
+				createGroup(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteGroup(type, op, cmds, options);
+			case "update":
+				updateGroup(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteGroup(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "member": case "members": case "m":
-			listGroupMembers(type, op, cmds, options);
+		case "member": case "members":
+			listGroupMembers(cmds, options);
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				//getMember(type, op, cmds, options);
+			case "help": case "":
+				printUsage("member");
 				break;
-			case "list": case "l": case "":
-				//listMembers(type, op, cmds, options);
+			case "get": 
+				//getGroupMember(cmds, options);
 				break;
-			case "create": case "c":
-				addMember(type, op, cmds, options);
+			case "ls": case "list":
+				listGroupMembers(cmds, options);
 				break;
-			case "update": case "u":
-				//updateMember(type, op, cmds, options);
+			case "create": case "add":
+				addMember(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				removeMember(type, op, cmds, options);
+			case "update":
+				//updateMember(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				removeMember(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "role": case "roles": case "r":
+		case "role": case "roles":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getRole(type, op, cmds, options);
+			case "help": case "":
+				printUsage("role");
 				break;
-			case "list": case "l": case "":
-				listRoles(type, op, cmds, options);
+			case "get": 
+				getRole(cmds, options);
 				break;
-			case "create": case "c":
-				createRole(type, op, cmds, options);
+			case "ls": case "list":
+				listRoles(cmds, options);
 				break;
-			case "update": case "u":
-				updateRole(type, op, cmds, options);
+			case "create": case "add":
+				createRole(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteRole(type, op, cmds, options);
+			case "update":
+				updateRole(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteRole(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "invitation": case "invitations": case "invites": case "inv": case "i": 
+		case "invitation": case "invitations": case "invites": case "inv":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getInvitation(type, op, cmds, options);
+			case "help": case "":
+				printUsage("invitation");
 				break;
-			case "list": case "l": case "":
-				listInvitations(type, op, cmds, options);
+			case "get": 
+				getInvitation(cmds, options);
 				break;
-			case "create": case "c":
-				invite(type, op, cmds, options);
+			case "ls": case "list":
+				listInvitations(cmds, options);
 				break;
-			case "update": case "u":
-				updateInvitation(type, op, cmds, options);
+			case "create": case "add":
+				invite(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteInvitation(type, op, cmds, options);
+			case "update":
+				updateInvitation(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteInvitation(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "client": case "clients": case "c":
+		case "client": case "clients":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getClient(type, op, cmds, options);
+			case "help": case "":
+				printUsage("client");
 				break;
-			case "list": case "l": case "":
-				listClients(type, op, cmds, options);
+			case "get": 
+				getClient(cmds, options);
 				break;
-			case "create": case "c":
-				createClient(type, op, cmds, options);
+			case "ls": case "list":
+				listClients(cmds, options);
 				break;
-			case "update": case "u":
-				updateClient(type, op, cmds, options);
+			case "create": case "add":
+				createClient(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteClient(type, op, cmds, options);
+			case "update":
+				updateClient(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteClient(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -371,6 +415,9 @@ public class Sso extends CommandRunnerBase {
 	//
 
 	public void login(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("login")) {
+			return;
+		}
 		String api = (String)get("a", options, null);
 		if (api==null) {
 			api = getCurrentApi();
@@ -404,6 +451,9 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void api(String type, String op, String[] cmds, Map<String, Object> options) {
+		if (isHelp("api")) {
+			return;
+		}
 		String api = (String)get("a", options, null);
 		if (api==null) {
 			api = getCurrentApi();
@@ -712,7 +762,10 @@ public class Sso extends CommandRunnerBase {
 	// User
 	//
 	
-	public void listUsers(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listUsers(String[] cmds, Map<String, Object> options) {
+		if (isHelp("user", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		UserFilter filter = convert(options, UserFilter.class);
 		debug("Users: %s %s", filter, pageable);
@@ -720,28 +773,37 @@ public class Sso extends CommandRunnerBase {
 		print(users);
 	}
 
-	public void getUser(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getUser(String[] cmds, Map<String, Object> options) {
+		if (isHelp("user", "get")) {
+			return;
+		}
 		String userId = argId(op, cmds);
 		debug("User: %s", userId);
 		User user = ssoClient.getUser(userId, null);
 		printObj(user);
 	}
 
-	public void createUser(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createUser(String[] cmds, Map<String, Object> options) {
+		if (isHelp("user", "create")) {
+			return;
+		}
 		User user = convert(options, User.class);
 		user.setUsername(argName(op, cmds));
 		debug("Creating User: %s", user);
 		URI uri = ssoClient.createUser(user, new RequestOptions());
 		if (isEcho()) {
 			printLine("User URI:", uri);
-			String id = UriUtils.extractId(uri);
+			String id = extractId(uri);
 			User user2 = ssoClient.getUser(id, null);
 			printObj(user2);			
 		}
 	}
 
 	
-	public void updateUser(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateUser(String[] cmds, Map<String, Object> options) {
+		if (isHelp("user", "update")) {
+			return;
+		}
 		String userId = argId(op, cmds);
 		User user = convert(options, User.class);
 		debug("Updating User: %s %s", userId, user);
@@ -752,17 +814,26 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 
-	public void deleteUser(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteUser(String[] cmds, Map<String, Object> options) {
+		if (isHelp("user", "delete")) {
+			return;
+		}
 		String userId = argId(op, cmds);
 		debug("Deleting User: %s", userId);
 		ssoClient.deleteUser(userId, null);	
+		if (isEcho()) {
+			listUsers(cmds, options);
+		}
 	}
 
 	//
 	// Groups
 	//
 	
-	public void listGroups(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listGroups(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		GroupFilter filter = convert(options, GroupFilter.class);
 		debug("Groups: %s %s", filter, pageable);
@@ -770,27 +841,36 @@ public class Sso extends CommandRunnerBase {
 		print(groups);
 	}
 	
-	public void getGroup(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "get")) {
+			return;
+		}
 		String groupId = argId(op, cmds);
 		debug("Group: %s", groupId);
 		Group group = ssoClient.getGroup(groupId, null);
 		printObj(group);
 	}
 	
-	public void createGroup(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "create")) {
+			return;
+		}
 		Group group = convert(options, Group.class);
 		group.setName(argName(op, cmds));
 		debug("Creating Group: %s", group);
 		URI uri = ssoClient.createGroup(group, new RequestOptions());
 		if (isEcho()) {
 			printLine("Group URI:", uri);
-			String id = UriUtils.extractId(uri);
+			String id = extractId(uri);
 			Group group2 = ssoClient.getGroup(id, null);
 			printObj(group2);			
 		}
 	}
 
-	public void updateGroup(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "update")) {
+			return;
+		}
 		String groupId = argId(op, cmds);
 		Group group = convert(options, Group.class);
 		debug("Updating Group: %s %s", groupId, group);
@@ -801,10 +881,16 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 	
-	public void deleteGroup(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteGroup(String[] cmds, Map<String, Object> options) {
+		if (isHelp("group", "delete")) {
+			return;
+		}
 		String groupId = argId(op, cmds);
 		debug("Deleting Group: %s", groupId);
-		ssoClient.deleteGroup(groupId, null);		
+		ssoClient.deleteGroup(groupId, null);
+		if (isEcho()) {
+			listGroups(cmds, options);
+		}
 	}
 
 
@@ -813,7 +899,10 @@ public class Sso extends CommandRunnerBase {
 	// Group Members
 	//
 	
-	public void addMember(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void addMember(String[] cmds, Map<String, Object> options) {
+		if (isHelp("member", "add")) {
+			return;
+		}
 		String userId = (String)get("user", options);
 		String groupId = (String)get("group", options);
 		printLine("Adding Member...");
@@ -823,19 +912,32 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	
-	public void removeMember(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void removeMember(String[] cmds, Map<String, Object> options) {
+		if (isHelp("member", "remove")) {
+			return;
+		}
 		String userId = (String)get("user", options);
 		String groupId = (String)get("group", options);
 		printLine("Removing Member...");
 		printLine("User:", userId);		
 		printLine("Group:", groupId);		
 		ssoClient.removeMemberFromGroup(userId, groupId, null);
+		if (isEcho()) {
+			listGroupMembers(groupId, options);
+		}
+	}
+
+	public void listGroupMembers(String[] cmds, Map<String, Object> options) {
+		if (isHelp("member", "ls")) {
+			return;
+		}
+		String groupId = (String)get("group", options);
+		listGroupMembers(groupId, options);
 	}
 	
-	public void listGroupMembers(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listGroupMembers(String groupId, Map<String, Object> options) {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		MemberFilter filter = convert(options, MemberFilter.class);
-		String groupId = (String)get("group", options);
 		debug("Members: %s %s %s", groupId, filter, pageable);
 		Page<Member> members = ssoClient.listGroupMembers(groupId, null, null);
 		print(members);
@@ -847,7 +949,10 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 
-	public void invite(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void invite(String[] cmds, Map<String, Object> options) {
+		if (isHelp("invitation", "create")) {
+			return;
+		}
 		Invitation invitation = convert(options, Invitation.class);
 		InvitationOptions options_ = convert(options, InvitationOptions.class);
 		Boolean sendMail = get("sendMail", options, true);
@@ -857,7 +962,7 @@ public class Sso extends CommandRunnerBase {
 		URI uri = ssoClient.invite(invitation, options_);
 		if (isEcho()) {
 			printLine("Invitation URI:", uri);
-			String id = UriUtils.extractId(uri);
+			String id = extractId(uri);
 			Invitation invitation2 = ssoClient.getInvitation(id, null);
 			printObj(invitation2);		
 			URI tokenUri = ssoClient.getInvitationToken(id, new InvitationOptions().withSendMail(false));
@@ -866,7 +971,10 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	
-	public void listInvitations(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listInvitations(String[] cmds, Map<String, Object> options) {
+		if (isHelp("invitation", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		InvitationFilter filter = convert(options, InvitationFilter.class);
 		debug("Invitations: %s %s", filter, pageable);
@@ -874,7 +982,10 @@ public class Sso extends CommandRunnerBase {
 		print(invitations);
 	}
 
-	public void getInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getInvitation(String[] cmds, Map<String, Object> options) {
+		if (isHelp("invitation", "get")) {
+			return;
+		}
 		String invitationId = argId(op, cmds);
 		debug("Invitation: %s", invitationId);
 		Invitation invitation = ssoClient.getInvitation(invitationId, null);
@@ -883,7 +994,10 @@ public class Sso extends CommandRunnerBase {
 
 
 	
-	public void updateInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateInvitation(String[] cmds, Map<String, Object> options) {
+		if (isHelp("invitation", "update")) {
+			return;
+		}
 		String invitationId = argId(op, cmds);
 		Invitation invitation = convert(options, Invitation.class);
 		debug("Updating Invitation: %s %s", invitationId, invitation);
@@ -894,10 +1008,16 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 
-	public void deleteInvitation(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteInvitation(String[] cmds, Map<String, Object> options) {
+		if (isHelp("invitation", "delete")) {
+			return;
+		}
 		String invitationId = argId(op, cmds);
 		debug("Deleting Invitation: %s", invitationId);
 		ssoClient.deleteInvitation(invitationId, null);	
+		if (isEcho()) {
+			listInvitations(cmds, options);
+		}
 	}
 
 
@@ -905,7 +1025,10 @@ public class Sso extends CommandRunnerBase {
 	// Roles
 	//
 	
-	public void listRoles(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listRoles(String[] cmds, Map<String, Object> options) {
+		if (isHelp("role", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		RoleFilter filter = convert(options, RoleFilter.class);
 		debug("Role: %s %s", filter, pageable);
@@ -913,27 +1036,36 @@ public class Sso extends CommandRunnerBase {
 		print(roles);
 	}
 	
-	public void getRole(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getRole(String[] cmds, Map<String, Object> options) {
+		if (isHelp("role", "get")) {
+			return;
+		}
 		String roleId = argId(op, cmds);
 		debug("Role: %s", roleId);
 		Role role = ssoClient.getRole(roleId, null);
 		printObj(role);
 	}
 	
-	public void createRole(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createRole(String[] cmds, Map<String, Object> options) {
+		if (isHelp("role", "create")) {
+			return;
+		}
 		Role role = convert(options, Role.class);
 		role.setName(argName(op, cmds));
 		debug("Creating Role: %s", role);
 		URI uri = ssoClient.createRole(role, new RequestOptions());
 		if (isEcho()) {
 			printLine("Role URI:", uri);
-			String id = UriUtils.extractId(uri);
+			String id = extractId(uri);
 			Role role2 = ssoClient.getRole(id, null);
 			printObj(role2);			
 		}
 	}
 
-	public void updateRole(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateRole(String[] cmds, Map<String, Object> options) {
+		if (isHelp("role", "update")) {
+			return;
+		}
 		String roleId = argId(op, cmds);
 		Role role = convert(options, Role.class);
 		debug("Updating Role: %s %s", roleId, role);
@@ -944,10 +1076,16 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 	
-	public void deleteRole(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteRole(String[] cmds, Map<String, Object> options) {
+		if (isHelp("role", "delete")) {
+			return;
+		}
 		String roleId = argId(op, cmds);
 		debug("Deleting Role: %s", roleId);
-		ssoClient.deleteRole(roleId, null);		
+		ssoClient.deleteRole(roleId, null);
+		if (isEcho()) {
+			listRoles(cmds, options);
+		}
 	}
 
 
@@ -956,7 +1094,10 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 
-	public void listClients(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listClients(String[] cmds, Map<String, Object> options) {
+		if (isHelp("client", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ClientFilter filter = convert(options, ClientFilter.class);
 		debug("Client: %s %s", filter, pageable);
@@ -964,28 +1105,37 @@ public class Sso extends CommandRunnerBase {
 		print(clients);
 	}
 
-	public void getClient(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getClient(String[] cmds, Map<String, Object> options) {
+		if (isHelp("client", "get")) {
+			return;
+		}
 		String clientId = argId(op, cmds);
 		debug("Client: %s", clientId);
 		Client client = ssoClient.getClient(clientId, null);
 		printObj(client);
 	}
 
-	public void createClient(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createClient(String[] cmds, Map<String, Object> options) {
+		if (isHelp("client", "create")) {
+			return;
+		}
 		Client client = convert(options, Client.class);
 		client.setClientId(argName(op, cmds));
 		debug("Creating Client: %s", client);
 		URI uri = ssoClient.createClient(client, new RequestOptions());
 		if (isEcho()) {
 			printLine("Client URI:", uri);
-			String id = UriUtils.extractId(uri);
+			String id = extractId(uri);
 			Client client2 = ssoClient.getClient(id, null);
 			printObj(client2);			
 		}
 	}
 
 	
-	public void updateClient(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateClient(String[] cmds, Map<String, Object> options) {
+		if (isHelp("client", "update")) {
+			return;
+		}
 		String clientId = argId(op, cmds);
 		Client client = convert(options, Client.class);
 		debug("Updating Client: %s %s", clientId, client);
@@ -996,10 +1146,16 @@ public class Sso extends CommandRunnerBase {
 		}
 	}
 
-	public void deleteClient(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteClient(String[] cmds, Map<String, Object> options) {
+		if (isHelp("client", "delete")) {
+			return;
+		}
 		String clientId = argId(op, cmds);
 		debug("Deleting Client: %s", clientId);
-		ssoClient.deleteClient(clientId, null);	
+		ssoClient.deleteClient(clientId, null);
+		if (isEcho()) {
+			listClients(cmds, options);
+		}
 	}
 
 	@Override

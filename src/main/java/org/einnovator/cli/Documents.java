@@ -3,6 +3,7 @@ package org.einnovator.cli;
 import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -14,6 +15,7 @@ import org.einnovator.documents.client.model.Mount;
 import org.einnovator.documents.client.modelx.DocumentFilter;
 import org.einnovator.documents.client.modelx.DocumentOptions;
 import org.einnovator.documents.client.modelx.MountFilter;
+import org.einnovator.documents.client.modelx.MountOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,11 +58,24 @@ public class Documents extends CommandRunnerBase {
 		return DOCUMENTS_NAME;
 	}
 
-	String[][] DOCUMENTS_COMMANDS = new String[][] { 
-		new String[] {"documents", "document", "docs", "doc", "d"},
-		new String[] {"mounts", "mount", "m"},
-		};
+	String[][] DOCUMENTS_COMMANDS = c(
+		c("document", "documents", "docs", "doc"),
+		c("fmount", "fmounts", "mount", "mounts")
+	);
 
+	static Map<String, String[][]> subcommands;
+
+	static {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		subcommands = map;
+		map.put("document", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("submit", "create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+		map.put("fmount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
+			c("help")));
+	}
+	
 	@Override
 	protected String[][] getCommands() {
 		return DOCUMENTS_COMMANDS;
@@ -100,21 +115,24 @@ public class Documents extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
-		case "documents": case "document": case "docs": case "doc": case "d":
+		case "documents": case "document": case "doc": case "docs":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
+			case "help": case "":
+				printUsage("document");
+				break;
+			case "get": 
 				read(path, options);
 				break;
-			case "list": case "l": case "ls": case "dir": case "":
+			case "ls": case "list": case "dir":
 				list(path, options);
 				break;
-			case "create": case "c":
+			case "create": case "add":
 				write(path, options);
 				break;
 			case "mkdir": case "mkd":
 				mkdir(path, options);
 				break;				
-			case "delete": case "del": case "rm": case "d":
+			case "delete": case "del": case "rm": case "remove":
 				delete(path, options);
 				break;
 			default: 
@@ -122,22 +140,25 @@ public class Documents extends CommandRunnerBase {
 				break;
 			}
 			break;
-		case "mount": case "mounts": case "m":
+		case "fmount": case "fmounts": case "mount": case "mounts":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getMount(type, op, cmds, options);
+			case "help": case "":
+				printUsage("fmount");
 				break;
-			case "list": case "l": case "":
-				listMounts(type, op, cmds, options);
+			case "get": 
+				getMount(cmds, options);
 				break;
-			case "create": case "c":
-				createMount(type, op, cmds, options);
+			case "ls": case "list":
+				listMounts(cmds, options);
 				break;
-			case "update": case "u":
-				updateMount(type, op, cmds, options);
+			case "create": case "add":
+				createMount(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteMount(type, op, cmds, options);
+			case "update":
+				updateMount(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteMount(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -165,6 +186,9 @@ public class Documents extends CommandRunnerBase {
 	//
 	
 	public void list(String path, Map<String, Object> options) {
+		if (isHelp("document", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		DocumentFilter filter = convert(options, DocumentFilter.class);
 		debug("Documents: %s %s", filter, pageable);
@@ -173,16 +197,24 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void read(String path, Map<String, Object> options) {
+		if (isHelp("document", "read")) {
+			return;
+		}
 		String documentId = argId(null, cmds);
-		debug("Document: %s", path);
-		Document document = documentsClient.read(documentId, null);
+		DocumentOptions options_ = convert(options, DocumentOptions.class);
+		debug("Document: %s %s", path, options_);
+		Document document = documentsClient.read(documentId, options_);
 		printObj(document);
 	}
 
-	public void write(String path, Map<String, Object> options) {		
+	public void write(String path, Map<String, Object> options) {
+		if (isHelp("document", "write")) {
+			return;
+		}
 		Document document = convert(options, Document.class);
-		debug("Write Document: %s", path);
-		URI uri = documentsClient.write(document, null);
+		DocumentOptions options_ = convert(options, DocumentOptions.class);
+		debug("Write Document: %s %s", path, options_);
+		URI uri = documentsClient.write(document, options_);
 		if (isEcho()) {
 			printLine("Document URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -192,15 +224,24 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void mkdir(String path, Map<String, Object> options) {
+		if (isHelp("document", "mkdir")) {
+			return;
+		}
 		debug("mkdir " + path);
 		URI uri = documentsClient.mkdir(path, null);
 		debug("URI:", uri);
 	}
 	
 	public void delete(String path, Map<String, Object> options) {
+		if (isHelp("document", "delete")) {
+			return;
+		}
 		String documentId = argId(path, cmds);
 		debug("Deleting Document: %s", documentId);
 		documentsClient.delete(path, null);	
+		if (isEcho()) {
+			list(path, options);
+		}
 	}
 
 
@@ -208,7 +249,10 @@ public class Documents extends CommandRunnerBase {
 	// Mounts
 	//
 	
-	public void listMounts(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listMounts(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mount", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		MountFilter filter = convert(options, MountFilter.class);
 		debug("Mounts: %s %s", filter, pageable);
@@ -216,41 +260,58 @@ public class Documents extends CommandRunnerBase {
 		print(mounts);
 	}
 	
-	public void getMount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getMount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mount", "get")) {
+			return;
+		}
 		String mountId = argId(op, cmds);
 		debug("Mount: %s", mountId);
 		Mount mount = null; //documentsClient.getMount(mountId, null);
 		printObj(mount);
 	}
 	
-	public void createMount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createMount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mount", "create")) {
+			return;
+		}
 		Mount mount = convert(options, Mount.class);
-		debug("Creating Mount: %s", mount);
-		URI uri = null; //documentsClient.createMount(mount, new RequestOptions());
+		MountOptions options_ = convert(options, MountOptions.class);
+		debug("Creating Mount: %s %s", mount, options_);
+		URI uri = null; //documentsClient.createMount(mount, options_);
 		if (isEcho()) {
 			printLine("Mount URI:", uri);
-			String id = UriUtils.extractId(uri);
+			//String id = UriUtils.extractId(uri);
 			Mount mount2 = null; //notificationsClient.getMount(id, null);
 			printObj(mount2);			
 		}
 		
 	}
 
-	public void updateMount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateMount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mount", "update")) {
+			return;
+		}
 		String mountId = argId(op, cmds);
 		Mount mount = convert(options, Mount.class);
-		debug("Updating Mount: %s %s", mountId, mount);
-		//documentsClient.updateMount(mount, null);
+		MountOptions options_ = convert(options, MountOptions.class);
+		debug("Updating Mount: %s %s %s", mountId, mount, options_);
+		//documentsClient.updateMount(mount, options_);
 		if (isEcho()) {
 			Mount mount2 = null; //documentsClient.getMount(mountId, null);
 			printObj(mount2);			
 		}
 	}
 	
-	public void deleteMount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteMount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mount", "delete")) {
+			return;
+		}
 		String mountId = argId(op, cmds);
 		debug("Deleting Mount: %s", mountId);
-		//documentsClient.deleteMount(mountId, null);		
+		//documentsClient.deleteMount(mountId, null);
+		if (isEcho()) {
+			listMounts(cmds, options);
+		}
 	}
 	
 	@Override

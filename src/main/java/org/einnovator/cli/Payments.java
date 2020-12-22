@@ -3,6 +3,7 @@ package org.einnovator.cli;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -18,9 +19,10 @@ import org.einnovator.payments.client.modelx.AccountFilter;
 import org.einnovator.payments.client.modelx.AccountOptions;
 import org.einnovator.payments.client.modelx.PaymentFilter;
 import org.einnovator.payments.client.modelx.PaymentOptions;
+import org.einnovator.payments.client.modelx.TaxFilter;
+import org.einnovator.payments.client.modelx.TaxOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,15 +74,30 @@ public class Payments extends CommandRunnerBase {
 		return "payments";
 	}
 
-	String[][] PAYMENTS_COMMANDS = new String[][] { 
-		new String[] {"accounts", "account", "acc"},
-		new String[] {"payments", "payment", "pay"}
-	};
+	String[][] PAYMENTS_COMMANDS = c(
+		c("account", "accounts", "acc"),
+		c("payment", "payments", "pay"),
+		c("tax", "taxes")
+	);
 
 	protected String[][] getCommands() {
 		return PAYMENTS_COMMANDS;
 	}
 
+	static Map<String, String[][]> subcommands;
+
+	static {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		subcommands = map;
+		map.put("account", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "rm"),
+			c("help")));
+		map.put("payment", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("submit", "create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+		map.put("tax", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+	}
 
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
@@ -112,32 +129,75 @@ public class Payments extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
-		case "accounts": case "account": case "acc":
+		case "account": case "accounts": case "acc":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getAccount(type, op, cmds, options);
+			case "help": case "":
+				printUsage("account");
 				break;
-			case "list": case "l": case "":
-				listAccounts(type, op, cmds, options);
+			case "get": 
+				getAccount(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteAccount(type, op, cmds, options);
+			case "ls": case "list":
+				listAccounts(cmds, options);
+				break;
+			case "create": case "add":
+				createAccount(cmds, options);
+				break;
+			case "update":
+				updateAccount(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteAccount(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "payments": case "payment": case "pay":
+		case "payment": case "payments": case "pay":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getPayment(type, op, cmds, options);
+			case "help": case "":
+				printUsage("payment");
 				break;
-			case "list": case "l": case "":
-				listPayments(type, op, cmds, options);
+			case "get": 
+				getPayment(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deletePayment(type, op, cmds, options);
+			case "ls": case "list":
+				listPayments(cmds, options);
+				break;
+			case "create": case "add":
+				submitPayment(cmds, options);
+				break;
+			case "update":
+				updatePayment(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deletePayment(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}
+			break;
+		case "tax": case "taxes":
+			switch (op) {
+			case "help": case "":
+				printUsage("tax");
+				break;
+			case "get": 
+				getTax(cmds, options);
+				break;
+			case "ls": case "list":
+				listTaxes(cmds, options);
+				break;
+			case "create": case "add":
+				createTax(cmds, options);
+				break;
+			case "update":
+				updateTax(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteTax(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -162,7 +222,10 @@ public class Payments extends CommandRunnerBase {
 	// Accounts
 	//
 	
-	public void listAccounts(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listAccounts(String[] cmds, Map<String, Object> options) {
+		if (isHelp("account", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		AccountFilter filter = convert(options, AccountFilter.class);
 		debug("Account: %s %s", filter, pageable);
@@ -170,7 +233,10 @@ public class Payments extends CommandRunnerBase {
 		print(accounts);
 	}
 	
-	public void getAccount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getAccount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("account", "get")) {
+			return;
+		}
 		String accountId = argId(op, cmds);
 		debug("Account: %s", accountId);
 		AccountOptions options_ = convert(options, AccountOptions.class);
@@ -178,11 +244,15 @@ public class Payments extends CommandRunnerBase {
 		printObj(account);
 	}
 	
-	public void createAccount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createAccount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("account", "create")) {
+			return;
+		}
 		Account account = convert(options, Account.class);
 		account.setName(argName(op, cmds));
-		debug("Creating Account: %s", account);
-		URI uri = paymentsClient.createAccount(account, new RequestOptions());
+		AccountOptions options_ = convert(options, AccountOptions.class);
+		debug("Creating Account: %s %s", account, options_);
+		URI uri = paymentsClient.createAccount(account, options_);
 		if (isEcho()) {
 			printLine("Account URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -191,28 +261,41 @@ public class Payments extends CommandRunnerBase {
 		}
 	}
 
-	public void updateAccount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateAccount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("account", "update")) {
+			return;
+		}
 		String accountId = argId(op, cmds);
 		Account account = convert(options, Account.class);
-		debug("Updating Account: %s %s", accountId, account);
-		paymentsClient.updateAccount(account, null);
+		AccountOptions options_ = convert(options, AccountOptions.class);
+		debug("Updating Account: %s %s %s", accountId, account, options_);
+		paymentsClient.updateAccount(account, options_);
 		if (isEcho()) {
 			Account account2 = paymentsClient.getAccount(accountId, null);
 			printObj(account2);			
 		}
 	}
 	
-	public void deleteAccount(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteAccount(String[] cmds, Map<String, Object> options) {
+		if (isHelp("account", "delete")) {
+			return;
+		}
 		String accountId = argId(op, cmds);
 		debug("Deleting Account: %s", accountId);
 		paymentsClient.deleteAccount(accountId, null);		
+		if (isEcho()) {
+			listAccounts(cmds, options);
+		}
 	}
 
 	//
 	// Payments
 	//
 	
-	public void listPayments(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listPayments(String[] cmds, Map<String, Object> options) {
+		if (isHelp("payment", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		PaymentFilter filter = convert(options, PaymentFilter.class);
 		debug("Payment: %s %s", filter, pageable);
@@ -220,7 +303,10 @@ public class Payments extends CommandRunnerBase {
 		print(payments);
 	}
 	
-	public void getPayment(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getPayment(String[] cmds, Map<String, Object> options) {
+		if (isHelp("payment", "get")) {
+			return;
+		}
 		String paymentId = argId(op, cmds);
 		debug("Payment: %s", paymentId);
 		PaymentOptions options_ = convert(options, PaymentOptions.class);
@@ -228,10 +314,14 @@ public class Payments extends CommandRunnerBase {
 		printObj(payment);
 	}
 	
-	public void submitPayment(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void submitPayment(String[] cmds, Map<String, Object> options) {
+		if (isHelp("payment", "submit")) {
+			return;
+		}
 		Payment payment = convert(options, Payment.class);
-		debug("Creating Payment: %s", payment);
-		URI uri = paymentsClient.submitPayment(payment, new RequestOptions());
+		PaymentOptions options_ = convert(options, PaymentOptions.class);
+		debug("Creating Payment: %s %s", payment, options_);
+		URI uri = paymentsClient.submitPayment(payment, options_);
 		if (isEcho()) {
 			printLine("Payment URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -240,23 +330,101 @@ public class Payments extends CommandRunnerBase {
 		}
 	}
 
-	public void updatePayment(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updatePayment(String[] cmds, Map<String, Object> options) {
+		if (isHelp("payment", "update")) {
+			return;
+		}
 		String paymentId = argId(op, cmds);
 		Payment payment = convert(options, Payment.class);
-		debug("Updating Payment: %s %s", paymentId, payment);
-		paymentsClient.updatePayment(payment, null);
+		PaymentOptions options_ = convert(options, PaymentOptions.class);
+		debug("Updating Payment: %s %s %s", paymentId, payment, options_);
+		paymentsClient.updatePayment(payment, options_);
 		if (isEcho()) {
 			Payment payment2 = paymentsClient.getPayment(paymentId, null);
 			printObj(payment2);			
 		}
 	}
 	
-	public void deletePayment(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deletePayment(String[] cmds, Map<String, Object> options) {
+		if (isHelp("payment", "delete")) {
+			return;
+		}
 		String paymentId = argId(op, cmds);
 		debug("Deleting Payment: %s", paymentId);
-		paymentsClient.deletePayment(paymentId, null);		
+		paymentsClient.deletePayment(paymentId, null);	
+		if (isEcho()) {
+			listPayments(cmds, options);
+		}
 	}
 	
+	//
+	// Taxs
+	//
+	
+	public void listTaxes(String[] cmds, Map<String, Object> options) {
+		if (isHelp("tax", "ls")) {
+			return;
+		}
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		TaxFilter filter = convert(options, TaxFilter.class);
+		debug("Taxes: %s %s", filter, pageable);
+		Page<Tax> taxs = paymentsClient.listTaxes(filter, pageable);
+		print(taxs);
+	}
+	
+	public void getTax(String[] cmds, Map<String, Object> options) {
+		if (isHelp("tax", "get")) {
+			return;
+		}
+		String taxId = argId(op, cmds);
+		debug("Tax: %s", taxId);
+		TaxOptions options_ = convert(options, TaxOptions.class);
+		Tax tax = null; paymentsClient.getTax(taxId, options_);
+		printObj(tax);
+	}
+	
+	public void createTax(String[] cmds, Map<String, Object> options) {
+		if (isHelp("tax", "submit")) {
+			return;
+		}
+		Tax tax = convert(options, Tax.class);
+		TaxOptions options_ = convert(options, TaxOptions.class);
+		debug("Creating Tax: %s %s", tax, options_);
+		URI uri = paymentsClient.createTax(tax, options_);
+		if (isEcho()) {
+			printLine("Tax URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Tax tax2 = paymentsClient.getTax(id, null);
+			printObj(tax2);			
+		}
+	}
+
+	public void updateTax(String[] cmds, Map<String, Object> options) {
+		if (isHelp("tax", "update")) {
+			return;
+		}
+		String taxId = argId(op, cmds);
+		Tax tax = convert(options, Tax.class);
+		TaxOptions options_ = convert(options, TaxOptions.class);
+		debug("Updating Tax: %s %s %s", taxId, tax, options_);
+		paymentsClient.updateTax(tax, options_);
+		if (isEcho()) {
+			Tax tax2 = paymentsClient.getTax(taxId, null);
+			printObj(tax2);			
+		}
+	}
+	
+	public void deleteTax(String[] cmds, Map<String, Object> options) {
+		if (isHelp("tax", "delete")) {
+			return;
+		}
+		String taxId = argId(op, cmds);
+		debug("Deleting Tax: %s", taxId);
+		paymentsClient.deleteTax(taxId, null);
+		if (isEcho()) {
+			listTaxes(cmds, options);
+		}
+	}
 	
 	@Override
 	protected String getDefaultFormat(Class<? extends Object> type) {

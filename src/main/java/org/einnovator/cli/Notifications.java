@@ -3,9 +3,11 @@ package org.einnovator.cli;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.einnovator.devops.client.modelx.JobOptions;
 import org.einnovator.notifications.client.NotificationsClient;
 import org.einnovator.notifications.client.config.NotificationsClientConfiguration;
 import org.einnovator.notifications.client.model.Event;
@@ -17,10 +19,11 @@ import org.einnovator.notifications.client.model.TrackedEvent;
 import org.einnovator.notifications.client.modelx.JobFilter;
 import org.einnovator.notifications.client.modelx.NotificationFilter;
 import org.einnovator.notifications.client.modelx.NotificationTypeFilter;
+import org.einnovator.notifications.client.modelx.NotificationTypeOptions;
 import org.einnovator.notifications.client.modelx.TemplateFilter;
+import org.einnovator.notifications.client.modelx.TemplateOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.UriUtils;
-import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -68,19 +71,40 @@ public class Notifications extends CommandRunnerBase {
 		return "notifications";
 	}
 
-	String[][] NOTIFICATIONS_COMMANDS = new String[][] { 
-		new String[] {"events", "event", "ev", "e"},
-		new String[] {"notifications", "notification", "notific", "n"},
-		new String[] {"notification-types", "notific-type", "ntype", "nt"},
-		new String[] {"templates", "template", "templ"}, 
-		new String[] {"jobs", "job", "j"},
-		};
+	String[][] NOTIFICATIONS_COMMANDS = c(
+		c("event", "events", "ev"),
+		c("notification", "notifications", "notific"),
+		c("notification-type", "notification-types", "notific-type", "ntype", "nt"),
+		c("template", "templates", "templ"), 
+		c("mjob", "mjobs", "job", "jobs")
+	);
 
 	@Override
 	protected String[][] getCommands() {
 		return NOTIFICATIONS_COMMANDS;
 	}
 
+	static Map<String, String[][]> subcommands;
+
+	static {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		subcommands = map;
+		map.put("event", c(c("ls", "list"), c("schema", "meta"), 
+			c("delete", "del", "rm"),
+			c("publish"),
+			c("help")));
+		map.put("notification", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("delete", "del", "rm"),
+			c("help")));
+		map.put("notification-type", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "rm"),
+			c("help")));
+		map.put("template", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("submit", "create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+		map.put("mjob", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+	}
 
 	@Override
 	public void init(String[] cmds, Map<String, Object> options, OAuth2RestTemplate template, boolean interactive, ResourceBundle bundle) {
@@ -114,50 +138,84 @@ public class Notifications extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
-		case "events": case "event": case "ev": case "e":
+		case "events": case "event": case "ev":
 			switch (op) {
-			case "publish": case "pub": case "p":
-				publish(type, op, cmds, options);
+			case "help": case "":
+				printUsage("event");
+				break;
+			case "publish": case "pub":
+				publish(cmds, options);
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "notifications": case "notification": case "notific": case "n":
+		case "notification": case "notifications": case "notific":
 			switch (op) {
-			//case "get": case "g": case "show": case "s": case "view": case "v":
-			//	getNotification(type, op, cmds, options);
+			case "help": case "":
+				printUsage("notification");
+				break;
+			//case "get": 
+			//	getNotification(cmds, options);
 			//	break;
-			case "list": case "l": case "":
-				listNotifications(type, op, cmds, options);
+			case "ls": case "list":
+				listNotifications(cmds, options);
 				break;
 			case "count": case "c":
-				countNotifications(type, op, cmds, options);
+				countNotifications(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteNotification(type, op, cmds, options);
+			case "delete": case "del": case "rm": case "remove":
+				deleteNotification(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		case "job": case "jobs": case "m":
+		case "notification-type": case "notification-types": case "notific-type": case "ntype": case "nt":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getJob(type, op, cmds, options);
+			case "help": case "":
+				printUsage("notification-type");
 				break;
-			case "list": case "l": case "":
-				listJobs(type, op, cmds, options);
+			case "get": 
+				getNotificationType(cmds, options);
 				break;
-			case "create": case "c":
-				createJob(type, op, cmds, options);
+			case "ls": case "list":
+				listNotificationTypes(cmds, options);
 				break;
-			case "update": case "u":
-				updateJob(type, op, cmds, options);
+			case "create": case "add":
+				createNotificationType(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteJob(type, op, cmds, options);
+			case "update":
+				updateNotificationType(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteNotificationType(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}
+			break;
+		case "mjob": case "mjobs": case "job": case "jobs": 
+			switch (op) {
+			case "help": case "":
+				printUsage("mjob");
+				break;
+			case "get": 
+				getJob(cmds, options);
+				break;
+			case "ls": case "list":
+				listJobs(cmds, options);
+				break;
+			case "create": case "add":
+				createJob(cmds, options);
+				break;
+			case "update":
+				updateJob(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteJob(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -183,7 +241,10 @@ public class Notifications extends CommandRunnerBase {
 	// Notifications
 	//
 	
-	public void listNotifications(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listNotifications(String[] cmds, Map<String, Object> options) {
+		if (isHelp("notification", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		NotificationFilter filter = convert(options, NotificationFilter.class);
 		debug("Notifications: %s %s", filter, pageable);
@@ -191,14 +252,20 @@ public class Notifications extends CommandRunnerBase {
 		print(notifications);
 	}
 	
-	public void countNotifications(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void countNotifications(String[] cmds, Map<String, Object> options) {
+		if (isHelp("notification", "count")) {
+			return;
+		}
 		NotificationFilter filter = convert(options, NotificationFilter.class);
 		Long n = notificationsClient.countNotifications(filter);
 		printLine("Count Notification...");
 		printLine(n);
 	}
 	
-	public void publish(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void publish(String[] cmds, Map<String, Object> options) {
+		if (isHelp("publish")) {
+			return;
+		}
 		Event event = convert(options, Event.class);
 		printLine("Publish TrackedEvent...");
 		print(event);
@@ -206,17 +273,26 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 	
-	public void deleteNotification(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteNotification(String[] cmds, Map<String, Object> options) {
+		if (isHelp("notification", "delete")) {
+			return;
+		}
 		String notificationId = argId(op, cmds);
 		debug("Deleting Notification: %s", notificationId);
 		notificationsClient.deleteNotification(notificationId, null);		
+		if (isEcho()) {
+			listNotifications(cmds, options);
+		}
 	}
 
 	//
 	// NotificationTypes
 	//
 	
-	public void listNotificationTypes(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listNotificationTypes(String[] cmds, Map<String, Object> options) {
+		if (isHelp("type", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		NotificationTypeFilter filter = convert(options, NotificationTypeFilter.class);
 		Page<NotificationType> notificationTypes = notificationsClient.listNotificationTypes(filter, pageable);
@@ -227,17 +303,24 @@ public class Notifications extends CommandRunnerBase {
 		print(notificationTypes);
 	}
 	
-	public void getNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getNotificationType(String[] cmds, Map<String, Object> options) {
+		if (isHelp("type", "get")) {
+			return;
+		}
 		String notificationTypeId = argId(op, cmds);
 		debug("NotificationType: %s", notificationTypeId);
 		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, null);
 		printObj(notificationType);
 	}
 	
-	public void createNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createNotificationType(String[] cmds, Map<String, Object> options) {
+		if (isHelp("type", "create")) {
+			return;
+		}
 		NotificationType notificationType = convert(options, NotificationType.class);
-		debug("Creating NotificationType: %s", notificationType);
-		URI uri = notificationsClient.createNotificationType(notificationType, new RequestOptions());
+		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
+		debug("Creating NotificationType: %s %s", notificationType, options_);
+		URI uri = notificationsClient.createNotificationType(notificationType, options_);
 		if (isEcho()) {
 			printLine("NotificationType URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -246,21 +329,31 @@ public class Notifications extends CommandRunnerBase {
 		}
 	}
 
-	public void updateNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateNotificationType(String[] cmds, Map<String, Object> options) {
+		if (isHelp("type", "update")) {
+			return;
+		}
 		String notificationTypeId = argId(op, cmds);
 		NotificationType account = convert(options, NotificationType.class);
-		debug("Updating NotificationType: %s %s", notificationTypeId, account);
-		notificationsClient.updateNotificationType(account, null);
+		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
+		debug("Updating NotificationType: %s %s %s", notificationTypeId, account, options_);
+		notificationsClient.updateNotificationType(account, options_);
 		if (isEcho()) {
 			NotificationType account2 = notificationsClient.getNotificationType(notificationTypeId, null);
 			printObj(account2);			
 		}
 	}
 	
-	public void deleteNotificationType(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteNotificationType(String[] cmds, Map<String, Object> options) {
+		if (isHelp("type", "delete")) {
+			return;
+		}
 		String notificationTypeId = argId(op, cmds);
 		debug("Deleting NotificationType: %s", notificationTypeId);
-		notificationsClient.deleteNotificationType(notificationTypeId, null);		
+		notificationsClient.deleteNotificationType(notificationTypeId, null);
+		if (isEcho()) {
+			listNotificationTypes(cmds, options);
+		}
 	}
 
 	
@@ -268,7 +361,10 @@ public class Notifications extends CommandRunnerBase {
 	// Templates
 	//
 	
-	public void listTemplates(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listTemplates(String[] cmds, Map<String, Object> options) {
+		if (isHelp("template", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		TemplateFilter filter = convert(options, TemplateFilter.class);
 		debug("Templates: %s %s", filter, pageable);
@@ -276,17 +372,24 @@ public class Notifications extends CommandRunnerBase {
 		print(templates);
 	}
 	
-	public void getTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getTemplate(String[] cmds, Map<String, Object> options) {
+		if (isHelp("template", "get")) {
+			return;
+		}
 		String templateId = argId(op, cmds);
 		debug("Template: %s", templateId);
 		Template template = notificationsClient.getTemplate(templateId, null);
 		printObj(template);
 	}
 	
-	public void createTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createTemplate(String[] cmds, Map<String, Object> options) {
+		if (isHelp("template", "create")) {
+			return;
+		}
 		Template template = convert(options, Template.class);
-		debug("Creating Template: %s", template);
-		URI uri = notificationsClient.createTemplate(template, new RequestOptions());
+		TemplateOptions options_ = convert(options, TemplateOptions.class);
+		debug("Creating Template: %s %s", template, options_);
+		URI uri = notificationsClient.createTemplate(template, options_);
 		if (isEcho()) {
 			printLine("Template URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -295,28 +398,41 @@ public class Notifications extends CommandRunnerBase {
 		}
 	}
 
-	public void updateTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateTemplate(String[] cmds, Map<String, Object> options) {
+		if (isHelp("template", "update")) {
+			return;
+		}
 		String templateId = argId(op, cmds);
 		Template account = convert(options, Template.class);
-		debug("Updating Template: %s %s", templateId, account);
-		notificationsClient.updateTemplate(account, null);
+		TemplateOptions options_ = convert(options, TemplateOptions.class);
+		debug("Updating Template: %s %s %s", templateId, account, options_);
+		notificationsClient.updateTemplate(account, options_);
 		if (isEcho()) {
 			Template account2 = notificationsClient.getTemplate(templateId, null);
 			printObj(account2);			
 		}
 	}
 	
-	public void deleteTemplate(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteTemplate(String[] cmds, Map<String, Object> options) {
+		if (isHelp("template", "delete")) {
+			return;
+		}
 		String templateId = argId(op, cmds);
 		debug("Deleting Template: %s", templateId);
-		notificationsClient.deleteTemplate(templateId, null);		
+		notificationsClient.deleteTemplate(templateId, null);	
+		if (isEcho()) {
+			listTemplates(cmds, options);
+		}
 	}
 
 	//
 	// Jobs
 	//
 	
-	public void listJobs(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listJobs(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mjob", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		JobFilter filter = convert(options, JobFilter.class);
 		debug("Jobs: %s %s", filter, pageable);
@@ -324,17 +440,24 @@ public class Notifications extends CommandRunnerBase {
 		print(jobs);
 	}
 	
-	public void getJob(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mjob", "get")) {
+			return;
+		}
 		String jobId = argId(op, cmds);
 		debug("Job: %s", jobId);
 		Job job = notificationsClient.getJob(jobId, null);
 		printObj(job);
 	}
 	
-	public void createJob(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mjob", "create")) {
+			return;
+		}
 		Job job = convert(options, Job.class);
-		debug("Creating Job: %s", job);
-		URI uri = notificationsClient.createJob(job, new RequestOptions());
+		JobOptions option_ = convert(options, JobOptions.class);
+		debug("Creating Job: %s %s", job, option_);
+		URI uri = notificationsClient.createJob(job, option_);
 		if (isEcho()) {
 			printLine("Job URI:", uri);
 			String id = UriUtils.extractId(uri);
@@ -343,21 +466,31 @@ public class Notifications extends CommandRunnerBase {
 		}
 	}
 
-	public void updateJob(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mjob", "update")) {
+			return;
+		}
 		String jobId = argId(op, cmds);
 		Job account = convert(options, Job.class);
-		debug("Updating Job: %s %s", jobId, account);
-		notificationsClient.updateJob(account, null);
+		JobOptions option_ = convert(options, JobOptions.class);
+		debug("Updating Job: %s %s %s", jobId, account, option_);
+		notificationsClient.updateJob(account, option_);
 		if (isEcho()) {
 			Job account2 = notificationsClient.getJob(jobId, null);
 			printObj(account2);			
 		}
 	}
 	
-	public void deleteJob(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp("mjob", "delete")) {
+			return;
+		}
 		String jobId = argId(op, cmds);
 		debug("Deleting Job: %s", jobId);
-		notificationsClient.deleteJob(jobId, null);		
+		notificationsClient.deleteJob(jobId, null);
+		if (isEcho()) {
+			listJobs(cmds, options);
+		}
 	}
 	
 	@Override

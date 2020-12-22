@@ -56,7 +56,6 @@ import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
-import org.einnovator.util.UriUtils;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -225,45 +224,45 @@ public class Devops extends CommandRunnerBase {
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		subcommands = map;
 		map.put("cluster", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create", "import"), c("update"), c("delete", "del", "rm"),
+			c("create", "add", "import"), c("update"), c("delete", "del", "rm"),
 			c("set"), c("unset"),
 			c("help")));
 		map.put("space", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("attach"),
 			c("set"), c("unset"),
 			c("help")));
 		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("route"), c("mount"), c("env", "var"), c("binding"), c("connector"),
 			c("help")));
 		map.put("job", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("exec"), c("logs", "log"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));
 		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"),
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
 			c("job", "jobs"),
 			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));			
 		map.put("domain", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("registry", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("vcs", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("catalog", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("create"), c("update"), c("delete", "del", "remove", "rm"), 
+				c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 				c("solution", "solutions"),
 				c("help")));
 		map.put("solution", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("marketplace", c(c("", "ls", "list"), c("help")));
 
 	}
@@ -364,7 +363,7 @@ public class Devops extends CommandRunnerBase {
 			case "unset":
 				unsetCluster(cmds, options);
 				break;				
-			case "create": case "import":
+			case "create": case "add": case "import":
 				createCluster(cmds, options);
 				break;
 			case "update": 
@@ -397,7 +396,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaSpace(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createSpace(cmds, options);
 				break;
 			case "update": 
@@ -425,7 +424,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaDeployment(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createDeployment(cmds, options);
 				break;
 			case "update": 
@@ -500,7 +499,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaJob(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createJob(cmds, options);
 				break;
 			case "update": 
@@ -561,7 +560,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaCronJob(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createCronJob(cmds, options);
 				break;
 			case "update": 
@@ -619,7 +618,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaDomain(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createDomain(cmds, options);
 				break;
 			case "update": 
@@ -647,7 +646,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaRegistry(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createRegistry(cmds, options);
 				break;
 			case "update": 
@@ -675,7 +674,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaVcs(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createVcs(cmds, options);
 				break;
 			case "update": 
@@ -703,7 +702,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaCatalog(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createCatalog(cmds, options);
 				break;
 			case "update": 
@@ -737,7 +736,7 @@ public class Devops extends CommandRunnerBase {
 			case "schema": case "meta":
 				schemaSolution(cmds, options);
 				break;
-			case "create": 
+			case "create": case "add": 
 				createSolution(cmds, options);
 				break;
 			case "update": 
@@ -1333,8 +1332,9 @@ public class Devops extends CommandRunnerBase {
 		if (start) {
 			deployment.setStart(true);
 		}
-		debug("Creating Deployment: %s", deployment);
-		URI uri = devopsClient.createDeployment(spaceId, deployment, null);
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		debug("Creating Deployment: %s %s", deployment, options_);
+		URI uri = devopsClient.createDeployment(spaceId, deployment, options_);
 		if (isEcho()) {
 			printLine("Deployment URI:", uri);
 			String deployId = extractId(uri);
@@ -1359,11 +1359,13 @@ public class Devops extends CommandRunnerBase {
 		Deployment deployment = convert(options, Deployment.class);
 		String deployId = argIdx(op, cmds);
 		setId(deployment, deployId);
-		debug("Updating Deployment: %s %s", deployId, deployment);
-		RequestOptions options_ = convert(options, RequestOptions.class);
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		debug("Updating Deployment: %s %s %s", deployId, deployment, options_);
 		devopsClient.updateDeployment(deployment, options_);
-		Deployment deployment2 = devopsClient.getDeployment(deployId, null);
-		printObj(deployment2);
+		if (isEcho()) {
+			Deployment deployment2 = devopsClient.getDeployment(deployId, null);
+			printObj(deployment2);			
+		}
 	}
 	
 	public void deleteDeployment(String[] cmds, Map<String, Object> options) {
@@ -2038,8 +2040,9 @@ public class Devops extends CommandRunnerBase {
 		if (start) {
 			job.setStart(true);
 		}
-		debug("Creating Job: %s", job);
-		URI uri = devopsClient.createJob(spaceId, job, null);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Creating Job: %s %s", job, options_);
+		URI uri = devopsClient.createJob(spaceId, job, options_);
 		if (isEcho()) {
 			printLine("Job URI:", uri);
 			String jobId = extractId(uri);
@@ -2055,9 +2058,10 @@ public class Devops extends CommandRunnerBase {
 		String jobId = argIdx(op, cmds);
 		processDeployOptions(cmds, options);
 		Job job = convert(options, Job.class);
-		debug("Updating Job: %s %s", jobId, job);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Updating Job: %s %s %s", jobId, job, options_);
 		setId(job, jobId);
-		devopsClient.updateJob(job, null);
+		devopsClient.updateJob(job, options_);
 		if (isEcho()) {
 			Job job2 = devopsClient.getJob(jobId, null);
 			printObj(job2);
@@ -2534,8 +2538,9 @@ public class Devops extends CommandRunnerBase {
 		if (start) {
 			cronjob.setStart(true);
 		}
-		debug("Creating CronJob: %s", cronjob);
-		URI uri = devopsClient.createCronJob(spaceId, cronjob, null);
+		CronJobOptions options_ = convert(options, CronJobOptions.class);
+		debug("Creating CronJob: %s %s", cronjob, options_);
+		URI uri = devopsClient.createCronJob(spaceId, cronjob, options_);
 		if (isEcho()) {
 			printLine("CronJob URI:", uri);
 			String cronjobId = extractId(uri);
@@ -2552,8 +2557,9 @@ public class Devops extends CommandRunnerBase {
 		processDeployOptions(cmds, options);
 		CronJob cronjob = convert(options, CronJob.class);
 		setId(cronjob, cronjobId);
-		debug("Updating CronJob: %s %s", cronjobId, cronjob);
-		devopsClient.updateCronJob(cronjob, null);
+		CronJobOptions options_ = convert(options, CronJobOptions.class);
+		debug("Updating CronJob: %s %s %s", cronjobId, cronjob, options_);
+		devopsClient.updateCronJob(cronjob, options_);
 		if (isEcho()) {
 			CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
 			printObj(cronjob2);
@@ -2976,8 +2982,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		Domain domain = convert(options, Domain.class);
 		domain.setName(argName(op, cmds));
-		debug("Domain: %s", domain);
-		URI uri = devopsClient.createDomain(domain, new DomainOptions());
+		DomainOptions options_ = convert(options, DomainOptions.class);
+		debug("Domain: %s %s", domain, options_);
+		URI uri = devopsClient.createDomain(domain, options_);
 		if (isEcho()) {
 			printLine("Domain URI:", uri);
 			String id = extractId(uri);
@@ -2993,8 +3000,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		String domainId = (String)get("domain", options);
 		Domain domain = convert(options, Domain.class);
-		debug("Updating Domain: %s %s", domainId, domain);
-		devopsClient.updateDomain(domain, null);
+		DomainOptions options_ = convert(options, DomainOptions.class);
+		debug("Updating Domain: %s %s %s", domainId, domain, options_);
+		devopsClient.updateDomain(domain, options_);
 		if (isEcho()) {
 			Domain domain2 = devopsClient.getDomain(domainId, null);
 			printObj(domain2);
@@ -3054,8 +3062,8 @@ public class Devops extends CommandRunnerBase {
 		}
 		Registry registry = convert(options, Registry.class);
 		registry.setName(argName(op, cmds));
-		debug("Creating Registry: %s", registry);
 		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		debug("Creating Registry: %s %s", registry, options_);
 		URI uri = devopsClient.createRegistry(registry, options_);
 		if (isEcho()) {
 			printLine("Registry URI:", uri);
@@ -3071,8 +3079,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		String registryId = argId(op, cmds);
 		Registry registry = convert(options, Registry.class);
-		debug("Updating Registry: %s %s", registryId, registry);
-		devopsClient.updateRegistry(registry, null);
+		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		debug("Updating Registry: %s %s %s", registryId, registry, options_);
+		devopsClient.updateRegistry(registry, options_);
 		if (isEcho()) {
 			Registry registry2 = devopsClient.getRegistry(registryId, null);
 			printObj(registry2);			
@@ -3134,8 +3143,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		Vcs vcs = convert(options, Vcs.class);
 		vcs.setName(argName(op, cmds));
-		debug("Creating Vcs: %s", vcs);
-		URI uri = devopsClient.createVcs(vcs, null);
+		VcsOptions options_ = convert(options, VcsOptions.class);
+		debug("Creating Vcs: %s %s", vcs, options_);
+		URI uri = devopsClient.createVcs(vcs, options_);
 		if (isEcho()) {
 			printLine("Vcs URI:", uri);
 			String id = extractId(uri);
@@ -3152,8 +3162,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		String vcsId = argId(op, cmds);
 		Vcs vcs = convert(options, Vcs.class);
-		debug("Updating Vcs: %s %s", vcsId, vcs);
-		devopsClient.updateVcs(vcs, null);
+		VcsOptions options_ = convert(options, VcsOptions.class);
+		debug("Updating Vcs: %s %s %s", vcsId, vcs, options_);
+		devopsClient.updateVcs(vcs, options_);
 		if (isEcho()) {
 			Vcs vcs2 = devopsClient.getVcs(vcsId, null);
 			printObj(vcs2);			
@@ -3211,12 +3222,13 @@ public class Devops extends CommandRunnerBase {
 		}
 		Catalog catalog = convert(options, Catalog.class);
 		catalog.setName(argName(op, cmds));
-		debug("Creating Catalog: %s", catalog);
+		CatalogOptions options_ = convert(options, CatalogOptions.class);
+		debug("Creating Catalog: %s %s", catalog, options_);
 		URI uri = devopsClient.createCatalog(catalog, new CatalogOptions());
 		if (isEcho()) {
 			printLine("Catalog URI:", uri);
 			String id = extractId(uri);
-			Catalog catalog2 = devopsClient.getCatalog(id, null);
+			Catalog catalog2 = devopsClient.getCatalog(id, options_);
 			printObj(catalog2);			
 		}
 	}
@@ -3228,10 +3240,11 @@ public class Devops extends CommandRunnerBase {
 		}
 		String catalogId = argId(op, cmds);
 		Catalog catalog = convert(options, Catalog.class);
-		debug("Updating Catalog: %s %s", catalogId, catalog);
+		CatalogOptions options_ = convert(options, CatalogOptions.class);
+		debug("Updating Catalog: %s %s %s", catalogId, catalog, options_);
 		devopsClient.updateCatalog(catalog, null);
 		if (isEcho()) {
-			Catalog catalog2 = devopsClient.getCatalog(catalogId, null);
+			Catalog catalog2 = devopsClient.getCatalog(catalogId, options_);
 			printObj(catalog2);			
 		}
 	}

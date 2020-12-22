@@ -3,6 +3,7 @@ package org.einnovator.cli;
 import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -13,7 +14,13 @@ import org.einnovator.social.client.model.Channel;
 import org.einnovator.social.client.model.Message;
 import org.einnovator.social.client.model.Reaction;
 import org.einnovator.social.client.modelx.ChannelFilter;
+import org.einnovator.social.client.modelx.ChannelOptions;
+import org.einnovator.social.client.modelx.MessageFilter;
+import org.einnovator.social.client.modelx.MessageOptions;
+import org.einnovator.social.client.modelx.ReactionFilter;
+import org.einnovator.social.client.modelx.ReactionOptions;
 import org.einnovator.util.PageOptions;
+import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,13 +67,30 @@ public class Social extends CommandRunnerBase {
 		return "social";
 	}
 
-	String[][] SOCIALS_COMMANDS = new String[][] { 
-		new String[] {"channels", "channel", "ch"},
-	};
+	String[][] SOCIALS_COMMANDS = c( 
+		c("channel", "channels"),
+		c("message", "messages", "msg"),
+		c("reaction", "reactions")
+	);
 
 	@Override
 	protected String[][] getCommands() {
 		return SOCIALS_COMMANDS;
+	}
+
+	static Map<String, String[][]> subcommands;
+
+	static {
+		Map<String, String[][]> map = new LinkedHashMap<>();
+		subcommands = map;
+		map.put("channel", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "rm"),
+			c("help")));
+		map.put("message", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("help")));
+		map.put("reaction", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 	}
 
 
@@ -102,29 +126,81 @@ public class Social extends CommandRunnerBase {
 		case "help": case "":
 			printUsage();
 			break;
-		case "channel": case "channels": case "m":
+		case "channel": case "channels":
 			switch (op) {
-			case "get": case "g": case "show": case "s": case "view": case "v":
-				getChannel(type, op, cmds, options);
+			case "help": case "":
+				printUsage("channel");
 				break;
-			case "list": case "l": case "":
-				listChannels(type, op, cmds, options);
+			case "get": 
+				getChannel(cmds, options);
 				break;
-			case "create": case "c":
-				createChannel(type, op, cmds, options);
+			case "ls": case "list":
+				listChannels(cmds, options);
 				break;
-			case "update": case "u":
-				updateChannel(type, op, cmds, options);
+			case "create": case "add":
+				createChannel(cmds, options);
 				break;
-			case "delete": case "del": case "rm": case "d":
-				deleteChannel(type, op, cmds, options);
+			case "update":
+				updateChannel(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteChannel(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
 				break;
 			}
 			break;
-		
+		case "message": case "msg":
+			switch (op) {
+			case "help": case "":
+				printUsage("message");
+				break;
+			case "get": 
+				getMessage(cmds, options);
+				break;
+			case "ls": case "list":
+				listMessages(cmds, options);
+				break;
+			case "post": case "create": case "add":
+				postMessage(cmds, options);
+				break;
+			case "update":
+				updateMessage(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteMessage(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}
+			break;
+		case "reaction":
+			switch (op) {
+			case "help": case "":
+				printUsage("reaction");
+				break;
+			case "get": 
+				getReaction(cmds, options);
+				break;
+			case "ls": case "list":
+				listReactions(cmds, options);
+				break;
+			case "post": case "create": case "add":
+				postReaction(cmds, options);
+				break;
+			case "update":
+				updateReaction(cmds, options);
+				break;
+			case "delete": case "del": case "rm": case "remove":
+				deleteReaction(cmds, options);
+				break;
+			default: 
+				invalidOp(type, op);
+				break;
+			}		
+			break;
 		default:
 			System.err.println("Invalid command: " + type + " " + op);
 			printUsage();
@@ -145,7 +221,10 @@ public class Social extends CommandRunnerBase {
 	// Channels
 	//
 	
-	public void listChannels(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void listChannels(String[] cmds, Map<String, Object> options) {
+		if (isHelp("channel", "ls")) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ChannelFilter filter = convert(options, ChannelFilter.class);
 		debug("Channel: %s %s", filter, pageable);
@@ -153,43 +232,232 @@ public class Social extends CommandRunnerBase {
 		print(channels);
 	}
 	
-	public void getChannel(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void getChannel(String[] cmds, Map<String, Object> options) {
+		if (isHelp("channel", "get")) {
+			return;
+		}
 		String channelId = argId(op, cmds);
 		debug("Channel: %s", channelId);
 		Channel channel = socialClient.getChannel(channelId, null);
 		printObj(channel);
 	}
 	
-	public void createChannel(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void createChannel(String[] cmds, Map<String, Object> options) {
+		if (isHelp("channel", "create")) {
+			return;
+		}
 		Channel channel = convert(options, Channel.class);
 		channel.setName(argName(op, cmds));
-		debug("Creating Channel: %s", channel);
+		ChannelOptions options_ = convert(options, ChannelOptions.class);
+		debug("Creating Channel: %s %s", channel, options_);
 		URI uri = socialClient.createChannel(channel, new RequestOptions());
 		if (isEcho()) {
 			printLine("Channel URI:", uri);
 			String id = UriUtils.extractId(uri);
-			Channel channel2 = socialClient.getChannel(id, null);
+			Channel channel2 = socialClient.getChannel(id, options_);
 			printObj(channel2);			
 		}
 	}
 
-	public void updateChannel(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void updateChannel(String[] cmds, Map<String, Object> options) {
+		if (isHelp("channel", "update")) {
+			return;
+		}
 		String channelId = argId(op, cmds);
 		Channel channel = convert(options, Channel.class);
-		debug("Updating Channel: %s %s", channelId, channel);
+		ChannelOptions options_ = convert(options, ChannelOptions.class);
+		debug("Updating Channel: %s %s %s", channelId, channel, options_);
 		socialClient.updateChannel(channel, null);
 		if (isEcho()) {
-			Channel channel2 = socialClient.getChannel(channelId, null);
+			Channel channel2 = socialClient.getChannel(channelId, options_);
 			printObj(channel2);			
 		}
 	}
 	
-	public void deleteChannel(String type, String op, String[] cmds, Map<String, Object> options) {
+	public void deleteChannel(String[] cmds, Map<String, Object> options) {
+		if (isHelp("channel", "delete")) {
+			return;
+		}
 		String channelId = argId(op, cmds);
-		debug("Deleting Channel: %s", channelId);
-		socialClient.deleteChannel(channelId, null);		
+		ChannelOptions options_ = convert(options, ChannelOptions.class);
+		debug("Deleting Channel: %s %s", channelId, options_);
+		socialClient.deleteChannel(channelId, options_);
+		if (isEcho()) {
+			listChannels(cmds, options);
+		}
 	}
 	
+	//
+	// Channels
+	//
+	
+	public void listMessages(String[] cmds, Map<String, Object> options) {
+		if (isHelp("message", "ls")) {
+			return;
+		}
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		MessageFilter filter = convert(options, MessageFilter.class);
+		String channelId = argId(op, cmds);
+		debug("Message: %s %s %s", channelId, filter, pageable);
+		Page<Message> messages = socialClient.listMessages(channelId, filter, pageable);
+		print(messages);
+	}
+	
+	public void getMessage(String[] cmds, Map<String, Object> options) {
+		if (isHelp("message", "get")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		debug("Message: %s %s", channelId, messageId);
+		Message message = socialClient.getMessage(channelId, messageId, null);
+		printObj(message);
+	}
+	
+	public void postMessage(String[] cmds, Map<String, Object> options) {
+		if (isHelp("message", "create")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		Message message = convert(options, Message.class);
+		processMessageOptions(message, cmds, options);
+		MessageOptions options_ = convert(options, MessageOptions.class);
+		debug("Creating Message: %s %s %s", channelId, message, options_);
+		URI uri = socialClient.postMessage(channelId, message, new RequestOptions());
+		if (isEcho()) {
+			printLine("Message URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Message message2 = socialClient.getMessage(channelId, id, options_);
+			printObj(message2);			
+		}
+	}
+
+	public void updateMessage(String[] cmds, Map<String, Object> options) {
+		if (isHelp("message", "update")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		Message message = convert(options, Message.class);
+		processMessageOptions(message, cmds, options);
+		MessageOptions options_ = convert(options, MessageOptions.class);
+		debug("Updating Message: %s %s %s %s", channelId, messageId, message, options_);
+		socialClient.updateMessage(channelId, message, options_);
+		if (isEcho()) {
+			Message message2 = socialClient.getMessage(channelId, messageId, null);
+			printObj(message2);			
+		}
+	}
+	
+	private void processMessageOptions(Message message, String[] cmds, Map<String, Object> options) {
+		String content = argn(op, cmds, 1, false);
+		if (StringUtil.hasText(content)) {
+			message.setContent(content);
+		}
+		content = (String)options.get("m");
+		if (StringUtil.hasText(content)) {
+			message.setContent(content);			
+		}
+	}
+	
+	public void deleteMessage(String[] cmds, Map<String, Object> options) {
+		if (isHelp("message", "delete")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		MessageOptions options_ = convert(options, MessageOptions.class);
+		debug("Deleting Message: %s %s %s", channelId, messageId, options_);
+		socialClient.deleteMessage(channelId, messageId, options_);
+		if (isEcho()) {
+			listMessages(cmds, options);
+		}
+	}
+
+	//
+	// Reaction
+	//
+	
+	public void listReactions(String[] cmds, Map<String, Object> options) {
+		if (isHelp("reaction", "ls")) {
+			return;
+		}
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		ReactionFilter filter = convert(options, ReactionFilter.class);
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		debug("Reactions: %s %s %s %s", channelId, messageId, filter, pageable);
+		Page<Reaction> reactions = socialClient.listReactions(channelId, messageId, filter, pageable);
+		print(reactions);
+	}
+	
+	public void getReaction(String[] cmds, Map<String, Object> options) {
+		if (isHelp("reaction", "get")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		String reactionId = argId2(op, cmds);
+		ReactionOptions options_ = convert(options, ReactionOptions.class);
+		debug("Reaction: %s %s %s", channelId, messageId, reactionId);
+		Reaction reaction = socialClient.getReaction(channelId, messageId, reactionId, options_);
+		printObj(reaction);
+	}
+	
+	public void postReaction(String[] cmds, Map<String, Object> options) {
+		if (isHelp("reaction", "create")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		Reaction reaction = convert(options, Reaction.class);
+		processReactionOptions(reaction, cmds, options);
+		ReactionOptions options_ = convert(options, ReactionOptions.class);
+		debug("Creating Reaction: %s %s %s", channelId, messageId, reaction);
+		URI uri = socialClient.postReaction(channelId, messageId, reaction, options_);
+		if (isEcho()) {
+			printLine("Reaction URI:", uri);
+			String id = UriUtils.extractId(uri);
+			Reaction reaction2 = socialClient.getReaction(channelId, messageId, id, null);
+			printObj(reaction2);			
+		}
+	}
+
+	public void updateReaction(String[] cmds, Map<String, Object> options) {
+		if (isHelp("reaction", "update")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		String reactionId = argId2(op, cmds);
+		Reaction reaction = convert(options, Reaction.class);
+		processReactionOptions(reaction, cmds, options);
+		debug("Updating Reaction: %s %s %s", channelId, reactionId, reaction);
+		ReactionOptions options_ = convert(options, ReactionOptions.class);
+		socialClient.updateReaction(channelId, messageId, reaction, options_);
+		if (isEcho()) {
+			Reaction reaction2 = socialClient.getReaction(channelId, messageId, reactionId, options_);
+			printObj(reaction2);			
+		}
+	}
+	
+	private void processReactionOptions(Reaction reaction, String[] cmds, Map<String, Object> options) {
+	}
+	
+	public void deleteReaction(String[] cmds, Map<String, Object> options) {
+		if (isHelp("reaction", "delete")) {
+			return;
+		}
+		String channelId = argId(op, cmds);
+		String messageId = argId1(op, cmds);
+		String reactionId = argId1(op, cmds);
+		debug("Deleting Reaction: %s %s %s", channelId, messageId, reactionId);
+		socialClient.deleteReaction(channelId, messageId, reactionId, null);
+		if (isEcho()) {
+			listReactions(cmds, options);
+		}
+	}
+
 	@Override
 	protected String getDefaultFormat(Class<? extends Object> type) {
 		if (Channel.class.equals(type)) {
