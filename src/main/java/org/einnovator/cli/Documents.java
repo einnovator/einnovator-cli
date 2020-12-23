@@ -121,7 +121,7 @@ public class Documents extends CommandRunnerBase {
 		case "documents": case "document": case "doc": case "docs":
 			switch (op) {
 			case "help": case "":
-				printUsage("document");
+				printUsage(type);
 				break;
 			case "get": 
 				read(path, options);
@@ -146,7 +146,7 @@ public class Documents extends CommandRunnerBase {
 		case "fmount": case "fmounts": case "mount": case "mounts":
 			switch (op) {
 			case "help": case "":
-				printUsage("fmount");
+				printUsage(type);
 				break;
 			case "get": 
 				getMount(cmds, options);

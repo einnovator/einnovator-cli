@@ -135,7 +135,7 @@ public class Payments extends CommandRunnerBase {
 		case "account": case "accounts": case "acc":
 			switch (op) {
 			case "help": case "":
-				printUsage("account");
+				printUsage(type);
 				break;
 			case "get": 
 				getAccount(cmds, options);
@@ -160,7 +160,7 @@ public class Payments extends CommandRunnerBase {
 		case "payment": case "payments": case "pay":
 			switch (op) {
 			case "help": case "":
-				printUsage("payment");
+				printUsage(type);
 				break;
 			case "get": 
 				getPayment(cmds, options);
@@ -185,7 +185,7 @@ public class Payments extends CommandRunnerBase {
 		case "tax": case "taxes":
 			switch (op) {
 			case "help": case "":
-				printUsage("tax");
+				printUsage(type);
 				break;
 			case "get": 
 				getTax(cmds, options);

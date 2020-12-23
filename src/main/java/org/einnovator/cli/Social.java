@@ -131,7 +131,7 @@ public class Social extends CommandRunnerBase {
 		case "channel": case "channels":
 			switch (op) {
 			case "help": case "":
-				printUsage("channel");
+				printUsage(type);
 				break;
 			case "get": 
 				getChannel(cmds, options);
@@ -156,7 +156,7 @@ public class Social extends CommandRunnerBase {
 		case "message": case "msg":
 			switch (op) {
 			case "help": case "":
-				printUsage("message");
+				printUsage(type);
 				break;
 			case "get": 
 				getMessage(cmds, options);
@@ -181,7 +181,7 @@ public class Social extends CommandRunnerBase {
 		case "reaction":
 			switch (op) {
 			case "help": case "":
-				printUsage("reaction");
+				printUsage(type);
 				break;
 			case "get": 
 				getReaction(cmds, options);

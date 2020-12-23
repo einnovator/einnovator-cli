@@ -319,7 +319,7 @@ public class Sso extends CommandRunnerBase {
 		case "token":
 			switch (op) {
 			case "help": case "":
-				printUsage("token");
+				printUsage(type);
 				break;
 			case "get":
 				getToken(cmds, options);
@@ -347,7 +347,7 @@ public class Sso extends CommandRunnerBase {
 		case "user": case "users":
 			switch (op) {
 			case "help": case "":
-				printUsage("user");
+				printUsage(type);
 				break;
 			case "get": 
 				getUser(cmds, options);
@@ -372,7 +372,7 @@ public class Sso extends CommandRunnerBase {
 		case "group": case "groups":
 			switch (op) {
 			case "help":
-				printUsage("group");
+				printUsage(type);
 				break;
 			case "get": 
 				getGroup(cmds, options);
@@ -404,7 +404,7 @@ public class Sso extends CommandRunnerBase {
 			listGroupMembers(cmds, options);
 			switch (op) {
 			case "help": case "":
-				printUsage("member");
+				printUsage(type);
 				break;
 			case "get": 
 				//getGroupMember(cmds, options);
@@ -429,7 +429,7 @@ public class Sso extends CommandRunnerBase {
 		case "role": case "roles":
 			switch (op) {
 			case "help": case "":
-				printUsage("role");
+				printUsage(type);
 				break;
 			case "get": 
 				getRole(cmds, options);
@@ -454,7 +454,7 @@ public class Sso extends CommandRunnerBase {
 		case "invitation": case "invitations": case "invites": case "inv":
 			switch (op) {
 			case "help": case "":
-				printUsage("invitation");
+				printUsage(type);
 				break;
 			case "get": 
 				getInvitation(cmds, options);
@@ -479,7 +479,7 @@ public class Sso extends CommandRunnerBase {
 		case "client": case "clients":
 			switch (op) {
 			case "help": case "":
-				printUsage("client");
+				printUsage(type);
 				break;
 			case "get": 
 				getClient(cmds, options);
@@ -555,11 +555,18 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		if (op==null || op.isEmpty()) {
-			error(String.format("missing argument for group"));
+			error("missing argument for group");
 			exit(-1);
 			return;
 		}
-		setGroup(op, options);
+		boolean b = false;
+		if (options.get("g")!=null) {
+			setGroup(op, options);			
+			b = true;
+		}
+		if (!b) {
+			error("missing resource type flag in cd");
+		}
 	}
 	
 	

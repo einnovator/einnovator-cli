@@ -156,7 +156,7 @@ public class Notifications extends CommandRunnerBase {
 		case "notification": case "notifications": case "notific":
 			switch (op) {
 			case "help": case "":
-				printUsage("notification");
+				printUsage(type);
 				break;
 			//case "get": 
 			//	getNotification(cmds, options);
@@ -178,7 +178,7 @@ public class Notifications extends CommandRunnerBase {
 		case "notification-type": case "notification-types": case "notific-type": case "ntype": case "nt":
 			switch (op) {
 			case "help": case "":
-				printUsage("notification-type");
+				printUsage(type);
 				break;
 			case "get": 
 				getNotificationType(cmds, options);
@@ -203,7 +203,7 @@ public class Notifications extends CommandRunnerBase {
 		case "template": case "templates": case "templ": 
 			switch (op) {
 			case "help": case "":
-				printUsage("template");
+				printUsage(type);
 				break;
 			case "get": 
 				getTemplate(cmds, options);
@@ -228,7 +228,7 @@ public class Notifications extends CommandRunnerBase {
 		case "mjob": case "mjobs": case "job": case "jobs": 
 			switch (op) {
 			case "help": case "":
-				printUsage("mjob");
+				printUsage(type);
 				break;
 			case "get": 
 				getJob(cmds, options);

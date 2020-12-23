@@ -136,8 +136,36 @@ public abstract class RunnerBase {
 		if (bundle!=null) {
 			try {
 				String s = bundle.getString(key);	
-				if (s!=null && !s.trim().isEmpty()) {
-					return s;					
+				if (s!=null) {
+					s = s.trim();
+					if (!s.isEmpty()) {
+						int i = s.indexOf("$");
+						if (i>=0) {
+							String prefix = i>0 ? s.substring(0, i).trim() : null;
+							s = s.substring(i+1).trim();
+							if (s.isEmpty()) {
+								if (prefix==null || prefix.isEmpty()) {
+									return defaultValue;									
+								}
+								return prefix;
+							}
+							if (!key.equals(s)) {
+								s = resolve(s, defaultValue);								
+								if (s==null || s.isEmpty()) {
+									if (prefix==null || prefix.isEmpty()) {
+										return defaultValue;									
+									}
+									return prefix;
+								} else {
+									if (prefix==null || prefix.isEmpty()) {
+										return s;									
+									}
+									return prefix + s;
+								}
+							}
+						}
+						return s;						
+					}
 				}
 			} catch (RuntimeException e) {
 			}			

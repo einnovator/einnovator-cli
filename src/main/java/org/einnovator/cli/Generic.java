@@ -70,6 +70,9 @@ public class Generic extends CommandRunnerBase {
 
 	private void cd(String[] cmds, Map<String, Object> options) {
 		run("cd", cmds, options, false);
+		if (isEcho()) {
+			run("pwd", cmds, options, false);
+		}
 	}
 
 	

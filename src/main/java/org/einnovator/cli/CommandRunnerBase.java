@@ -72,10 +72,17 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 		String[] options2 =  getOptions(cmd);
 		if (options2!=null) {
-			for (String option: options2) {
-				if ((options==null && (options==null || option.isEmpty())) || (options!=null && option!=null && options.get(option)!=null)) {
-					return true;
+			if (options==null) {
+				if (StringUtil.contains(options2, "")) {
+					return true;					
 				}
+			} else {
+				for (String option: options2) {
+					if (option!=null && !option.isEmpty() && options.get(option)!=null) {
+						return true;
+					}
+				}
+				
 			}
 		}
 		return false;
@@ -132,13 +139,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 
 	
-	public boolean isHelp() {
+	protected boolean isHelp() {
 		if (options.get("h")!=null) {
 			return true;
 		}
 		return false;
 	}
-	public boolean isHelp(String type) {
+	protected boolean isHelp(String type) {
 		if (isHelp()) {
 			printUsage(type);
 			return true;
@@ -146,14 +153,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return false;		
 	}
 
-	public boolean isHelp(String type, String op) {
+	protected boolean isHelp(String type, String op) {
 		if (isHelp()) {
 			printUsage(type, op);
 			return true;
 		}
 		return false;		
 	}
-	public boolean isHelp(String type, String op, String subcmd) {
+	
+	protected boolean isHelp(String type, String op, String subcmd) {
 		if (isHelp()) {
 			printUsage(type, op, subcmd);
 			return true;
@@ -161,22 +169,26 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return false;		
 	}
 
+	protected boolean isHelp1() {
+		return isHelp(type);
+	}
+
+	protected boolean isHelp2() {
+		return isHelp(type, op);
+	}
+
+	protected boolean isHelp3(String subcmd) {
+		return isHelp(type, op, subcmd);
+	}
+
+	
 	@Override
 	public void printUsage() {
 		String descr = resolve(getName());
 		System.out.println(String.format("[%s] %s", getName(), descr));			
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
-			int width = 0;
-			for (String[] cmds_: cmds) {
-				if (cmds_[0].length()>width) {
-					width = cmds_[0].length();
-				}
-			}
-			for (String[] cmds_: cmds) {
-				printUsage(cmds_[0], cmds_, width, false, true);	
-			}
-
+			printCmds(null, null, cmds, true);
 		}
 		if (interactive) {
 			System.out.println(String.format("\nUsage: [%s] %s", getName(), getUsage(false)));			
@@ -186,101 +198,191 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		exit(0);
 	}
 
+	public void printUsage1() {
+		printUsage(type);
+	}
+
+	public void printUsage2() {
+		printUsage(type, op);
+	}
+
+	public void printUsage3(String op2) {
+		printUsage(type, op, op2);
+	}
+
 	public void printUsage(String cmd) {
 		String[] alias = findCommand(cmd);
-		printUsage(cmd, alias, 0, true, false);
+		String kcmd = cmd;
+		if (alias!=null && alias.length>0) {
+			kcmd = alias[0];
+		}
+		String[][] subcmds = getSubCommands(kcmd);
+		printUsageDetails(cmd, kcmd, alias, subcmds!=null && subcmds.length>0);			
+		printCmds(cmd, kcmd, subcmds, true);
 	}
 
 	public void printUsage(String cmd, String subcmd) {
+		String kcmd = cmd, ksubcmd = subcmd;
+		String[] alias0 = findCommand(cmd);
+		if (alias0!=null && alias0.length>0) {
+			kcmd = alias0[0];
+		}
 		String[] alias = findSubCommand(cmd, subcmd);
-		printUsage(cmd, subcmd, 0, alias, true, false);
-	}
-
-	protected void printUsage(String cmd, String[] alias, int width, boolean sub, boolean indent) {
-		String[] alias0 = findCommand(cmd);
-		String kcmd = cmd.replaceAll(" ", ".");
-		if (alias0!=null && alias0.length>0) {
-			kcmd = alias0[0];
-		}
-		String key = getName() + "." + kcmd;
-		String descr = resolve(key);
-		System.out.println(String.format((!sub && indent ? "  " : "") + (sub ? "[" + getName() + "] ":"") + (width>1 ? "%-"+width+"s" : "%s") + (!sub ? "   %s" : "  --  %s"), cmd, descr));	
-
-		if (sub) {
-			printUsageDetails(key, alias);			
-			if (alias!=null && alias.length>0) {
-				cmd = alias[0];
-			}
-			String[][] subcmds = getSubCommands(cmd);
-			printCmds(cmd, subcmds, true);
-		}
-	}
-	
-	protected void printCmds(String prefix, String[][] subcmds, boolean indent) {
-		if (subcmds!=null) {
-			int width = 0;
-			for (String[] subcmd: subcmds) {
-				if (prefix.length() + 1 + subcmd[0].length()>width) {
-					width = prefix.length() + 1 + subcmd[0].length();
-				}
-			}
-			for (String[] subcmd: subcmds) {
-				printUsage(prefix, subcmd[0], width, subcmd, false, true);
-			}
-		}
-	}
-
-
-	protected void printUsage(String cmd, String subcmd, String subsubcmd) {
-		String key = getName() + "." + cmd.replaceAll(" ", ".") + "." + subcmd.replaceAll(" ", ".") + "." + subsubcmd.replaceAll(" ", ".");
-		String descr = resolve(key);
-		String qname = cmd + (!subcmd.isEmpty() ? " " + subcmd : "") + (!subsubcmd.isEmpty() ? " " + subsubcmd : "");
-		System.out.println(String.format("[" + getName() + "] " + "%s" + "  --  %s", qname, descr));	
-		printUsageDetails(key, null);
-	}
-
-	protected void printUsage(String cmd, String subcmd, int width, String[] alias, boolean sub, boolean indent) {
-		String[] alias0 = findCommand(cmd);
-		String kcmd = cmd.replaceAll(" ", ".");
-		if (alias0!=null && alias0.length>0) {
-			kcmd = alias0[0];
-		}
-		String ksubcmd = subcmd.replaceAll(" ", ".");
 		if (alias!=null && alias.length>0) {
 			ksubcmd = alias[0];
 		}
-		String key = getName() + "." + kcmd + "." + ksubcmd;
-		String descr = resolve(key);
-		String qname = cmd + (!subcmd.isEmpty() ? " " + subcmd : "");
-		System.out.println(String.format((!sub && indent ? "  " : "") + (sub ? "[" + getName() + "] ":"") + (width>1 ? "%-"+width+"s" : "%s") + (!sub ? "   %s" : "  --  %s"), qname, descr));	
+		String qname = cmd + (subcmd!=null && subcmd.isEmpty() ? "." + ksubcmd : "");	
+		String key = kcmd + (ksubcmd!=null && !ksubcmd.isEmpty() ? "." + ksubcmd : "");		
 
-		if (sub) {
-			printUsageDetails(key, alias);
-			if (alias!=null && alias.length>0) {
-				cmd = alias[0];
-			}
-			String[][] subcmds = findSubSubCommands(kcmd, subcmd);
-			printCmds(kcmd + " " + ksubcmd, subcmds, true);
-		}
+		String[][] subsubcmds = findSubSubCommands(kcmd, ksubcmd);
+		printUsageDetails(qname, key, alias, subsubcmds!=null && subsubcmds.length>0);			
+		printCmds(qname, kcmd, subsubcmds, true);
 	}
 	
-	protected void printUsageDetails(String key, String[] alias) {
+	protected void printUsage(String cmd, String subcmd, String subsubcmd) {
+		String kcmd = cmd;
+		String[] alias = findCommand(cmd);
+		if (alias!=null && alias.length>0) {
+			kcmd = alias[0];
+		}
+		String ksubcmd = subcmd;
+		alias = findSubCommand(cmd, subcmd);
+		if (alias!=null && alias.length>0) {
+			ksubcmd = alias[0];
+		}
+		String ksubsubcmd = subsubcmd;
+		alias = findSubSubCommand(cmd, subcmd, subsubcmd);
+		if (alias!=null && alias.length>0) {
+			subsubcmd = alias[0];
+		}
+		String qname = cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : "");
+		String key = kcmd + "." + ksubcmd + "." + ksubsubcmd;
+		printUsageDetails(qname, key, null, false);
+	}
+
+
+	protected void printCmds(String qname, String qkey, String[][] subcmds, boolean indent) {
+		if (subcmds!=null && subcmds.length>0) {
+			int width = 0;
+			System.out.println();
+			for (String[] subcmd: subcmds) {
+				if ((qname!=null ? qname.length() + 1 : 0) + subcmd[0].length()>width) {
+					width = (qname!=null ? qname.length() + 1 : 0) + subcmd[0].length();
+				}
+			}
+			for (String[] subcmd: subcmds) {
+				String qname1 = (qname!=null ? qname + " " : "") + subcmd[0];
+				String qkey1 = (qkey!=null ? qkey + "."  : "") + subcmd[0];
+				String descr = resolve(getName() + "." + qkey1);
+				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s    %s", qname1, descr));
+			}
+		}
+	}
+
+	
+	protected void printUsageDetails(String qcmd, String key, String[] alias, boolean sub) {
+		String xkey = getName() + "." + key;
+		String descr = resolve(xkey);
+		System.out.println(String.format("[%s]   %s  --  %s", getName(), qcmd, descr));	
+
 		if (alias!=null && alias.length>1) {
 			String salias = String.join(" | ", alias);
-			System.out.println(String.format("  Alias: %s", salias));								
-		}
-		String descr2 = resolve(key + ".descr", false);
+			System.out.println(String.format("\n  Alias: %s", salias));								
+		}		
+		String descr2 = resolve(xkey + ".descr", false);
 		if (descr2!=null) {
 			System.out.println(String.format("\n  %s", descr2));
 		}
-		String options = resolve(key + ".options", false);
-		if (options!=null) {
+		int width = 0;
+		String args = resolve(xkey + ".args", false);
+		StringBuilder asb = new StringBuilder();
+		asb.append(qcmd);
+		Map<String, String> argsDescr = new LinkedHashMap<>();
+		if (args!=null) {
 			StringBuilder sb = new StringBuilder();
+			String[] a = args.split(",");
+			for (String arg: a) {
+				arg = arg.trim();
+				boolean optional = false;
+				boolean rep = false;
+				if (arg.endsWith("++")) {
+					optional = true;
+					rep = true;
+					if (arg.length()==2) {
+						continue;
+					}
+					arg = arg.substring(0, arg.length()-2);
+				} else if (arg.endsWith("+")) {
+					optional = true;
+					if (arg.length()==1) {
+						continue;
+					}
+					arg = arg.substring(0, arg.length()-1);
+				}
+				if (asb.length()>0) {
+					asb.append(" ");
+				}
+				if (optional) {
+					asb.append("[");
+				}
+				asb.append(arg);
+				if (optional) {
+					asb.append("]");
+				}
+				if (rep) {
+					asb.append("*");
+				}
+
+				if (args.isEmpty()) {
+					continue;
+				}
+				if (sb.length()>0) {
+					sb.append(" | ");
+				}
+				if (arg.length()==1) {
+					sb.append("-");
+				} else {
+					sb.append("--");						
+				}
+				if (arg.length()>width) {
+					width = arg.length();
+				}
+				sb.append(arg);
+				String karg = arg;
+				int i = karg.indexOf("|");
+				if (i>0) {
+					karg = karg.substring(0, i).trim();
+				}
+				String descr3 = resolve(xkey + ".args." + karg, false);
+				if (descr3!=null) {
+					argsDescr.put(arg, descr3);
+				}
+			}
+		}
+		
+		String options = resolve(xkey + ".options", false);
+		Map<String, String> optionsDescr = new LinkedHashMap<>();
+		StringBuilder sb = new StringBuilder();
+		if (options!=null) {
 			String[] a = options.split(",");
-			Map<String, String> optionsDescr = new LinkedHashMap<>();
-			int width = 0;
 			for (String option: a) {
-				int i = options.indexOf("=");
+				boolean optional = false;
+				boolean rep = false;
+				if (option.endsWith("++")) {
+					optional = true;
+					rep = true;
+					if (option.length()==2) {
+						continue;
+					}
+					option = option.substring(0, option.length()-2);
+				} else if (option.endsWith("+")) {
+					optional = true;
+					if (option.length()==1) {
+						continue;
+					}
+					option = option.substring(0, option.length()-1);
+				}
+				int i = option.indexOf("=");
 				String values = null;
 				if (i>0) {
 					if (i<option.length()-1) {
@@ -292,42 +394,82 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					continue;
 				}
 				if (sb.length()>0) {
-					sb.append(" | ");
+					sb.append("  |  ");
 				}
-				if (option.length()==1) {
-					sb.append("-");
-				} else {
-					sb.append("--");						
+				String[] aoption = option.split("\\|");
+				StringBuilder sb2 = new StringBuilder();
+				for (String option_: aoption) {
+					option_ = option_.trim();
+					if (option_.length()==1) {
+						option_ = "-" + option_;
+					} else {
+						option_ = "--" + option_;
+					}			
+					if (sb2.length()>0) {
+						sb2.append(" | ");
+					}
+					sb2.append(option_);						
 				}
-				if (option.length()>width) {
-					width = option.length();
+				if (sb2.length()>width) {
+					width = sb2.length();
 				}
-				sb.append(option);
+				sb.append(sb2);
 				if (values!=null && !values.trim().isEmpty()) {
 					sb.append("=");
 					sb.append(values);
 				}
-				String descr3 = resolve(key + ".options." + option, false);
+				if (optional) {
+					
+				}
+				if (rep) {
+					sb.append("*");
+				}
+				String koption = option;
+				i = koption.indexOf("|");
+				if (i>0) {
+					koption = koption.substring(0, i).trim();
+				}
+
+				String descr3 = resolve(xkey + ".options." + koption, false);
 				if (descr3!=null) {
 					optionsDescr.put(option, descr3);
 				}
 
 			}
-			if (sb.length()>0) {
-				System.out.println(String.format("\n  Options: %s", sb));					
-			}
-			if (optionsDescr.size()>0) {
-				System.out.println();
-				for (Map.Entry<String, String> e: optionsDescr.entrySet()) {
-					String option = e.getKey();
-					if (option.length()==1) {
-						option = "-" + option;
+		}
+
+		System.out.println(String.format("\n  Usage: %s%s", asb, (sub ? " ..." : "")));					
+		if (argsDescr.size()>0) {
+			System.out.println("\n  Args:\n");
+			for (Map.Entry<String, String> e: argsDescr.entrySet()) {
+				String arg = e.getKey();
+				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s   %s", arg, e.getValue()));
+			}				
+		}
+
+		if (sb.length()>0) {
+			System.out.println(String.format("\n  Options: %s", sb));					
+		}
+		if (optionsDescr.size()>0) {
+			System.out.println();
+			for (Map.Entry<String, String> e: optionsDescr.entrySet()) {
+				String option = e.getKey();
+				String[] aoption = option.split("\\|");
+				StringBuilder sb2 = new StringBuilder();
+				for (String option_: aoption) {
+					option_ = option_.trim();
+					if (option_.length()==1) {
+						option_ = "-" + option_;
 					} else {
-						option = "--" + option;
+						option_ = "--" + option_;
+					}			
+					if (sb2.length()>0) {
+						sb2.append(" | ");
 					}
-					System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s   %s", option, e.getValue()));
-				}				
-			}
+					sb2.append(option_);						
+				}
+				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s   %s", sb2.toString(), e.getValue()));
+			}				
 		}
 
 	}
@@ -374,7 +516,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return null;
 	}
 
-
+	protected String[] findSubSubCommand(String cmd, String subcmd, String subsubcmd) {
+		String[][] subsubcmds = findSubSubCommands(cmd, subcmd);
+		if (subsubcmds!=null) {
+			for (String[] alias: subsubcmds) {
+				if (StringUtil.contains(alias, subsubcmd)) {
+					return alias;
+				}
+			}
+		}
+		return null;
+	}
+	
 	protected String getUsage(boolean alias) {
 		StringBuilder sb = new StringBuilder();
 		String[][] cmds = getCommands();
@@ -473,15 +626,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected void error(String msg, Object... args) {
-		System.err.println(String.format("ERROR: " + msg, args));
+		System.err.println(String.format(String.format("ERROR: [%s] %s", getName(), msg), args));
 	}
 
 	protected void singleuserNotSupported() {
-		error(String.format("[%s] Single user mode not supported", this.getName()));
+		error("Single user mode not supported!");
 	}
 
 	protected void noresources(String type, Map<String, Object> args) {
-		System.err.println(String.format("Resources not found: %s", type));		
+		error("Resources not found: %s", type);		
 	}
 
 	protected void noresources(Map<String, Object> args) {
@@ -489,7 +642,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected void operationFailed(String type, String op, Map<String, Object> args) {
-		System.err.println(String.format("ERROR: operation faield: %s %s", type, op));
+		error("operation faield: %s %s", type, op);
 	}
 
 	protected void operationFailed(Map<String, Object> args) {
@@ -497,7 +650,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected void invalidOp(String type, String op) {
-		System.err.println(String.format("ERROR: invalid operation: %s %s", type, op));
+		error("invalid operation: %s %s", type, op);
 	}
 
 	protected void invalidOp() {
@@ -505,7 +658,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected void invalidType(String type) {
-		System.err.println(String.format("ERROR: invalid resource type: %s", type));
+		error("invalid resource type: %s", type);
 	}
 
 	protected void invalidType() {
@@ -513,7 +666,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected void missingArg(String type, String op, String name) {
-		System.err.println(String.format("ERROR: missing argument %s: %s %s", name, type, op));
+		error("missing argument %s in %s %s", name, type, op);
 	}
 	
 	protected void missingArg(String name) {
