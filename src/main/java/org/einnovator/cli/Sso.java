@@ -56,7 +56,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class Sso extends CommandRunnerBase {
 
 	
-	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
+	private static final String SSO_DEFAULT_SERVER = "http://localhost:2000";
 	private static final String SSO_MONITOR_SERVER = "http://localhost:2001";
 
 	public static final String SSO_NAME = "sso";

@@ -229,7 +229,7 @@ public class Devops extends CommandRunnerBase {
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		subcommands = map;
 		map.put("cluster", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create", "add", "import"), c("update"), c("delete", "del", "rm"),
+			c("create", "add", "import"), c("update"), c("delete", "del", "remove", "rm"),
 			c("set"), c("unset"),
 			c("help")));
 		map.put("space", c(c("ls", "list"), c("get"), c("schema", "meta"), 
@@ -284,33 +284,33 @@ public class Devops extends CommandRunnerBase {
 		subsubcommands = map;
 		Map<String, String[][]> deploy = m("deployment", map);
 		deploy.put("route", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("connector", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		deploy.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "rm"), c("help")));
+			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		deploy.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "remove", "rm"), c("help")));
 
 		Map<String, String[][]> job = m("job", map);
 		job.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		job.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		job.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
-		job.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		job.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "remove", "rm"), c("help")));
 
 		Map<String, String[][]> cronjob = m("cronjob", map);
 		cronjob.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-				c("add", "create"), c("update"), c("delete", "del", "rm"), c("help")));
+				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("job", c(c("ls", "list"), c("help")));
 
 	}
@@ -1414,21 +1414,21 @@ public class Devops extends CommandRunnerBase {
 		String deployId = argIdx(op, cmds);
 		debug("Scaling Deployment: %s", deployId);		
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
-		String n = get(new String[] {"n", "replicas", "instances"}, options, String.class);
-		if (n==null) {
-			n = cmds.length>0 ? cmds[0] : null;
+		String k = get(new String[] {"k", "replicas", "instances"}, options, String.class);
+		if (k==null) {
+			k = cmds.length>0 ? cmds[0] : null;
 		}
-		if (n==null) {
+		if (k==null) {
 			error("Missing replica count...");
 			exit(-1);
 		}
-		Integer n_ = parseInt(n);
-		if (n_==null || n_<0) {
+		Integer k_ = parseInt(k);
+		if (k_==null || k_<0) {
 			error("Invalid replica count...");
 			exit(-1);
 		}
-		if (n!=null) {
-			devopsClient.scaleDeployment(deployId, n_, options_);			
+		if (k!=null) {
+			devopsClient.scaleDeployment(deployId, k_, options_);			
 		}
 	}
 	
@@ -1560,7 +1560,7 @@ public class Devops extends CommandRunnerBase {
 			break;
 		}
 		case "add": case "create": {
-			if (isHelp3("add")) {
+			if (isHelp3(op2)) {
 				return;
 			}
 			String deployId = argIdx1(op, cmds);
@@ -1575,7 +1575,7 @@ public class Devops extends CommandRunnerBase {
 			break;
 		}
 		case "update": {
-			if (isHelp3("update")) {
+			if (isHelp3(op2)) {
 				return;
 			}
 			String deployId = argIdx1(op, cmds);
@@ -1590,7 +1590,7 @@ public class Devops extends CommandRunnerBase {
 			break;
 		}
 		case "remove": case "rm": case "delete": case "del": {
-			if (isHelp3("remove")) {
+			if (isHelp3(op2)) {
 				return;
 			}
 			String deployId = argIdx1(op, cmds);
@@ -1618,7 +1618,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void routeDeploymentGet(String[] cmds, Map<String, Object> options) {
-		if (isHelp3("ls")) {
+		if (isHelp3("get")) {
 			return;
 		}
 		String deployId = argIdx1(op, cmds);
@@ -1710,7 +1710,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void mountDeploymentGet(String[] cmds, Map<String, Object> options) {
-		if (isHelp3("ls")) {
+		if (isHelp3("get")) {
 			return;
 		}
 		String deployId = argIdx1(op, cmds);
@@ -2300,7 +2300,7 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void mountJobGet(String[] cmds, Map<String, Object> options) {
-		if (isHelp3("ls")) {
+		if (isHelp3("get")) {
 			return;
 		}
 		String jobId = argIdx1(op, cmds);

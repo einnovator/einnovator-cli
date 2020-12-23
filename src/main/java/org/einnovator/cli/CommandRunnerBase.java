@@ -231,12 +231,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (alias!=null && alias.length>0) {
 			ksubcmd = alias[0];
 		}
-		String qname = cmd + (subcmd!=null && subcmd.isEmpty() ? "." + ksubcmd : "");	
-		String key = kcmd + (ksubcmd!=null && !ksubcmd.isEmpty() ? "." + ksubcmd : "");		
+		String qname = cmd + (!subcmd.isEmpty() ? " " + ksubcmd : "");	
+		String key = kcmd + (!ksubcmd.isEmpty() ? "." + ksubcmd : "");		
 
 		String[][] subsubcmds = findSubSubCommands(kcmd, ksubcmd);
 		printUsageDetails(qname, key, alias, subsubcmds!=null && subsubcmds.length>0);			
-		printCmds(qname, kcmd, subsubcmds, true);
+		printCmds(qname, key, subsubcmds, true);
 	}
 	
 	protected void printUsage(String cmd, String subcmd, String subsubcmd) {
@@ -246,15 +246,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			kcmd = alias[0];
 		}
 		String ksubcmd = subcmd;
-		alias = findSubCommand(cmd, subcmd);
+		alias = findSubCommand(kcmd, ksubcmd);
 		if (alias!=null && alias.length>0) {
 			ksubcmd = alias[0];
 		}
 		String ksubsubcmd = subsubcmd;
-		alias = findSubSubCommand(cmd, subcmd, subsubcmd);
+		alias = findSubSubCommand(kcmd, ksubcmd, subsubcmd);
 		if (alias!=null && alias.length>0) {
-			subsubcmd = alias[0];
+			ksubsubcmd = alias[0];
 		}
+		alias = findSubSubCommand(kcmd, ksubcmd, ksubsubcmd);
 		String qname = cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : "");
 		String key = kcmd + "." + ksubcmd + "." + ksubsubcmd;
 		printUsageDetails(qname, key, null, false);
@@ -283,7 +284,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected void printUsageDetails(String qcmd, String key, String[] alias, boolean sub) {
 		String xkey = getName() + "." + key;
 		String descr = resolve(xkey);
-		System.out.println(String.format("[%s]   %s  --  %s", getName(), qcmd, descr));	
+		System.out.println(String.format("[%s]  %s  --  %s", getName(), qcmd, descr));	
 
 		if (alias!=null && alias.length>1) {
 			String salias = String.join(" | ", alias);
@@ -291,7 +292,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}		
 		String descr2 = resolve(xkey + ".descr", false);
 		if (descr2!=null) {
-			System.out.println(String.format("\n  %s", descr2));
+			System.out.println();
+			print(2, descr2);
 		}
 		int width = 0;
 		String args = resolve(xkey + ".args", false);
@@ -299,7 +301,6 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		asb.append(qcmd);
 		Map<String, String> argsDescr = new LinkedHashMap<>();
 		if (args!=null) {
-			StringBuilder sb = new StringBuilder();
 			String[] a = args.split(",");
 			for (String arg: a) {
 				arg = arg.trim();
@@ -324,30 +325,21 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				}
 				if (optional) {
 					asb.append("[");
+				} else {
+					asb.append("<");
 				}
 				asb.append(arg);
 				if (optional) {
 					asb.append("]");
+				} else {
+					asb.append(">");					
 				}
 				if (rep) {
 					asb.append("*");
 				}
-
-				if (args.isEmpty()) {
-					continue;
-				}
-				if (sb.length()>0) {
-					sb.append(" | ");
-				}
-				if (arg.length()==1) {
-					sb.append("-");
-				} else {
-					sb.append("--");						
-				}
 				if (arg.length()>width) {
 					width = arg.length();
 				}
-				sb.append(arg);
 				String karg = arg;
 				int i = karg.indexOf("|");
 				if (i>0) {
@@ -440,7 +432,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 		System.out.println(String.format("\n  Usage: %s%s", asb, (sub ? " ..." : "")));					
 		if (argsDescr.size()>0) {
-			System.out.println("\n  Args:\n");
+			System.out.println("\n  Args:");
 			for (Map.Entry<String, String> e: argsDescr.entrySet()) {
 				String arg = e.getKey();
 				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s   %s", arg, e.getValue()));
@@ -474,7 +466,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	}
 
-
+	protected void print(int indent, String s) {
+		if (indent<=0) {
+			System.out.println(s);
+			return;
+		}
+		String[] lines = s.split("\n");
+		for (String line: lines) {
+			System.out.println(String.format("%-" + indent + "s%s", "", line));
+		}
+	}
 	protected String[] findCommand(String cmd) {
 		String[][] cmds = getCommands();
 		if (cmds!=null) {
