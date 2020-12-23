@@ -135,7 +135,7 @@ public class Payments extends CommandRunnerBase {
 		case "account": case "accounts": case "acc":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getAccount(cmds, options);
@@ -160,7 +160,7 @@ public class Payments extends CommandRunnerBase {
 		case "payment": case "payments": case "pay":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getPayment(cmds, options);
@@ -185,7 +185,7 @@ public class Payments extends CommandRunnerBase {
 		case "tax": case "taxes":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getTax(cmds, options);
@@ -226,7 +226,7 @@ public class Payments extends CommandRunnerBase {
 	//
 	
 	public void listAccounts(String[] cmds, Map<String, Object> options) {
-		if (isHelp("account", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -237,7 +237,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void getAccount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("account", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String accountId = argId(op, cmds);
@@ -248,7 +248,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void createAccount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("account", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Account account = convert(options, Account.class);
@@ -265,7 +265,7 @@ public class Payments extends CommandRunnerBase {
 	}
 
 	public void updateAccount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("account", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String accountId = argId(op, cmds);
@@ -280,7 +280,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void deleteAccount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("account", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String accountId = argId(op, cmds);
@@ -296,7 +296,7 @@ public class Payments extends CommandRunnerBase {
 	//
 	
 	public void listPayments(String[] cmds, Map<String, Object> options) {
-		if (isHelp("payment", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -307,7 +307,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void getPayment(String[] cmds, Map<String, Object> options) {
-		if (isHelp("payment", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String paymentId = argId(op, cmds);
@@ -318,7 +318,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void submitPayment(String[] cmds, Map<String, Object> options) {
-		if (isHelp("payment", "submit")) {
+		if (isHelp2()) {
 			return;
 		}
 		Payment payment = convert(options, Payment.class);
@@ -334,7 +334,7 @@ public class Payments extends CommandRunnerBase {
 	}
 
 	public void updatePayment(String[] cmds, Map<String, Object> options) {
-		if (isHelp("payment", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String paymentId = argId(op, cmds);
@@ -349,7 +349,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void deletePayment(String[] cmds, Map<String, Object> options) {
-		if (isHelp("payment", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String paymentId = argId(op, cmds);
@@ -365,7 +365,7 @@ public class Payments extends CommandRunnerBase {
 	//
 	
 	public void listTaxes(String[] cmds, Map<String, Object> options) {
-		if (isHelp("tax", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -376,7 +376,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void getTax(String[] cmds, Map<String, Object> options) {
-		if (isHelp("tax", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String taxId = argId(op, cmds);
@@ -387,7 +387,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void createTax(String[] cmds, Map<String, Object> options) {
-		if (isHelp("tax", "submit")) {
+		if (isHelp2()) {
 			return;
 		}
 		Tax tax = convert(options, Tax.class);
@@ -403,7 +403,7 @@ public class Payments extends CommandRunnerBase {
 	}
 
 	public void updateTax(String[] cmds, Map<String, Object> options) {
-		if (isHelp("tax", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String taxId = argId(op, cmds);
@@ -418,7 +418,7 @@ public class Payments extends CommandRunnerBase {
 	}
 	
 	public void deleteTax(String[] cmds, Map<String, Object> options) {
-		if (isHelp("tax", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String taxId = argId(op, cmds);

@@ -156,7 +156,7 @@ public class Notifications extends CommandRunnerBase {
 		case "notification": case "notifications": case "notific":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			//case "get": 
 			//	getNotification(cmds, options);
@@ -178,7 +178,7 @@ public class Notifications extends CommandRunnerBase {
 		case "notification-type": case "notification-types": case "notific-type": case "ntype": case "nt":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getNotificationType(cmds, options);
@@ -203,7 +203,7 @@ public class Notifications extends CommandRunnerBase {
 		case "template": case "templates": case "templ": 
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getTemplate(cmds, options);
@@ -228,7 +228,7 @@ public class Notifications extends CommandRunnerBase {
 		case "mjob": case "mjobs": case "job": case "jobs": 
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getJob(cmds, options);
@@ -270,7 +270,7 @@ public class Notifications extends CommandRunnerBase {
 	//
 	
 	public void listNotifications(String[] cmds, Map<String, Object> options) {
-		if (isHelp("notification", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -281,7 +281,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void countNotifications(String[] cmds, Map<String, Object> options) {
-		if (isHelp("notification", "count")) {
+		if (isHelp2()) {
 			return;
 		}
 		NotificationFilter filter = convert(options, NotificationFilter.class);
@@ -291,7 +291,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void publish(String[] cmds, Map<String, Object> options) {
-		if (isHelp("publish")) {
+		if (isHelp1()) {
 			return;
 		}
 		Event event = convert(options, Event.class);
@@ -302,7 +302,7 @@ public class Notifications extends CommandRunnerBase {
 
 	
 	public void deleteNotification(String[] cmds, Map<String, Object> options) {
-		if (isHelp("notification", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String notificationId = argId(op, cmds);
@@ -318,7 +318,7 @@ public class Notifications extends CommandRunnerBase {
 	//
 	
 	public void listNotificationTypes(String[] cmds, Map<String, Object> options) {
-		if (isHelp("type", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -332,7 +332,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getNotificationType(String[] cmds, Map<String, Object> options) {
-		if (isHelp("type", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
@@ -342,7 +342,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void createNotificationType(String[] cmds, Map<String, Object> options) {
-		if (isHelp("type", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		NotificationType notificationType = convert(options, NotificationType.class);
@@ -358,7 +358,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 	public void updateNotificationType(String[] cmds, Map<String, Object> options) {
-		if (isHelp("type", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
@@ -373,7 +373,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void deleteNotificationType(String[] cmds, Map<String, Object> options) {
-		if (isHelp("type", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
@@ -390,7 +390,7 @@ public class Notifications extends CommandRunnerBase {
 	//
 	
 	public void listTemplates(String[] cmds, Map<String, Object> options) {
-		if (isHelp("template", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -401,7 +401,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getTemplate(String[] cmds, Map<String, Object> options) {
-		if (isHelp("template", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String templateId = argId(op, cmds);
@@ -411,7 +411,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void createTemplate(String[] cmds, Map<String, Object> options) {
-		if (isHelp("template", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Template template = convert(options, Template.class);
@@ -427,7 +427,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 	public void updateTemplate(String[] cmds, Map<String, Object> options) {
-		if (isHelp("template", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String templateId = argId(op, cmds);
@@ -442,7 +442,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void deleteTemplate(String[] cmds, Map<String, Object> options) {
-		if (isHelp("template", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String templateId = argId(op, cmds);
@@ -458,7 +458,7 @@ public class Notifications extends CommandRunnerBase {
 	//
 	
 	public void listJobs(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mjob", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -469,7 +469,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void getJob(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mjob", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String jobId = argId(op, cmds);
@@ -479,7 +479,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void createJob(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mjob", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Job job = convert(options, Job.class);
@@ -495,7 +495,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 
 	public void updateJob(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mjob", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String jobId = argId(op, cmds);
@@ -510,7 +510,7 @@ public class Notifications extends CommandRunnerBase {
 	}
 	
 	public void deleteJob(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mjob", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String jobId = argId(op, cmds);

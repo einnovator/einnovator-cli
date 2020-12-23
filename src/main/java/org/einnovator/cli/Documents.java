@@ -121,7 +121,7 @@ public class Documents extends CommandRunnerBase {
 		case "documents": case "document": case "doc": case "docs":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				read(path, options);
@@ -146,7 +146,7 @@ public class Documents extends CommandRunnerBase {
 		case "fmount": case "fmounts": case "mount": case "mounts":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getMount(cmds, options);
@@ -189,7 +189,7 @@ public class Documents extends CommandRunnerBase {
 	//
 	
 	public void list(String path, Map<String, Object> options) {
-		if (isHelp("document", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -200,7 +200,7 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void read(String path, Map<String, Object> options) {
-		if (isHelp("document", "read")) {
+		if (isHelp2()) {
 			return;
 		}
 		String documentId = argId(null, cmds);
@@ -211,7 +211,7 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void write(String path, Map<String, Object> options) {
-		if (isHelp("document", "write")) {
+		if (isHelp2()) {
 			return;
 		}
 		Document document = convert(options, Document.class);
@@ -227,7 +227,7 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void mkdir(String path, Map<String, Object> options) {
-		if (isHelp("document", "mkdir")) {
+		if (isHelp2()) {
 			return;
 		}
 		debug("mkdir " + path);
@@ -236,7 +236,7 @@ public class Documents extends CommandRunnerBase {
 	}
 	
 	public void delete(String path, Map<String, Object> options) {
-		if (isHelp("document", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String documentId = argId(path, cmds);
@@ -253,7 +253,7 @@ public class Documents extends CommandRunnerBase {
 	//
 	
 	public void listMounts(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mount", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -264,7 +264,7 @@ public class Documents extends CommandRunnerBase {
 	}
 	
 	public void getMount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mount", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String mountId = argId(op, cmds);
@@ -274,7 +274,7 @@ public class Documents extends CommandRunnerBase {
 	}
 	
 	public void createMount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mount", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Mount mount = convert(options, Mount.class);
@@ -291,7 +291,7 @@ public class Documents extends CommandRunnerBase {
 	}
 
 	public void updateMount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mount", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String mountId = argId(op, cmds);
@@ -306,7 +306,7 @@ public class Documents extends CommandRunnerBase {
 	}
 	
 	public void deleteMount(String[] cmds, Map<String, Object> options) {
-		if (isHelp("mount", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String mountId = argId(op, cmds);

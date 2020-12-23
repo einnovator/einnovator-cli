@@ -290,7 +290,7 @@ public class Sso extends CommandRunnerBase {
 		case "api": case "a":
 			switch (op) {
 			case "help": case "":
-				printUsage("api");
+				printUsage1();
 				return;
 			case "get": 
 				getApi(cmds, options);
@@ -319,7 +319,7 @@ public class Sso extends CommandRunnerBase {
 		case "token":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get":
 				getToken(cmds, options);
@@ -347,7 +347,7 @@ public class Sso extends CommandRunnerBase {
 		case "user": case "users":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getUser(cmds, options);
@@ -372,7 +372,7 @@ public class Sso extends CommandRunnerBase {
 		case "group": case "groups":
 			switch (op) {
 			case "help":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getGroup(cmds, options);
@@ -404,7 +404,7 @@ public class Sso extends CommandRunnerBase {
 			listGroupMembers(cmds, options);
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				//getGroupMember(cmds, options);
@@ -533,7 +533,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void ls(String[] cmds, Map<String, Object> options) {
-		if (isHelp("ls")) {
+		if (isHelp1()) {
 			return;
 		}
 		if (options.get("u")!=null) {
@@ -551,7 +551,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void cd(String[] cmds, Map<String, Object> options) {
-		if (isHelp("cd")) {
+		if (isHelp1()) {
 			return;
 		}
 		if (op==null || op.isEmpty()) {
@@ -571,7 +571,7 @@ public class Sso extends CommandRunnerBase {
 	
 	
 	public void pwd(String[] cmds, Map<String, Object> options) {
-		if (isHelp("pwd")) {
+		if (isHelp1()) {
 			return;
 		}
 		String api = getCurrentApi();
@@ -585,7 +585,7 @@ public class Sso extends CommandRunnerBase {
 	//
 
 	public void login(String type, String op, String[] cmds, Map<String, Object> options) {
-		if (isHelp("login")) {
+		if (isHelp1()) {
 			return;
 		}
 		String api = (String)get("a", options, null);
@@ -630,7 +630,7 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void listApis(String[] cmds, Map<String, Object> options) {
-		if (isHelp("api", "list")) {
+		if (isHelp2()) {
 			return;
 		}
 		String api = getCurrentApi();
@@ -646,7 +646,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void getApi(String[] cmds, Map<String, Object> options) {
-		if (isHelp("api", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String api = getCurrentApi();
@@ -663,7 +663,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void setApi(String[] cmds, Map<String, Object> options) {
-		if (isHelp("api", "set")) {
+		if (isHelp2()) {
 			return;
 		}
 		String api = argId(op, cmds);
@@ -691,7 +691,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void unsetApi(String[] cmds, Map<String, Object> options) {
-		if (isHelp("api", "unset")) {
+		if (isHelp2()) {
 			return;
 		}
 		this.api = null;
@@ -699,7 +699,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void deleteApi(String[] cmds, Map<String, Object> options) {
-		if (isHelp("api", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String api = argId(op, cmds);
@@ -1128,7 +1128,7 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 	public void listUsers(String[] cmds, Map<String, Object> options) {
-		if (isHelp("user", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -1139,7 +1139,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getUser(String[] cmds, Map<String, Object> options) {
-		if (isHelp("user", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String userId = argId(op, cmds);
@@ -1149,7 +1149,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void createUser(String[] cmds, Map<String, Object> options) {
-		if (isHelp("user", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		User user = convert(options, User.class);
@@ -1166,7 +1166,7 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void updateUser(String[] cmds, Map<String, Object> options) {
-		if (isHelp("user", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String userId = argId(op, cmds);
@@ -1180,7 +1180,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void deleteUser(String[] cmds, Map<String, Object> options) {
-		if (isHelp("user", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String userId = argId(op, cmds);
@@ -1196,7 +1196,7 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 	public void listGroups(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -1207,7 +1207,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void getGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = argId(op, cmds);
@@ -1217,7 +1217,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void createGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Group group = convert(options, Group.class);
@@ -1233,7 +1233,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void updateGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = argId(op, cmds);
@@ -1247,7 +1247,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void deleteGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = argId(op, cmds);
@@ -1259,7 +1259,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void setGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "set")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = argId(op, cmds);
@@ -1278,7 +1278,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void unsetGroup(String[] cmds, Map<String, Object> options) {
-		if (isHelp("group", "unset")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = argId(op, cmds);
@@ -1293,7 +1293,7 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 	public void addMember(String[] cmds, Map<String, Object> options) {
-		if (isHelp("member", "add")) {
+		if (isHelp2()) {
 			return;
 		}
 		String userId = (String)get("user", options);
@@ -1306,7 +1306,7 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void removeMember(String[] cmds, Map<String, Object> options) {
-		if (isHelp("member", "remove")) {
+		if (isHelp2()) {
 			return;
 		}
 		String userId = (String)get("user", options);
@@ -1321,7 +1321,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void listGroupMembers(String[] cmds, Map<String, Object> options) {
-		if (isHelp("member", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		String groupId = (String)get("group", options);
@@ -1343,7 +1343,7 @@ public class Sso extends CommandRunnerBase {
 	
 
 	public void invite(String[] cmds, Map<String, Object> options) {
-		if (isHelp("invitation", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Invitation invitation = convert(options, Invitation.class);
@@ -1365,7 +1365,7 @@ public class Sso extends CommandRunnerBase {
 	
 	
 	public void listInvitations(String[] cmds, Map<String, Object> options) {
-		if (isHelp("invitation", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -1376,7 +1376,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getInvitation(String[] cmds, Map<String, Object> options) {
-		if (isHelp("invitation", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String invitationId = argId(op, cmds);
@@ -1388,7 +1388,7 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void updateInvitation(String[] cmds, Map<String, Object> options) {
-		if (isHelp("invitation", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String invitationId = argId(op, cmds);
@@ -1402,7 +1402,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void deleteInvitation(String[] cmds, Map<String, Object> options) {
-		if (isHelp("invitation", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String invitationId = argId(op, cmds);
@@ -1419,7 +1419,7 @@ public class Sso extends CommandRunnerBase {
 	//
 	
 	public void listRoles(String[] cmds, Map<String, Object> options) {
-		if (isHelp("role", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -1430,7 +1430,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void getRole(String[] cmds, Map<String, Object> options) {
-		if (isHelp("role", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String roleId = argId(op, cmds);
@@ -1440,7 +1440,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void createRole(String[] cmds, Map<String, Object> options) {
-		if (isHelp("role", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Role role = convert(options, Role.class);
@@ -1456,7 +1456,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void updateRole(String[] cmds, Map<String, Object> options) {
-		if (isHelp("role", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String roleId = argId(op, cmds);
@@ -1470,7 +1470,7 @@ public class Sso extends CommandRunnerBase {
 	}
 	
 	public void deleteRole(String[] cmds, Map<String, Object> options) {
-		if (isHelp("role", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String roleId = argId(op, cmds);
@@ -1488,7 +1488,7 @@ public class Sso extends CommandRunnerBase {
 	
 
 	public void listClients(String[] cmds, Map<String, Object> options) {
-		if (isHelp("client", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -1499,7 +1499,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void getClient(String[] cmds, Map<String, Object> options) {
-		if (isHelp("client", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String clientId = argId(op, cmds);
@@ -1509,7 +1509,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void createClient(String[] cmds, Map<String, Object> options) {
-		if (isHelp("client", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Client client = convert(options, Client.class);
@@ -1526,7 +1526,7 @@ public class Sso extends CommandRunnerBase {
 
 	
 	public void updateClient(String[] cmds, Map<String, Object> options) {
-		if (isHelp("client", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String clientId = argId(op, cmds);
@@ -1540,7 +1540,7 @@ public class Sso extends CommandRunnerBase {
 	}
 
 	public void deleteClient(String[] cmds, Map<String, Object> options) {
-		if (isHelp("client", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String clientId = argId(op, cmds);

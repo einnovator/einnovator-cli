@@ -131,7 +131,7 @@ public class Social extends CommandRunnerBase {
 		case "channel": case "channels":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getChannel(cmds, options);
@@ -156,7 +156,7 @@ public class Social extends CommandRunnerBase {
 		case "message": case "msg":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getMessage(cmds, options);
@@ -181,7 +181,7 @@ public class Social extends CommandRunnerBase {
 		case "reaction":
 			switch (op) {
 			case "help": case "":
-				printUsage(type);
+				printUsage1();
 				break;
 			case "get": 
 				getReaction(cmds, options);
@@ -224,7 +224,7 @@ public class Social extends CommandRunnerBase {
 	//
 	
 	public void listChannels(String[] cmds, Map<String, Object> options) {
-		if (isHelp("channel", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -235,7 +235,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void getChannel(String[] cmds, Map<String, Object> options) {
-		if (isHelp("channel", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -245,7 +245,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void createChannel(String[] cmds, Map<String, Object> options) {
-		if (isHelp("channel", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		Channel channel = convert(options, Channel.class);
@@ -262,7 +262,7 @@ public class Social extends CommandRunnerBase {
 	}
 
 	public void updateChannel(String[] cmds, Map<String, Object> options) {
-		if (isHelp("channel", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -277,7 +277,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void deleteChannel(String[] cmds, Map<String, Object> options) {
-		if (isHelp("channel", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -294,7 +294,7 @@ public class Social extends CommandRunnerBase {
 	//
 	
 	public void listMessages(String[] cmds, Map<String, Object> options) {
-		if (isHelp("message", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -306,7 +306,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void getMessage(String[] cmds, Map<String, Object> options) {
-		if (isHelp("message", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -317,7 +317,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void postMessage(String[] cmds, Map<String, Object> options) {
-		if (isHelp("message", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -335,7 +335,7 @@ public class Social extends CommandRunnerBase {
 	}
 
 	public void updateMessage(String[] cmds, Map<String, Object> options) {
-		if (isHelp("message", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -363,7 +363,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void deleteMessage(String[] cmds, Map<String, Object> options) {
-		if (isHelp("message", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -381,7 +381,7 @@ public class Social extends CommandRunnerBase {
 	//
 	
 	public void listReactions(String[] cmds, Map<String, Object> options) {
-		if (isHelp("reaction", "ls")) {
+		if (isHelp2()) {
 			return;
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
@@ -394,7 +394,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void getReaction(String[] cmds, Map<String, Object> options) {
-		if (isHelp("reaction", "get")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -407,7 +407,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void postReaction(String[] cmds, Map<String, Object> options) {
-		if (isHelp("reaction", "create")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -426,7 +426,7 @@ public class Social extends CommandRunnerBase {
 	}
 
 	public void updateReaction(String[] cmds, Map<String, Object> options) {
-		if (isHelp("reaction", "update")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
@@ -447,7 +447,7 @@ public class Social extends CommandRunnerBase {
 	}
 	
 	public void deleteReaction(String[] cmds, Map<String, Object> options) {
-		if (isHelp("reaction", "delete")) {
+		if (isHelp2()) {
 			return;
 		}
 		String channelId = argId(op, cmds);
