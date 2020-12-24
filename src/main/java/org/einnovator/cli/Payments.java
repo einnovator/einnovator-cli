@@ -69,6 +69,12 @@ public class Payments extends CommandRunnerBase {
 	public String getName() {
 		return "payments";
 	}
+	
+	@Override
+	protected String getServer() {
+		return server;
+	}
+
 
 	String[][] PAYMENTS_COMMANDS = c(
 		c("account", "accounts", "acc"),
@@ -210,7 +216,7 @@ public class Payments extends CommandRunnerBase {
 			}
 			break;
 		default:
-			System.err.println("Invalid command: " + type + " " + op);
+			invalidOp(type);
 			printUsage();
 			break;
 		}

@@ -54,6 +54,12 @@ public class Documents extends CommandRunnerBase {
 	public String getName() {
 		return DOCUMENTS_NAME;
 	}
+	
+	@Override
+	protected String getServer() {
+		return server;
+	}
+
 
 	String[][] DOCUMENTS_COMMANDS = c(
 		c("document", "documents", "docs", "doc"),
@@ -168,9 +174,8 @@ public class Documents extends CommandRunnerBase {
 				break;
 			}
 			break;
-		
 		default:
-			System.err.println("Invalid command: " + type + " " + op);
+			invalidOp(type);
 			printUsage();
 			break;
 		}

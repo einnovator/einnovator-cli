@@ -67,6 +67,12 @@ public class Notifications extends CommandRunnerBase {
 	public String getName() {
 		return "notifications";
 	}
+	
+	@Override
+	protected String getServer() {
+		return server;
+	}
+
 
 	String[][] NOTIFICATIONS_COMMANDS = c(
 		c("event", "events", "ev"),
@@ -252,9 +258,8 @@ public class Notifications extends CommandRunnerBase {
 				break;
 			}
 			break;
-		
 		default:
-			System.err.println("Invalid command: " + type + " " + op);
+			invalidOp(type);
 			printUsage();
 			break;
 		}

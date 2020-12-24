@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.einnovator.devops.client.model.NamedEntity;
 import org.einnovator.util.MapUtil;
 import org.einnovator.util.MappingUtils;
+import org.einnovator.util.PathUtil;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
@@ -46,6 +47,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected String type;
 	protected String op;
 	protected boolean singleuser;
+	protected boolean admin;
+	protected boolean server;
 
 	protected ResourceBundle bundle;
 
@@ -663,6 +666,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected void invalidOp(String type, String op) {
 		error("invalid operation: %s %s", type, op);
+	}
+
+	protected void invalidOp(String type) {
+		error("invalid operation: %s", type);
 	}
 
 	protected void invalidOp() {
@@ -1559,5 +1566,30 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	@Override
 	public void setEndpoints(Map<String, Object> endpoints) {		
 	}
+
+	protected boolean view(String type, String id) {
+		String url = makeUrl(false, type, id);
+		if (url==null) {
+			error("failed to build resource url: %s %s", type, id);
+		}		
+		return openBrowser(url);
+	}
+	
+	protected String makeUrl(boolean api, String type, String id) {
+		String server = getServer();
+		if (server==null) {
+			return null;
+		}
+		return PathUtil.concat(server, (api ? "/api" : "") + (isAdmin() ? "/admin" : "") + type + "/" + id);
+	}
+
+	protected String getServer() {
+		return null;
+	}
+
+	protected boolean isAdmin() {
+		return admin;
+	}
+
 
 }

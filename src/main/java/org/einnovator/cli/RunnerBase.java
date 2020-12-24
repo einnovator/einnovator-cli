@@ -1,5 +1,8 @@
 package org.einnovator.cli;
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -7,6 +10,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 import org.einnovator.util.StringUtil;
+import org.einnovator.util.UriUtils;
 
 public abstract class RunnerBase {
 
@@ -215,7 +219,7 @@ public abstract class RunnerBase {
 				System.out.println();
 			}
 			for (Map.Entry<String, String> e: descrMap.entrySet()) {
-				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s    %s", e.getKey(), e.getValue()));
+				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s	%s", e.getKey(), e.getValue()));
 			}
 			if (descrMap.size()>0) {
 				System.out.println();
@@ -258,5 +262,76 @@ public abstract class RunnerBase {
 		System.err.println(sb.toString());
 	}
 
+	protected boolean openBrowser(String url) {
+		URI uri = UriUtils.makeURI(url);
+		if (uri==null) {
+			error("invalida url: %s", url);
+			exit(-1);
+			return false;
+		}
+		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+			try {
+				Desktop.getDesktop().browse(uri);
+				return true;
+			} catch (IOException e) {
+				error(e);
+			}
+		}
+		if (isWinOS()) {
+			exec("rundll32 url.dll,FileProtocolHandler " + url);
+		} else if (isMac()) {
+			exec("open " + url);
+		} else if (isLinux()) {
+			String[] browsers = {"epiphany", "firefox", "mozilla", "konqueror", "netscape", "opera", "links", "lynx"};
+			StringBuffer cmd = new StringBuffer();
+			for (int i = 0; i < browsers.length; i++) {
+				if (i>0) {
+					cmd.append(" || ");
+				}
+				cmd.append(String.format("%s \"%s\"", browsers[i], url));					
+			}			
+			exec("sh", "-c", cmd.toString());
+			
+		}
+		return false;
+	}
+
+	protected int exec(String... cmd) {
+		Runtime rt = Runtime.getRuntime();
+		try {
+			Process process = rt.exec(cmd);
+			return process.exitValue();
+		} catch (IOException e) {
+			error(e);
+			return -1;
+		}
+	}
+
+	public static boolean isWinOS() {
+		String os = System.getProperty("os.name");
+		if (os==null) {
+			return false;
+		}
+		os = os.toLowerCase();
+		return os.indexOf("win")!=-1;
+	}
+
+	public static boolean isMac() {
+		String os = System.getProperty("os.name");
+		if (os==null) {
+			return false;
+		}
+		os = os.toLowerCase();
+		return os.indexOf("mac")!=-1;
+	}
+
+	public static boolean isLinux() {
+		String os = System.getProperty("os.name");
+		if (os==null) {
+			return false;
+		}
+		os = os.toLowerCase();
+		return os.indexOf("nix")!=-1 || os.indexOf("nux")!=-1;
+	}
 
 }

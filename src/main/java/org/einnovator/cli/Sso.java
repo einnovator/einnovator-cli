@@ -120,6 +120,12 @@ public class Sso extends CommandRunnerBase {
 	public String getName() {
 		return SSO_NAME;
 	}
+	
+	@Override
+	protected String getServer() {
+		return server;
+	}
+
 
 	String[][] SSO_COMMANDS = c(
 		c("login", "l"),
@@ -508,7 +514,7 @@ public class Sso extends CommandRunnerBase {
 			}
 			break;
 		default:
-			System.err.println("Invalid command: " + type + " " + op);
+			invalidOp(type);
 			printUsage();
 			break;
 		}

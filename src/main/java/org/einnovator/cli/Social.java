@@ -64,6 +64,11 @@ public class Social extends CommandRunnerBase {
 		return "social";
 	}
 
+	@Override
+	protected String getServer() {
+		return server;
+	}
+
 	String[][] SOCIALS_COMMANDS = c( 
 		c("channel", "channels"),
 		c("message", "messages", "msg"),
@@ -206,7 +211,7 @@ public class Social extends CommandRunnerBase {
 			}		
 			break;
 		default:
-			System.err.println("Invalid command: " + type + " " + op);
+			invalidOp(type);
 			printUsage();
 			break;
 		}
