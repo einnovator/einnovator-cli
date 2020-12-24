@@ -184,18 +184,29 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	
 	@Override
 	public void printUsage() {
-		String descr = resolve(getName());
-		System.out.println(String.format("[%s] %s", getName(), descr));			
-		String[][] cmds = getCommands();
-		if (cmds!=null) {
-			printCmds(null, null, cmds, true);
-		}
+		printCmds();
 		if (interactive) {
 			System.out.println(String.format("\nUsage: [%s] %s", getName(), getUsage(false)));			
 		} else {
 			System.out.println(String.format("\nUsage: %s [%s] %s", CliRunner.CLI_NAME, getName(), getUsage(false)));			
 		}
-		exit(0);
+	}
+	
+	public void printCmds() {
+		String descr = resolve(getName());
+		if (isNamed()) {
+			System.out.println(String.format("[%s] %s", getName(), descr));						
+		} else {
+			System.out.println(descr);						
+		}
+		String[][] cmds = getCommands();
+		if (cmds!=null) {
+			printCmds(null, null, cmds, true);
+		}
+	}
+
+	protected boolean isNamed() {
+		return true;
 	}
 
 	public void printUsage1() {
@@ -1177,7 +1188,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected boolean isDebug() {
-		return isDebug(null);
+		return isDebug(0);
 	}
 	
 	protected boolean isDebug(Integer level) {
@@ -1252,8 +1263,21 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return convert(map, type);
 	}
 
-	protected <T> T convert(Map<String, Object> map, Class<T> type) {
-		Map<String, Object> map2 = new LinkedHashMap<>();
+	protected <T> T updateFrom(T obj, Map<String, Object> map) {
+		if (obj!=null && map!=null) {
+			Map<String, Object> props = extractProps(options, obj.getClass());
+			MappingUtils.updateObjectFrom(obj, props);
+		}
+		return obj;
+	}
+
+	protected <T> T convert(Map<String, Object> options, Class<T> type) {
+		Map<String, Object> props = extractProps(options, type);
+		return MappingUtils.convert(props, type);
+	}
+	
+	protected Map<String, Object> extractProps(Map<String, Object> map, Class<?> type) {
+		Map<String, Object> props = new LinkedHashMap<>();
 		for (Map.Entry<String, Object> e: map.entrySet()) {
 			String prop = e.getKey();
 			Object value = e.getValue();
@@ -1273,9 +1297,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				}
 
 			}
-			map2.put(e.getKey(), value);
+			props.put(e.getKey(), value);
 		}
-		return MappingUtils.convert(map2, type);
+		return props;
 	}
 
 	private Method getMethod(Class<?> type, String name, Integer arity) {
@@ -1489,13 +1513,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		sso.writeConfig();
 	}
 	
-	protected void setupToken(String[] cmds, Map<String, Object> options) {
+	protected boolean setupToken(String[] cmds, Map<String, Object> options) {
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
-		sso.getToken(2, cmds, options);
+		if (sso!=null && sso!=this) {
+			return sso.setupToken(cmds, options);			
+		}
+		return false;
 	}
 
-	protected void setupToken() {
-		setupToken(cmds, options);
+	protected boolean setupToken() {
+		return setupToken(cmds, options);
 	}
 
 	protected Sso getSso() {

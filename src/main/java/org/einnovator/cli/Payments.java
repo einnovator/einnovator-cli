@@ -127,9 +127,11 @@ public class Payments extends CommandRunnerBase {
 		switch (type) {
 		case "help": case "":
 			printUsage();
-			break;
+			return;
 		}
-		setupToken();
+		if (!setupToken()) {
+			return;
+		}
 
 		switch (type) {
 		case "account": case "accounts": case "acc":

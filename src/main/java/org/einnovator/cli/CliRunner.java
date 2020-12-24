@@ -8,8 +8,6 @@ import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.einnovator.util.StringUtil;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.CommandLineRunner;
@@ -26,8 +24,8 @@ public class CliRunner extends RunnerBase {
 
 	public static String CLI_NAME = "ei";
 
-	private final Log logger = LogFactory.getLog(getClass());
-
+	private static boolean START_WITH_BOOT = false;
+	
 	
 	static long t0, t1;
 	static boolean tcli;
@@ -49,7 +47,7 @@ public class CliRunner extends RunnerBase {
 			tcli = true;
 			System.out.println("Starting...");
 		}
-		boolean boot = true;
+		boolean boot = START_WITH_BOOT;
 		if (boot) {
 			new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);			
 		} else {
@@ -98,7 +96,7 @@ public class CliRunner extends RunnerBase {
 		}
 
 		if (args.length==0) {
-			printUsage();
+			printUsageGlobal();
 			exit(-1);
 		}
 		List<String> cmds = new ArrayList<>();
@@ -106,7 +104,6 @@ public class CliRunner extends RunnerBase {
 	
 		Sso sso = (Sso)getRunnerByName(Sso.SSO_NAME);
 		sso.setup(options);
-		setupEndpoints(sso.getAllEndpoints());
 		
 		if (options.get("i")!=null) {
 			runConsole(args);
@@ -114,7 +111,7 @@ public class CliRunner extends RunnerBase {
 		}
 		if (cmds.size()==0) {
 			System.err.println("Missing arguments...");
-			printUsage();
+			printUsageGlobal();
 			exit(-1);
 			return;
 		}
@@ -126,7 +123,7 @@ public class CliRunner extends RunnerBase {
 		options = makeArgsMap(args, cmds);
 		if (cmds.size()==0) {
 			System.err.println("Missing arguments...");
-			printUsage();
+			printUsageGlobal();
 			exit(-1);
 			return;
 		}
@@ -144,7 +141,7 @@ public class CliRunner extends RunnerBase {
 		}
 		if (runner==null) {
 			System.err.println("Unknow service: " + name);
-			printUsage();
+			printUsageGlobal();
 			exit(-1);
 		}
 		if (args.length==0) {
@@ -239,27 +236,6 @@ public class CliRunner extends RunnerBase {
 	}
 
 	
-	public void printUsage() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("usage: ");
-		sb.append(CLI_NAME);
-		int i = 0;
-		for (CommandRunner runner: runners) {
-			String name = runner.getName();
-			if (name==null || name.isEmpty()) {
-				continue;
-			}
-			sb.append(" ");								
-			if (i>0) {
-				sb.append("| ");				
-			}
-			sb.append(name);
-			i++;
-		}
-		sb.append(" args... [-option value]* [--options==value]*");				
-		System.err.println(sb.toString());
-	}
-
 
 	Map<String, Object> options;
 
@@ -317,9 +293,9 @@ public class CliRunner extends RunnerBase {
 		return map;
 	}
 	
-	private void debug(String... s) {
+	private void debug(String s, Object... args) {
 		if (isDebug()) {
-			System.out.println(s);
+			System.out.println(String.format(s, args));
 		}
 	}
 	
@@ -327,19 +303,6 @@ public class CliRunner extends RunnerBase {
 		String s = (String)options.get("v");
 		return s!=null;
 	}
-	
 
-	public void setupEndpoints(Map<String, Object> endpoints) {
-		if (endpoints!=null) {
-			for (CommandRunner runner: runners) {
-				String name = runner.getName();
-				@SuppressWarnings("unchecked")
-				Map<String, Object> endpoints1 = (Map<String, Object>)endpoints.get(name);
-				if (endpoints1!=null) {
-					runner.setEndpoints(endpoints1);
-				}
-			}			
-		}
-	}
 
 }

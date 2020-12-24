@@ -137,9 +137,11 @@ public class Notifications extends CommandRunnerBase {
 		switch (type) {
 		case "help": case "":
 			printUsage();
-			break;
+			return;
 		}
-		setupToken();
+		if (!setupToken()) {
+			return;
+		}
 		switch (type) {
 		case "events": case "event": case "ev":
 			switch (op) {

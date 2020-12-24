@@ -124,9 +124,11 @@ public class Social extends CommandRunnerBase {
 		switch (type) {
 		case "help": case "":
 			printUsage();
-			break;
+			return;
 		}
-		setupToken();
+		if (!setupToken()) {
+			return;
+		}
 		switch (type) {
 		case "channel": case "channels":
 			switch (op) {

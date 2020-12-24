@@ -1,7 +1,5 @@
 package org.einnovator.cli;
 
-import static  org.einnovator.util.MappingUtils.updateObjectFromNonNull;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -56,7 +54,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class Sso extends CommandRunnerBase {
 
 	
-	private static final String SSO_DEFAULT_SERVER = "http://localhost:2000";
+	private static final String SSO_DEFAULT_SERVER = "http://localhost:2001";
 	private static final String SSO_MONITOR_SERVER = "http://localhost:2001";
 
 	public static final String SSO_NAME = "sso";
@@ -246,6 +244,7 @@ public class Sso extends CommandRunnerBase {
 		String server = (String)endpoints.get("server");
 		if (server!=null) {
 			this.server = server;
+			this.config.setServer(this.server);
 		}
 	}
 	
@@ -259,18 +258,23 @@ public class Sso extends CommandRunnerBase {
 		}
 		if (token==null) {
 			if (!StringUtil.hasText(tokenUsername)) {
-				error("missing username");
+				error("Missing username. Login again!");
 				exit(-1);
 				return null;
 			}
 			if (!StringUtil.hasText(tokenPassword)) {
-				error("missing password");
+				error("Missing password. Login again!");
 				exit(-1);
 				return null;
-			}			
+			}				
 		} else {
-			if (tokenPassword==null) {
-			}		
+			if (!StringUtil.hasText(tokenUsername)) {
+				error("Missing username. Login again!");
+				exit(-1);
+				return null;
+			}
+			if (!StringUtil.hasText(tokenPassword)) {
+			}	
 		}
 
 		ResourceOwnerPasswordResourceDetails resource = SsoClient.makeResourceOwnerPasswordResourceDetails(tokenUsername, tokenPassword, config);
@@ -313,7 +317,9 @@ public class Sso extends CommandRunnerBase {
 				return;
 			}
 		}
-		getToken(1, cmds, options);
+		if (!setupToken()) {
+			return;
+		}
 		
 		switch (type) {
 		case "token":
@@ -610,12 +616,9 @@ public class Sso extends CommandRunnerBase {
 		allEndpoints = endpoints;
 		if (endpoints!=null) {
 			writeConfig(api, endpoints, null, options);
-			Map<String, Object> sso = (Map<String, Object>)endpoints.get("sso");
-			if (sso!=null) {
-				server = get("server", sso, server);
-				config.setServer(server);
-			}
+			setupEndpoints(allEndpoints);
 		}
+		token = null;
 		if (template==null) {
 			initInternal(cmds, options);
 		}
@@ -877,6 +880,24 @@ public class Sso extends CommandRunnerBase {
 		return endpoints;
 	}
 
+	@Override
+	public boolean setupToken(String[] cmds, Map<String, Object> options) {
+		if (token==null || token.isExpired()) {
+			if (!StringUtil.hasText(tokenUsername)) {
+				error("Missing username. Login again!");
+				exit(-1);
+				return false;
+			}
+			if (!StringUtil.hasText(tokenPassword)) {
+				error("Missing password. Login again!");
+				exit(-1);
+				return false;
+			}
+			getToken(1, cmds, options);
+		}
+		return true;
+	}
+
 	public void getToken(int level, String[] cmds, Map<String, Object> options) {
 		debug(1, "Credentials: %s %s", tokenUsername, tokenPassword!=null && !tokenPassword.isEmpty() ?  "****" : "");
 		debug(3, "Config: %s", config);
@@ -930,7 +951,9 @@ public class Sso extends CommandRunnerBase {
 		this.config.setServer(server);
 		this.config.setClientId(clientId);
 		this.config.setClientSecret(clientSecret);
-		updateObjectFromNonNull(this.config, convert(options, SsoClientConfiguration.class));		
+		SsoClientConfiguration config0 = new SsoClientConfiguration();
+		config0.setServer(this.server);
+		updateFrom(this.config, options);		
 		setup = true;
 	}
 
@@ -1038,6 +1061,26 @@ public class Sso extends CommandRunnerBase {
 		loadSettings(settings);
 	}
 
+	
+	@SuppressWarnings("unchecked")
+	public void setupEndpoints(Map<String, Object> endpoints) {
+		if (endpoints!=null) {
+			if (runners!=null) {
+				for (CommandRunner runner: runners) {
+					String name = runner.getName();
+					Map<String, Object> endpoints1 = (Map<String, Object>)endpoints.get(name);
+					if (endpoints1!=null) {
+						runner.setEndpoints(endpoints1);
+					}
+				}
+			} else {
+				Map<String, Object> endpoints1 = (Map<String, Object>)endpoints.get(getName());
+				if (endpoints1!=null) {
+					this.setEndpoints(endpoints1);
+				}
+			}
+		}
+	}
 	@Override
 	public Map<String, Object> getSettings() {
 		Map<String, Object> settings = new LinkedHashMap<>();
@@ -1078,6 +1121,8 @@ public class Sso extends CommandRunnerBase {
 			}			
 		}
 		tokenUsername = (String)context.get(KEY_USERNAME);		
+
+		setupEndpoints(this.allEndpoints);
 
 		if (settings!=null) {
 			loadAllSettings(settings);

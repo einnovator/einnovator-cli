@@ -11,18 +11,23 @@ public class Generic extends CommandRunnerBase {
 	private static final String APP_LICENSE = "Apache License";
 	private static final String APP_SUPPORT = "support@einnovator.org";
 
-	private static final String GENERIC_NAME = "";
+	public static final String GENERIC_NAME = "generic";
 
 	@Override
 	public String getName() {
 		return GENERIC_NAME;
 	}
 
+	protected boolean isNamed() {
+		return false;
+	}
+
 	static String[][] DEVOPS_COMMANDS = c(
 		c("ls", "list"),
 		c("pwd"),
 		c("cd"),
-		c("version")
+		c("version"),
+		c("help")
 	);
 		
 	@Override
@@ -35,8 +40,8 @@ public class Generic extends CommandRunnerBase {
 		setLine(type, op, cmds, options);
 		switch (type) {
 		case "help": case "":
-			printUsage();
-			break;
+			printUsageGlobal();
+			return;
 		}
 		setupToken();
 
