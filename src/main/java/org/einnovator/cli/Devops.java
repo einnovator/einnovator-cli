@@ -133,6 +133,7 @@ public class Devops extends CommandRunnerBase {
 	private String space;
 	private String domain;
 	private String registry;
+	private String vcs;
 	private String catalog;
 
 
@@ -265,15 +266,22 @@ public class Devops extends CommandRunnerBase {
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));			
 		map.put("domain", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
+			c("set"), c("unset"),
+			c("help")));
 		map.put("registry", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
+			c("set"), c("unset"),
+			c("help")));
 		map.put("vcs", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
+			c("set"), c("unset"),
+			c("help")));
 		map.put("catalog", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
-				c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
-				c("solution", "solutions"),
-				c("help")));
+			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("solution", "solutions"),
+			c("set"), c("unset"),
+			c("help")));
 		map.put("solution", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("marketplace", c(c("", "ls", "list"), c("help")));
@@ -702,6 +710,12 @@ public class Devops extends CommandRunnerBase {
 			case "delete": case "del": case "rm":
 				deleteDomain(cmds, options);
 				break;
+			case "set":
+				setDomain(cmds, options);
+				break;
+			case "unset":
+				unsetDomain(cmds, options);
+				break;				
 			default: 
 				invalidOp(type, op);
 				break;
@@ -733,6 +747,12 @@ public class Devops extends CommandRunnerBase {
 			case "delete": case "del": case "rm":
 				deleteRegistry(cmds, options);
 				break;
+			case "set":
+				setRegistry(cmds, options);
+				break;
+			case "unset":
+				unsetRegistry(cmds, options);
+				break;
 			default: 
 				invalidOp(type, op);
 				break;
@@ -763,6 +783,12 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "delete": case "del": case "rm":
 				deleteVcs(cmds, options);
+				break;
+			case "set":
+				setVcs(cmds, options);
+				break;
+			case "unset":
+				unsetVcs(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -800,6 +826,12 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "install":
 				installFromCatalog(cmds, options);
+				break;
+			case "set":
+				setCatalog(cmds, options);
+				break;
+			case "unset":
+				unsetCatalog(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -887,18 +919,25 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String clusterId = argId(op, cmds);
+		String clusterId = argId(op, cmds, this.cluster);
+		if (clusterId==null) {
+			return;
+		}
 		ClusterOptions options_ = convert(options, ClusterOptions.class);
 		debug("Cluster: %s", clusterId);
 		Cluster cluster = devopsClient.getCluster(clusterId, options_);
 		printObj(cluster);
 	}
 
+	
 	public void viewCluster(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
 		}
-		String clusterId = argId(op, cmds);
+		String clusterId = argId(op, cmds, this.cluster);
+		if (clusterId==null) {
+			return;
+		}
 		ClusterOptions options_ = convert(options, ClusterOptions.class);
 		debug("View Cluster: %s", clusterId);
 		Cluster cluster = devopsClient.getCluster(clusterId, options_);
@@ -1037,7 +1076,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String spaceId = argId(op, cmds);
+		String spaceId = argId(op, cmds, this.space);
+		if (spaceId==null) {
+			return;
+		}
 		SpaceOptions options_ = convert(options, SpaceOptions.class);
 		debug("Space: %s", spaceId);
 		Space space = devopsClient.getSpace(spaceId, options_);
@@ -1048,7 +1090,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String spaceId = argId(op, cmds);
+		String spaceId = argId(op, cmds, this.space);
+		if (spaceId==null) {
+			return;
+		}
 		SpaceOptions options_ = convert(options, SpaceOptions.class);
 		debug("View Space: %s", spaceId);
 		Space space = devopsClient.getSpace(spaceId, options_);
@@ -1388,6 +1433,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		if (StringUtil.hasText(registry)) {
 			System.out.println(String.format("Registry: %s", registry));			
+		}
+		if (StringUtil.hasText(vcs)) {
+			System.out.println(String.format("Vcs: %s", vcs));			
 		}
 		if (StringUtil.hasText(catalog)) {
 			System.out.println(String.format("Catalog: %s", catalog));			
@@ -3341,7 +3389,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String domainId = argId(op, cmds);
+		String domainId = argId(op, cmds, this.domain);
+		if (domainId==null) {
+			return;
+		}
 		DomainOptions options_ = convert(options, DomainOptions.class);
 		debug("Domain: %s", domainId);
 		Domain domain = devopsClient.getDomain(domainId, options_);
@@ -3352,13 +3403,44 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String domainId = argId(op, cmds);
+		String domainId = argId(op, cmds, this.domain);
+		if (domainId==null) {
+			return;
+		}
 		DomainOptions options_ = convert(options, DomainOptions.class);
 		debug("View Domain: %s", domainId);
 		Domain domain = devopsClient.getDomain(domainId, options_);
 		view("domain", domain.getUuid());
 	}
 
+	public void setDomain(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String domainId = argId(op, cmds);
+		setDomain(domainId, options);
+	}
+
+	public void setDomain(String domainId, Map<String, Object> options) {
+		debug("Set Domain: %s", domainId);
+		DomainOptions options_ = convert(options, DomainOptions.class);
+		Domain domain = devopsClient.getDomain(domainId, options_);
+		this.domain = domainId;
+		if (isEcho()) {
+			printObj(domain);
+		}
+		writeConfig();
+	}
+	
+	public void unsetDomain(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String domainId = argId(op, cmds);
+		debug("Unset Domain: %s", domainId);
+		this.domain = null;
+		writeConfig();
+	}
 
 	public void schemaDomain(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
@@ -3432,7 +3514,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String registryId = argId(op, cmds);
+		String registryId = argId(op, cmds, this.registry);
+		if (registryId==null) {
+			return;
+		}
 		debug("Registry: %s", registryId);
 		Registry registry = devopsClient.getRegistry(registryId, null);
 		printObj(registry);
@@ -3442,12 +3527,44 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String registryId = argId(op, cmds);
+		String registryId = argId(op, cmds, this.registry);
+		if (registryId==null) {
+			return;
+		}
 		debug("View Registry: %s", registryId);
 		Registry registry = devopsClient.getRegistry(registryId, null);
 		view("registry", registry.getUuid());
 	}
 	
+	public void setRegistry(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String registryId = argId(op, cmds);
+		setRegistry(registryId, options);
+	}
+
+	public void setRegistry(String registryId, Map<String, Object> options) {
+		debug("Set Registry: %s", registryId);
+		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		Registry registry = devopsClient.getRegistry(registryId, options_);
+		this.registry = registryId;
+		if (isEcho()) {
+			printObj(registry);
+		}
+		writeConfig();
+	}
+	
+	public void unsetRegistry(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String registryId = argId(op, cmds);
+		debug("Unset Registry: %s", registryId);
+		this.registry = null;
+		writeConfig();
+	}
+
 	public void schemaRegistry(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -3520,7 +3637,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String vcsId = argId(op, cmds);
+		String vcsId = argId(op, cmds, this.vcs);
+		if (vcsId==null) {
+			return;
+		}
 		VcsOptions options_ = convert(options, VcsOptions.class);
 		debug("Vcs: %s", vcsId);
 		Vcs vcs = devopsClient.getVcs(vcsId, options_);
@@ -3531,11 +3651,43 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String vcsId = argId(op, cmds);
+		String vcsId = argId(op, cmds, this.vcs);
+		if (vcsId==null) {
+			return;
+		}
 		VcsOptions options_ = convert(options, VcsOptions.class);
 		debug("View Vcs: %s", vcsId);
 		Vcs vcs = devopsClient.getVcs(vcsId, options_);
 		view("vcs", vcs.getUuid());
+	}
+
+	public void setVcs(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String vcsId = argId(op, cmds);
+		setVcs(vcsId, options);
+	}
+
+	public void setVcs(String vcsId, Map<String, Object> options) {
+		debug("Set Vcs: %s", vcsId);
+		VcsOptions options_ = convert(options, VcsOptions.class);
+		Vcs vcs = devopsClient.getVcs(vcsId, options_);
+		this.vcs = vcsId;
+		if (isEcho()) {
+			printObj(vcs);
+		}
+		writeConfig();
+	}
+	
+	public void unsetVcs(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String vcsId = argId(op, cmds);
+		debug("Unset Vcs: %s", vcsId);
+		this.vcs = null;
+		writeConfig();
 	}
 
 	public void schemaVcs(String[] cmds, Map<String, Object> options) {
@@ -3608,7 +3760,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String catalogId = argId(op, cmds);
+		String catalogId = argId(op, cmds, this.catalog);
+		if (catalogId==null) {
+			return;
+		}
 		CatalogOptions options_ = convert(options, CatalogOptions.class);
 		debug("Catalog: %s", catalogId);
 		Catalog catalog = devopsClient.getCatalog(catalogId, options_);
@@ -3619,11 +3774,43 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String catalogId = argId(op, cmds);
+		String catalogId = argId(op, cmds, this.catalog);
+		if (catalogId==null) {
+			return;
+		}
 		CatalogOptions options_ = convert(options, CatalogOptions.class);
 		debug("View Catalog: %s", catalogId);
 		Catalog catalog = devopsClient.getCatalog(catalogId, options_);
 		view("catalog", catalog.getUuid());
+	}
+
+	public void setCatalog(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String catalogId = argId(op, cmds);
+		setCatalog(catalogId, options);
+	}
+
+	public void setCatalog(String catalogId, Map<String, Object> options) {
+		debug("Set Catalog: %s", catalogId);
+		CatalogOptions options_ = convert(options, CatalogOptions.class);
+		Catalog catalog = devopsClient.getCatalog(catalogId, options_);
+		this.catalog = catalogId;
+		if (isEcho()) {
+			printObj(catalog);
+		}
+		writeConfig();
+	}
+	
+	public void unsetCatalog(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String catalogId = argId(op, cmds);
+		debug("Unset Catalog: %s", catalogId);
+		this.catalog = null;
+		writeConfig();
 	}
 
 	public void schemaCatalog(String[] cmds, Map<String, Object> options) {
@@ -4124,10 +4311,10 @@ public class Devops extends CommandRunnerBase {
 		if (Catalog.class.equals(type)) {
 			return new String[] {};
 		}
-		if (Catalog.class.equals(type)) {
+		if (Solution.class.equals(type)) {
 			return new String[] {};
 		}
-		if (Solution.class.equals(type)) {
+		if (CatalogSolution.class.equals(type)) {
 			return new String[] {};
 		}
 		if (Binding.class.equals(type)) {

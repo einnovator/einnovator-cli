@@ -963,6 +963,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	String[] getFormatCols(String fmt) {
+		if (!StringUtils.hasText(fmt)) {
+			return null;
+		}
 		String[] cols = fmt.split(",");
 		for (int i =0; i<cols.length; i++) {
 			String col = cols[i];
@@ -1425,6 +1428,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected String argId(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 0, required);
 	}
+	
+	protected String argId(String op, String[] cmds, String defaultValue) {
+		String value = argn(op, cmds, 0, false);
+		if (value==null) {
+			value = defaultValue;
+		}
+		if (value==null) {
+			error(String.format("missing argument"));
+			exit(-1);
+		}
+		return value;
+	}
+
 	protected String argId1(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 1, required);
 	}
