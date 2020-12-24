@@ -12,11 +12,12 @@ public class TestsBase {
 	CliRunner runner;
 
 	@Before
-	public void setup() {
+	public void setup() throws Exception {
+		LoginTests.setup();
 		login();
 	}
 	
 	public void login() {
-		runner.dispatch("login", "-u", DEFAULT_USERNAME, "-p", DEFAULT_PASSWORD, "-a", DEFAULT_API);
+		runner.dispatch("login", "-u", USERNAME, "-p", PASSWORD, "-a", API);
 	}
 }

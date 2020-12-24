@@ -1,9 +1,11 @@
 package org.einnovator.cli;
 
+import static org.junit.Assert.fail;
+
+import org.einnovator.util.StringUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -13,10 +15,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 @ActiveProfiles("test")
 public class LoginTests {
 
-	public static String DEFAULT_USERNAME = "jsimao71@gmail.com";
-	public static String DEFAULT_USERNAME2 = "tdd@gmail.com";
-	public static String DEFAULT_PASSWORD = "Einnovator123!!";
-	public static String DEFAULT_API = "localhost";
+	public static String USERNAME;
+	public static String PASSWORD;
+	public static String API;
+	
+	public static String ENV_USERNAME = "username";
+	public static String ENV_PASSWORD = "password";
+	public static String ENV_API = "api";
 
 	@Autowired
 	Sso sso;
@@ -26,7 +31,23 @@ public class LoginTests {
 
 	@Test
 	public void loginTests() throws Exception {
-		runner.dispatch("login", "-u", DEFAULT_USERNAME, "-p", DEFAULT_PASSWORD, "-a", DEFAULT_API);
+		setup();
+		runner.dispatch("login", "-u", USERNAME, "-p", PASSWORD, "-a", API);
+	}
+	
+	public static void setup() throws Exception {
+		USERNAME = System.getenv(ENV_USERNAME);
+		PASSWORD = System.getenv(ENV_PASSWORD);
+		API = System.getenv(ENV_API);
+		if (!StringUtil.hasText(USERNAME)) {
+			fail("missing username");
+		}
+		if (!StringUtil.hasText(PASSWORD)) {
+			fail("missing password");
+		}
+		if (!StringUtil.hasText(API)) {
+			fail("missing api");
+		}
 	}
 
 }

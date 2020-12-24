@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>1.5.19.RELEASE</version>
+		<version>1.5.17.RELEASE</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.einnovator</groupId>
@@ -25,54 +25,74 @@
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-sso-starter</artifactId>
 			<version>${einnovator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
  		<dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-notifications-starter</artifactId>
 			<version>${einnovator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
  		<dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-documents-starter</artifactId>
 			<version>${einnovator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
  		<dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-social-starter</artifactId>
 			<version>${einnovator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		  <dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-payments-starter</artifactId>
 			<version>${einnovator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		 
  		<dependency>
 			<groupId>org.einnovator</groupId>
 			<artifactId>einnovator-devops-starter</artifactId>
 			<version>${einnovator.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-starter-tomcat</artifactId>
+					<artifactId>spring-boot-starter-web</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 		
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter</artifactId>
-		</dependency>
-
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
@@ -81,9 +101,9 @@
 		
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
-		  <artifactId>jackson-dataformat-yaml</artifactId>
-		  <version>2.8.11</version>
+		  	<artifactId>jackson-dataformat-yaml</artifactId>
 		</dependency>
+		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
