@@ -830,7 +830,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			List<List<String>> table = new ArrayList<>();
 			for (Object o: it) {
 				if (fmt==null) {
-					fmt = getFormat(o);
+					fmt = getCols(o);
 				}
 				List<String> row = getFields(o, fmt);
 				table.add(row);
@@ -882,7 +882,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj==null) {
 			return;
 		}
-		String fmt = getFormat(obj);
+		String fmt = getCols(obj);
 		if (isTabular()) {
 			List<String> values = getFields(obj, fmt);
 			String[] cols = getFormatCols(fmt);
@@ -996,7 +996,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj==null) {
 			return "";
 		}
-		String fmt = getFormat(obj);
+		String fmt = getCols(obj);
 		if ("raw".equals(fmt)) {
 			return obj.toString();
 		} else if ("json".equals(fmt)) {
@@ -1229,34 +1229,47 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	
 	protected boolean hasFormat() {
 		String o = (String)options.get("o");
-		if (o==null) {
-			return false;
+		if (o!=null) {
+			return true;
 		}
-		return true;
+		o = (String)options.get("O");
+		if (o!=null) {
+			return true;
+		}
+		return false;
 	}
 
 	protected String getFormat() {
 		String o = (String)options.get("o");
-		if (o==null || o.isEmpty()) {
-			return null;
+		if (o!=null) {
+			return o.toLowerCase();
 		}
-		o = o.toLowerCase();
-		return o;
+		return "";
 	}
 
-	protected String getFormat(Object obj) {
-		String fmt = getFormat();
-		if (obj!=null) {
-			if (fmt==null || fmt.isEmpty()) {
-				fmt = getDefaultFormat(obj.getClass());
-			} else if ("wide".equals(fmt)) {
-				fmt = getWideFormat(obj.getClass());
-			}
-			String fmt0 = getFormat(fmt, obj.getClass());
-			if (fmt0!=null) {
-				fmt = fmt0;
-			}			
+	protected String getCols() {
+		String o = (String)options.get("O");
+		if (o!=null) {
+			return o.toLowerCase();
 		}
+		return "";
+	}
+
+	protected String getCols(Object obj) {
+		if (obj==null) {
+			return "";
+		}
+		String fmt = getFormat();
+		String cols = getCols(fmt, getCols(), obj.getClass());
+		if (StringUtil.hasText(cols)) {
+			return cols.trim();
+		}	
+		if ("wide".equals(fmt)) {
+			fmt = getWideFormat(obj.getClass());
+		} 
+		if (!StringUtil.hasText(fmt)) {
+			fmt = getDefaultFormat(obj.getClass());
+		} 
 		return fmt;
 	}
 	
@@ -1396,8 +1409,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 
-	protected String getFormat(String fmt, Class<? extends Object> type) {
-		return null;
+	protected String getCols(String fmt, String cols, Class<? extends Object> type) {
+		return cols;
 	}
 	
 	protected Integer parseInt(String s) {
@@ -1487,7 +1500,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 		return makeIdx(id);
 	}
-	
+
+	protected void missingResourceId() {
+		error(String.format("missing resource id"));
+		exit(-1);
+	}
+
 	protected String makeIdx(String id) {
 		try {
 			Long.parseLong(id);			
@@ -1545,6 +1563,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected boolean setupToken() {
+		if (options.get("h")!=null) {
+			return true;
+		}
 		return setupToken(cmds, options);
 	}
 

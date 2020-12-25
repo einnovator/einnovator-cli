@@ -86,7 +86,7 @@ public class Generic extends CommandRunnerBase {
 		boolean first = true;
 		for (CommandRunner runner: runners) {
 			if (!runner.getClass().getSimpleName().equals(this.getClass().getSimpleName())) {
-				if (runner.supports(cmd, options)) {
+				if (runner.supports(cmd, options) || (options.get("h")!=null && runner.supports(cmd))) {
 					if (!(runner instanceof Sso)) {
 						runner.init(cmds, options, template, interactive, bundle);		
 					}

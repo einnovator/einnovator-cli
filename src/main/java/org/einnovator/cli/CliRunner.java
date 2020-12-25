@@ -267,7 +267,11 @@ public class CliRunner extends RunnerBase {
 				if (a.length()>1) {
 					a = a.substring(1);
 					if (a.length()>1) {
-						map.put(a.substring(0,1), a.substring(1));
+						String s = a.substring(1);
+						if (s.startsWith("=")) {
+							s = s.length()>1 ? s.substring(1) : "";
+						}
+						map.put(a.substring(0,1), s);
 					} else if (i<args.length-1) {
 						if (!args[i+1].startsWith("-")) {
 							map.put(a, args[i+1]);
