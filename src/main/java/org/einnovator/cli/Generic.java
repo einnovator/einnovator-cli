@@ -70,12 +70,12 @@ public class Generic extends CommandRunnerBase {
 	}
 
 	private void pwd(String[] cmds, Map<String, Object> options) {
-		run("pwd", cmds, options, false);
+		run("pwd", cmds, options, isHelp());
 	}
 
 	private void cd(String[] cmds, Map<String, Object> options) {
-		run("cd", cmds, options, false);
-		if (isEcho()) {
+		run("cd", cmds, options, isHelp());
+		if (options.get("w")!=null) {
 			run("pwd", cmds, options, false);
 		}
 	}
@@ -90,12 +90,12 @@ public class Generic extends CommandRunnerBase {
 					if (!(runner instanceof Sso)) {
 						runner.init(cmds, options, template, interactive, bundle);		
 					}
-					runner.run(cmd, op, cmds, options);
-					b = true;
-					first = false;
 					if (!first && nl) {
 						System.out.println();								
 					}
+					runner.run(cmd, op, cmds, options);
+					b = true;
+					first = false;
 				}
 			}
 		}
@@ -106,11 +106,11 @@ public class Generic extends CommandRunnerBase {
 						if (!(runner instanceof Sso)) {
 							runner.init(cmds, options, template, interactive, bundle);		
 						}
-						runner.run(cmd, op, cmds, options);
-						first = false;
 						if (!first && nl) {
 							System.out.println();								
 						}
+						runner.run(cmd, op, cmds, options);
+						first = false;
 					}
 				}
 			}

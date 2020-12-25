@@ -215,7 +215,7 @@ public class Devops extends CommandRunnerBase {
 		c("cronjob", "cronjobs"),
 		c("domain", "domains"),
 		c("registry", "registries"),
-		c("vcs", "vcss", "git"),
+		c("vcs", "git"),
 		c("catalog", "catalogs"),
 		c("solution", "solutions"),
 		c("marketplace", "market"),
@@ -267,7 +267,6 @@ public class Devops extends CommandRunnerBase {
 			c("delete", "del", "remove", "rm"),
 			c("job", "jobs"),
 			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"),
-			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));			
 		map.put("domain", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
@@ -289,8 +288,6 @@ public class Devops extends CommandRunnerBase {
 			c("help")));
 		map.put("solution", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
-		map.put("marketplace", c(c("", "ls", "list"), c("help")));
-
 	}
 	
 	@Override
@@ -878,17 +875,8 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		case "marketplace": case "market":
-			switch (op) {
-			case "help":
-				printUsage(type);
-				break;
-			case "ls": case "list": case "":
-				listMarketplace(cmds, options);
-				break;
-			default: 
-				invalidOp(type, op);
-				break;
-			}
+			listMarketplace(cmds, options);
+			break;
 		default:
 			System.err.println("Invalid command: " + type + " " + op);
 			printUsage();
@@ -914,6 +902,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ClusterFilter filter = convert(options, ClusterFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Clusters: %s %s", filter, pageable);
 		Page<Cluster> clusters = devopsClient.listClusters(filter, pageable);
 		print(clusters, Cluster.class);
@@ -1072,6 +1064,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		SpaceFilter filter = convert(options, SpaceFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Spaces: %s %s", filter, pageable);
 		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
 		print(spaces, Space.class);
@@ -1392,21 +1388,23 @@ public class Devops extends CommandRunnerBase {
 			exit(-1);
 			return;
 		}
-		int i = op.indexOf("/");
+		String id = op;
+		int i = id.indexOf("/");
 		if (i<0) {
-			setSpace(op, options);
+			if (cluster!=null && !cluster.isEmpty()) {
+				id = cluster + "/" + id;
+			}
+			setSpace(id, options);
 		} else if (i>0) {
-			if (i==op.length()-1) {
-				op = op.substring(0, i);
-				setCluster(op, options);				
+			if (i==id.length()-1) {
+				id = id.substring(0, i);
+				setCluster(id, options);				
 			} else {
-				setSpace(op, options);				
+				setSpace(id, options);				
 			}
 		} else if (i==0) {
-			op = op.substring(1);
-			setSpace(op, options);
-		} else if (i<0) {
-			setCluster(op, options);
+			id = id.substring(1);
+			setSpace(id, options);
 		}
 	}
 	
@@ -1449,6 +1447,10 @@ public class Devops extends CommandRunnerBase {
 		if (spaceId==null) {
 			missingArg("-n");
 			return;
+		}
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
 		}
 		if (options.get("r")!=null) {
 			filter.setStatus(DeploymentStatus.RUNNING);
@@ -2408,6 +2410,10 @@ public class Devops extends CommandRunnerBase {
 			missingArg("-n");
 			return;
 		}
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		if (options.get("r")!=null) {
 			filter.setStatus(JobStatus.RUNNING);
 		}
@@ -2967,6 +2973,10 @@ public class Devops extends CommandRunnerBase {
 			missingArg("-n");
 			return;
 		}
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		if (options.get("r")!=null) {		
 			filter.setAnyStatus(new CronJobStatus[]{CronJobStatus.ACTIVE, CronJobStatus.SCHEDULED});
 		}
@@ -3490,6 +3500,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		DomainFilter filter = convert(options, DomainFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Domains: %s %s", filter, pageable);
 		Page<Domain> domains = devopsClient.listDomains(filter, pageable);
 		print(domains, Domain.class);
@@ -3615,6 +3629,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		RegistryFilter filter = convert(options, RegistryFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Registries: %s %s", filter, pageable);
 		Page<Registry> registrys = devopsClient.listRegistries(filter, pageable);
 		print(registrys, Registry.class);
@@ -3738,6 +3756,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		VcsFilter filter = convert(options, VcsFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Vcs: %s %s", filter, pageable);
 		Page<Vcs> vcss = devopsClient.listVcss(filter, pageable);
 		print(vcss, Vcs.class);
@@ -3861,6 +3883,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		CatalogFilter filter = convert(options, CatalogFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Catalogs: %s %s", filter, pageable);
 		Page<Catalog> catalogs = devopsClient.listCatalogs(filter, pageable);
 		print(catalogs, Catalog.class);
@@ -4051,6 +4077,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		SolutionFilter filter = convert(options, SolutionFilter.class);
+		String q = argId(op, cmds, false);
+		if (q!=null) {
+			filter.setQ(q);
+		}
 		debug("Solution: %s %s", filter, pageable);
 		Page<Solution> solutions = devopsClient.listSolutions(filter, pageable);
 		print(solutions, Solution.class);

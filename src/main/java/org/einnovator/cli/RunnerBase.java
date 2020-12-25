@@ -334,4 +334,36 @@ public abstract class RunnerBase {
 		return os.indexOf("nix")!=-1 || os.indexOf("nux")!=-1;
 	}
 
+
+	protected boolean isDebug(Map<String, Object> options) {
+		return isDebug(0, options);
+	}
+	
+	protected boolean isDebug(Integer level, Map<String, Object> options) {
+		String s = (String)options.get("debug");
+		if (s!=null) {
+			return true;
+		}
+		s = (String)options.get("v");
+		if (s!=null) {
+			if (level==null || level<=0) {
+				return true;				
+			}
+			Integer level2 = parseInt(s);
+			if (level2!=null && level2>=level) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	protected static Integer parseInt(String s) {
+		try {
+			return Integer.parseInt(s);			
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+
 }

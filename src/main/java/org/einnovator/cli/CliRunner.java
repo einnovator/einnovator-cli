@@ -2,6 +2,7 @@ package org.einnovator.cli;
 
 import java.io.Console;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,8 +159,9 @@ public class CliRunner extends RunnerBase {
 			cmds.remove(0);
 		}
 
-		debug("Type: " + type + " ; Op: " + op + " ; Args:" + options + " ; Runner:" + runner.getClass().getSimpleName());
 		String[] cmds_ = cmds.toArray(new String[cmds.size()]);
+
+		debug(1, "Type: %s  ; Op: %s ; Args: %s ; Options: %s ; Runner: %s", type, op, Arrays.toString(cmds_), options, runner.getName());
 
 		RestTemplate template = null;
 
@@ -297,15 +299,16 @@ public class CliRunner extends RunnerBase {
 		return map;
 	}
 	
-	private void debug(String s, Object... args) {
-		if (isDebug()) {
+	public void debug(String s, Object... args) {
+		if (isDebug(options)) {
 			System.out.println(String.format(s, args));
 		}
 	}
-	
-	private boolean isDebug() {
-		String s = (String)options.get("v");
-		return s!=null;
+
+	private void debug(int level, String s, Object... args) {
+		if (isDebug(level, options)) {
+			System.out.println(String.format(s, args));
+		}
 	}
 
 

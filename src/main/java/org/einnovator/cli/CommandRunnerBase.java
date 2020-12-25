@@ -1198,25 +1198,11 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	protected boolean isDebug() {
-		return isDebug(0);
+		return isDebug(options);
 	}
 	
 	protected boolean isDebug(Integer level) {
-		String s = (String)options.get("debug");
-		if (s!=null) {
-			return true;
-		}
-		s = (String)options.get("v");
-		if (s!=null) {
-			if (level==null || level<=0) {
-				return true;				
-			}
-			Integer level2 = parseInt(s);
-			if (level2!=null && level2>=level) {
-				return true;
-			}
-		}
-		return false;
+		return isDebug(level, options);
 	}
 	
 	//
@@ -1413,14 +1399,6 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return cols;
 	}
 	
-	protected Integer parseInt(String s) {
-		try {
-			return Integer.parseInt(s);			
-		} catch (RuntimeException e) {
-			return null;
-		}
-	}
-
 	protected void exit(int code) {
 		if (interactive) {
 			throw new InteractiveException();
