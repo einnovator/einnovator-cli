@@ -59,6 +59,7 @@ import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
+import org.einnovator.util.security.Authority;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -85,15 +86,20 @@ public class Devops extends CommandRunnerBase {
 	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready";
 	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready,image.name:image";
 	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
+	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status";
-	private static final String JOB_WIDE_FORMAT = "id,name,displayName,kind,status,completions,parallelism,backoffLimit,manualSelector,ttlSecondsAfterFinished";
+	private static final String JOB_WIDE_FORMAT = "id,name,displayName,kind,status,completions,parallelism";
+	private static final String JOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
+	private static final String JOB_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String CRONJOB_DEFAULT_FORMAT = "id,name,displayName,status,suspend";
-	private static final String CRONJOB_WIDE_FORMAT = "id,name,displayName,status,suspend,schedule,lastScheduleTime,backoffLimit";
+	private static final String CRONJOB_WIDE_FORMAT = "id,name,displayName,status,suspend,schedule,lastScheduleTime";
+	private static final String CRONJOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
+	private static final String CRONJOB_RESOURCES_FORMAT = "id,name,displayName,status,suspend,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String DOMAIN_DEFAULT_FORMAT ="id,name,tls";
-	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,enabled";
+	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,cert,root,parent,enabled";
 
 	private static final String REGISTRY_DEFAULT_FORMAT = "id,name,server,username";
 	private static final String REGISTRY_WIDE_FORMAT = "id,name,server,username";
@@ -119,14 +125,17 @@ public class Devops extends CommandRunnerBase {
 	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain.dns:domain,tls";
 	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls";
 
-	private static final String MOUNT_DEFAULT_FORMAT = "id,name,type,mountPath";
-	private static final String MOUNT_WIDE_FORMAT = "id,name,type,mountPath";
+	private static final String MOUNT_DEFAULT_FORMAT = "id,name,type,mountPath,size";
+	private static final String MOUNT_WIDE_FORMAT = "id,name,type,mountPath,size";
 
-	private static final String VAR_DEFAULT_FORMAT = "id,name,type,value,configMap,secret";
-	private static final String VAR_WIDE_FORMAT = "id,name,type,value,configMap,secret";
+	private static final String VAR_DEFAULT_FORMAT = "name,type,value,configMap,secret";
+	private static final String VAR_WIDE_FORMAT = "name,type,value,configMap,secret";
 
 	private static final String POD_DEFAULT_FORMAT = "name,status,restarts,creationDateFormatted:age";
 	private static final String POD_WIDE_FORMAT = "name,status,restarts,creationDateFormatted:age,ip,node";
+
+	private static final String AUTHORITY_DEFAULT_FORMAT = "username,groupId,manage,write:dev,read:auditor";
+	private static final String AUTHORITY_WIDE_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 
 	private DevopsClient devopsClient;
 
@@ -246,6 +255,7 @@ public class Devops extends CommandRunnerBase {
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("attach"),
 			c("set"), c("unset"),
+			c("auth", "collaborator"),
 			c("help")));
 		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
@@ -300,6 +310,10 @@ public class Devops extends CommandRunnerBase {
 	static {
 		Map<String, Map<String, String[][]>> map = new LinkedHashMap<>();
 		subsubcommands = map;
+		Map<String, String[][]> space = m("space", map);
+		space.put("auth", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+				c("add", "create"), c("update"), c("resend"), c("delete", "del", "remove", "rm"), c("help")));
+
 		Map<String, String[][]> deploy = m("deployment", map);
 		deploy.put("route", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
@@ -438,6 +452,9 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "delete": case "del": case "rm":
 				deleteSpace(cmds, options);
+				break;
+			case "auth": case "collaborator":
+				authSpace(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -945,7 +962,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Cluster.class));
+		schema(Cluster.class, ClusterFilter.class, ClusterOptions.class, options);
 	}
 
 	public void setCluster(String[] cmds, Map<String, Object> options) {
@@ -1032,10 +1049,10 @@ public class Devops extends CommandRunnerBase {
 		}
 		String clusterId = argId(op, cmds);
 		Cluster cluster = convert(options, Cluster.class);
-		setId(cluster, clusterId);
+		ClusterOptions options_ = convert(options, ClusterOptions.class);
 		processClusterConfigOption(cluster, options);
 		debug("Updating Cluster: %s %s", clusterId, cluster);
-		devopsClient.updateCluster(cluster, null);
+		devopsClient.updateCluster(clusterId, cluster, options_);
 		if (isEcho()) {
 			Cluster cluster2 = devopsClient.getCluster(clusterId, null);
 			printObj(cluster2);			
@@ -1135,9 +1152,13 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	public void schemaSpace(String[] cmds, Map<String, Object> options) {
-		printLine(schemaToString(Space.class));
+		if (isHelp2()) {
+			return;
+		}
+		schema(Space.class, SpaceFilter.class, SpaceOptions.class, options);
 	}
-	
+
+
 	public void createSpace(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -1161,9 +1182,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		String spaceId = argIdx(op, cmds);
 		Space space = convert(options, Space.class);
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
 		debug("Updating Space: %s %s", spaceId, space);
-		setId(space, spaceId);
-		devopsClient.updateSpace(space, null);
+		devopsClient.updateSpace(spaceId, space, options_);
 		if (isEcho()) {
 			Space space2 = devopsClient.getSpace(spaceId, null);
 			debug("Updated Space: %s", spaceId);
@@ -1183,6 +1204,239 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 		
+	
+	//
+	// Space Authority
+	//
+	
+	public void authSpace(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		switch (op2) {
+		case "help": case "":
+			printUsage2();
+			break;
+		case "ls": case "list": {
+			authSpaceList(cmds, options);
+			break;
+		}
+		case "get": {
+			authSpaceGet(cmds, options);
+			break;
+		}
+		case "add": case "create": {
+			authSpaceAdd(cmds, options);
+			break;
+		}
+		case "update": {
+			authSpaceUpdate(cmds, options);
+			break;
+		}
+		case "resend": {
+			authSpaceResend(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			authSpaceDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Authority.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+	public void authSpaceList(String[] cmds, Map<String, Object> options) {
+		if (isHelp3("ls")) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		if (!StringUtil.hasText(spaceId)) {
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		debug("Space Authorities: %s", spaceId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		List<Authority> auths = devopsClient.listAuthorities(spaceId, options_);			
+		print(auths);
+	}
+	
+	public void authSpaceGet(String[] cmds, Map<String, Object> options) {
+		if (isHelp3("get")) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		String authId = argId2(op, cmds, false);
+		if (!StringUtil.hasText(authId)) {
+			authId = spaceId;
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(authId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		authSpaceGet(spaceId, authId, cmds, options);
+	}
+	
+	public void authSpaceGet(String spaceId, String authId, String[] cmds, Map<String, Object> options) {
+		debug("Space Authority: %s %s", spaceId, authId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		Authority auth = devopsClient.getAuthority(spaceId, authId, options_);			
+		printObj(auth);
+	}
+
+	public void authSpaceAdd(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		if (!StringUtil.hasText(spaceId)) {
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		Authority auth = processAuthority(options);
+		if (auth.getUsername()==null && auth.getGroupId()==null) {
+			error("username or group required");
+			exit(-1);
+			return;
+		}
+		if (auth.getWrite()==null && auth.getRead()==null && auth.getManage() && auth.getComment()==null) {
+			error("missing permission");
+			exit(-1);
+			return;
+		}
+
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Add Authority: %s %s %s", spaceId, auth, options_);		
+		URI uri = devopsClient.addAuthority(spaceId, auth, options_);
+		if (isEcho()) {
+			String authId = extractId(uri);
+			authSpaceGet(spaceId, authId, cmds, options);
+		}
+	}
+
+	private Authority processAuthority(Map<String, Object> options) {
+		Authority auth = convert(options, Authority.class);
+		String username = (String)options.get("u");
+		if (username!=null) {
+			auth.setUsername(username);
+		}
+		String groupId = (String)options.get("g");
+		if (groupId!=null) {
+			auth.setGroupId(groupId);
+		}
+		String manager = (String)options.get("manager");
+		if (manager!=null) {
+			auth.setManage(true);
+		}
+		String dev = (String)options.get("dev");
+		if (dev!=null) {
+			auth.setWrite(true);
+		}
+		String auditor = (String)options.get("auditor");
+		if (auditor!=null) {
+			auth.setRead(true);
+		}
+		return auth;
+	}
+	
+	public void authSpaceUpdate(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		String authId = argId2(op, cmds, false);
+		Authority auth = processAuthority(options);
+		if (!StringUtil.hasText(authId)) {
+			authId = spaceId;
+			spaceId = space;			
+		}
+		if (authId==null) {
+			authId = auth.getUsername();
+		}
+		if (authId==null) {
+			authId = auth.getGroupId();
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(authId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Update Authority: %s %s %s", spaceId, authId, options_);		
+		devopsClient.updateAuthority(spaceId, authId, auth, options_);
+		if (isEcho()) {
+			authSpaceGet(spaceId, authId, cmds, options);
+		}
+
+	}
+
+	public void authSpaceResend(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		String authId = argId2(op, cmds, false);
+		if (!StringUtil.hasText(authId)) {
+			authId = spaceId;
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(authId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Resend Authority: %s %s %s", spaceId, authId, options_);		
+		devopsClient.resendAuthority(spaceId, authId, options_);
+		if (isEcho()) {
+			authSpaceGet(spaceId, authId, cmds, options);
+		}
+
+	}
+
+	public void authSpaceDelete(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argId1(op, cmds, false);
+		String authId = argId2(op, cmds, false);
+		if (!StringUtil.hasText(authId)) {
+			authId = spaceId;
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(authId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		debug("Remove Authority: %s %s", spaceId, authId);		
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		devopsClient.removeAuthority(spaceId, authId, options_);
+		if (isEcho()) {
+			authSpaceList(cmds, options);
+		}
+	}
 	
 	//
 	// Generic
@@ -1487,7 +1741,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Deployment.class));
+		schema(Deployment.class, DeploymentFilter.class, DeploymentOptions.class, options);
 	}
 
 	public void createDeployment(String[] cmds, Map<String, Object> options) {
@@ -1536,10 +1790,9 @@ public class Devops extends CommandRunnerBase {
 		processDeployOptions(cmds, options);
 		Deployment deployment = convert(options, Deployment.class);
 		String deployId = argIdx(op, cmds);
-		setId(deployment, deployId);
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		debug("Updating Deployment: %s %s %s", deployId, deployment, options_);
-		devopsClient.updateDeployment(deployment, options_);
+		devopsClient.updateDeployment(deployId, deployment, options_);
 		if (isEcho()) {
 			Deployment deployment2 = devopsClient.getDeployment(deployId, null);
 			printObj(deployment2);			
@@ -1794,6 +2047,11 @@ public class Devops extends CommandRunnerBase {
 			routeDeploymentGo(cmds, options);
 			break;
 		}
+		case "schema": case "meta": {
+			routeSchemaDeployment(cmds, options);
+			break;
+		}
+
 		default:
 			invalidOp();
 			printUsage2();
@@ -1998,7 +2256,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Route.class));
+		schema(Route.class);
 	}
 
 	public void routeSchemaDeployment(String[] cmds, Map<String, Object> options) {
@@ -2006,7 +2264,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp3(op2)) {
 			return;
 		}
-		printLine(schemaToString(Route.class));
+		schema(Route.class);
 	}
 
 
@@ -2033,8 +2291,10 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			String deployId = argIdx1(op, cmds);
+			String name = argId2(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
+			mount.setName(name);
 			debug("Add Mount: %s %s", deployId, mount);		
 			URI uri = devopsClient.addMount(deployId, mount, options_);
 			if (isEcho()) {
@@ -2050,7 +2310,7 @@ public class Devops extends CommandRunnerBase {
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Update Mount: %s %s %s", deployId, mountId, mount);		
 			devopsClient.updateMount(deployId, mountId, mount, options_);
 			if (isEcho()) {
@@ -2064,7 +2324,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Remove Mount: %s %s", deployId, mountId);		
 			devopsClient.removeMount(deployId, mountId, options_);
 			if (isEcho()) {
@@ -2072,6 +2332,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Mount.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2129,8 +2394,10 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			String deployId = argIdx1(op, cmds);
+			String name = argId2(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
+			var.setName(name);
 			debug("Add Var: %s %s", deployId, var);		
 			URI uri = devopsClient.addVariable(deployId, var, options_);
 			if (isEcho()) {
@@ -2146,7 +2413,7 @@ public class Devops extends CommandRunnerBase {
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Update Var: %s %s %s", deployId, varId, var);		
 			devopsClient.updateVariable(deployId, varId, var, options_);
 			if (isEcho()) {
@@ -2160,7 +2427,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Remove Var: %s %s", deployId, varId);		
 			devopsClient.removeVariable(deployId, varId, options_);
 			if (isEcho()) {
@@ -2168,6 +2435,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Variable.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2243,7 +2515,7 @@ public class Devops extends CommandRunnerBase {
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Binding binding = convert(options, Binding.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Update Binding: %s %s %s", deployId, bindingId, binding);		
 			devopsClient.updateBinding(deployId, bindingId, binding, options_);
 			if (isEcho()) {
@@ -2257,7 +2529,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Remove Binding: %s %s", deployId, bindingId);		
 			devopsClient.removeBinding(deployId, bindingId, options_);
 			if (isEcho()) {
@@ -2265,6 +2537,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Binding.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2339,7 +2616,7 @@ public class Devops extends CommandRunnerBase {
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Connector connector = convert(options, Connector.class);
-			String connectorId = argId1(op2, cmds);
+			String connectorId = argId2(op2, cmds);
 			debug("Update Connector: %s %s %s", deployId, connectorId, connector);		
 			devopsClient.updateConnector(deployId, connectorId, connector, options_);
 			if (isEcho()) {
@@ -2353,7 +2630,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String deployId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String connectorId = argId1(op2, cmds);
+			String connectorId = argId2(op2, cmds);
 			debug("Remove Connector: %s %s", deployId, connectorId);		
 			devopsClient.removeConnector(deployId, connectorId, options_);
 			if (isEcho()) {
@@ -2361,6 +2638,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Connector.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2448,7 +2730,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Job.class));
+		schema(Job.class, JobFilter.class, JobOptions.class, options);
 	}
 	
 	public void createJob(String[] cmds, Map<String, Object> options) {
@@ -2491,8 +2773,7 @@ public class Devops extends CommandRunnerBase {
 		Job job = convert(options, Job.class);
 		JobOptions options_ = convert(options, JobOptions.class);
 		debug("Updating Job: %s %s %s", jobId, job, options_);
-		setId(job, jobId);
-		devopsClient.updateJob(job, options_);
+		devopsClient.updateJob(jobId, job, options_);
 		if (isEcho()) {
 			Job job2 = devopsClient.getJob(jobId, null);
 			printObj(job2);
@@ -2651,6 +2932,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Pod.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2692,8 +2978,10 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			String jobId = argIdx1(op, cmds);
+			String name = argId2(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
+			mount.setName(name);
 			debug("Add Job Mount: %s %s", jobId, mount);		
 			URI uri = devopsClient.addMountJob(jobId, mount, options_);
 			String mountId = extractId(uri);
@@ -2709,7 +2997,7 @@ public class Devops extends CommandRunnerBase {
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Update Job Mount: %s %s %s", jobId, mountId, mount);		
 			devopsClient.updateMountJob(jobId, mountId, mount, options_);
 			if (isEcho()) {
@@ -2723,7 +3011,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Remove Job Mount: %s %s", jobId, mountId);		
 			devopsClient.removeMountJob(jobId, mountId, options_);
 			if (isEcho()) {
@@ -2731,6 +3019,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Mount.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2788,8 +3081,10 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			String jobId = argIdx1(op, cmds);
+			String name = argId2(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
+			var.setName(name);
 			debug("Add Job EnvVar: %s %s", jobId, var);		
 			URI uri = devopsClient.addVariableJob(jobId, var, options_);
 			String varId = extractId(uri);
@@ -2805,7 +3100,7 @@ public class Devops extends CommandRunnerBase {
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Update Job EnvVar: %s %s %s", jobId, varId, var);		
 			devopsClient.updateVariableJob(jobId, varId, var, options_);
 			if (isEcho()) {
@@ -2819,7 +3114,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Remove EnvVar: %s %s", jobId, varId);		
 			devopsClient.removeVariableJob(jobId, varId, options_);
 			if (isEcho()) {
@@ -2827,6 +3122,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Variable.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -2902,7 +3202,7 @@ public class Devops extends CommandRunnerBase {
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Binding binding = convert(options, Binding.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Update Binding: %s %s %s", jobId, bindingId, binding);		
 			devopsClient.updateBindingJob(jobId, bindingId, binding, options_);
 			if (isEcho()) {
@@ -2916,7 +3216,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String jobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Remove Job Binding: %s %s", jobId, bindingId);		
 			devopsClient.removeBindingJob(jobId, bindingId, options_);
 			if (isEcho()) {
@@ -2924,6 +3224,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Binding.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -3011,7 +3316,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(CronJob.class));
+		schema(CronJob.class, CronJobFilter.class, CronJobOptions.class, options);
 	}
 	
 	public void createCronJob(String[] cmds, Map<String, Object> options) {
@@ -3052,10 +3357,9 @@ public class Devops extends CommandRunnerBase {
 		String cronjobId = argIdx(op, cmds);
 		processDeployOptions(cmds, options);
 		CronJob cronjob = convert(options, CronJob.class);
-		setId(cronjob, cronjobId);
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		debug("Updating CronJob: %s %s %s", cronjobId, cronjob, options_);
-		devopsClient.updateCronJob(cronjob, options_);
+		devopsClient.updateCronJob(cronjobId, cronjob, options_);
 		if (isEcho()) {
 			CronJob cronjob2 = devopsClient.getCronJob(cronjobId, null);
 			printObj(cronjob2);
@@ -3229,7 +3533,9 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			RequestOptions options_ = convert(options, RequestOptions.class);
+			String name = argId2(op, cmds);
 			Mount mount = convert(options, Mount.class);
+			mount.setName(name);
 			debug("Add CronJob Mount: %s %s", cronjobId, mount);		
 			URI uri = devopsClient.addMountCronJob(cronjobId, mount, options_);
 			if (isEcho()) {
@@ -3244,7 +3550,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Mount mount = convert(options, Mount.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Update CronJob Mount: %s %s %s", cronjobId, mountId, mount);		
 			devopsClient.updateMountCronJob(cronjobId, mountId, mount, options_);
 			if (isEcho()) {
@@ -3257,7 +3563,7 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String mountId = argId1(op2, cmds);
+			String mountId = argId2(op2, cmds);
 			debug("Remove CronJob Mount: %s %s", cronjobId, mountId);		
 			devopsClient.removeMountCronJob(cronjobId, mountId, options_);
 			if (isEcho()) {
@@ -3265,6 +3571,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Mount.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -3322,8 +3633,10 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}
 			String cronjobId = argIdx1(op, cmds);
+			String name = argId2(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
+			var.setName(name);
 			debug("Add CronJob EnvVar: %s %s", cronjobId, var);		
 			URI uri = devopsClient.addVariableCronJob(cronjobId, var, options_);
 			if (isEcho()) {
@@ -3339,7 +3652,7 @@ public class Devops extends CommandRunnerBase {
 			String cronjobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Variable var = convert(options, Variable.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Update CronJob EnvVar: %s %s %s", cronjobId, varId, var);		
 			devopsClient.updateVariableCronJob(cronjobId, varId, var, options_);
 			if (isEcho()) {
@@ -3353,7 +3666,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String cronjobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String varId = argId1(op2, cmds);
+			String varId = argId2(op2, cmds);
 			debug("Remove EnvVar: %s %s", cronjobId, varId);		
 			devopsClient.removeVariableCronJob(cronjobId, varId, options_);
 			if (isEcho()) {
@@ -3361,6 +3674,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Variable.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -3433,7 +3751,7 @@ public class Devops extends CommandRunnerBase {
 			String cronjobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
 			Binding binding = convert(options, Binding.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Update Binding: %s %s %s", cronjobId, bindingId, binding);		
 			devopsClient.updateBindingCronJob(cronjobId, bindingId, binding, options_);
 			if (isEcho()) {
@@ -3447,7 +3765,7 @@ public class Devops extends CommandRunnerBase {
 			}
 			String cronjobId = argIdx1(op, cmds);
 			RequestOptions options_ = convert(options, RequestOptions.class);
-			String bindingId = argId1(op2, cmds);
+			String bindingId = argId2(op2, cmds);
 			debug("Remove CronJob Binding: %s %s", cronjobId, bindingId);		
 			devopsClient.removeBindingCronJob(cronjobId, bindingId, options_);
 			if (isEcho()) {
@@ -3455,6 +3773,11 @@ public class Devops extends CommandRunnerBase {
 			}
 			break;
 		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Binding.class);
 		default:
 			invalidOp();
 			printUsage2();
@@ -3570,7 +3893,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Domain.class));
+		schema(Domain.class, DomainFilter.class, DomainOptions.class, options);
 	}
 
 	public void createDomain(String[] cmds, Map<String, Object> options) {
@@ -3599,7 +3922,7 @@ public class Devops extends CommandRunnerBase {
 		Domain domain = convert(options, Domain.class);
 		DomainOptions options_ = convert(options, DomainOptions.class);
 		debug("Updating Domain: %s %s %s", domainId, domain, options_);
-		devopsClient.updateDomain(domain, options_);
+		devopsClient.updateDomain(domainId, domain, options_);
 		if (isEcho()) {
 			Domain domain2 = devopsClient.getDomain(domainId, null);
 			printObj(domain2);
@@ -3697,7 +4020,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Registry.class));
+		schema(Registry.class, RegistryFilter.class, RegistryOptions.class, options);
 	}
 
 	
@@ -3726,7 +4049,7 @@ public class Devops extends CommandRunnerBase {
 		Registry registry = convert(options, Registry.class);
 		RegistryOptions options_ = convert(options, RegistryOptions.class);
 		debug("Updating Registry: %s %s %s", registryId, registry, options_);
-		devopsClient.updateRegistry(registry, options_);
+		devopsClient.updateRegistry(registryId, registry, options_);
 		if (isEcho()) {
 			Registry registry2 = devopsClient.getRegistry(registryId, null);
 			printObj(registry2);			
@@ -3826,7 +4149,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Vcs.class));
+		schema(Vcs.class, VcsFilter.class, VcsOptions.class, options);
 	}
 
 	public void createVcs(String[] cmds, Map<String, Object> options) {
@@ -3854,7 +4177,7 @@ public class Devops extends CommandRunnerBase {
 		Vcs vcs = convert(options, Vcs.class);
 		VcsOptions options_ = convert(options, VcsOptions.class);
 		debug("Updating Vcs: %s %s %s", vcsId, vcs, options_);
-		devopsClient.updateVcs(vcs, options_);
+		devopsClient.updateVcs(vcsId, vcs, options_);
 		if (isEcho()) {
 			Vcs vcs2 = devopsClient.getVcs(vcsId, null);
 			printObj(vcs2);			
@@ -3953,7 +4276,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Catalog.class));
+		schema(Catalog.class, CatalogFilter.class, CatalogOptions.class, options);
 	}
 
 	public void createCatalog(String[] cmds, Map<String, Object> options) {
@@ -3982,7 +4305,7 @@ public class Devops extends CommandRunnerBase {
 		Catalog catalog = convert(options, Catalog.class);
 		CatalogOptions options_ = convert(options, CatalogOptions.class);
 		debug("Updating Catalog: %s %s %s", catalogId, catalog, options_);
-		devopsClient.updateCatalog(catalog, null);
+		devopsClient.updateCatalog(catalogId, catalog, null);
 		if (isEcho()) {
 			Catalog catalog2 = devopsClient.getCatalog(catalogId, options_);
 			printObj(catalog2);			
@@ -4112,7 +4435,7 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		printLine(schemaToString(Solution.class));
+		schema(Solution.class, SolutionFilter.class, SolutionOptions.class, options);
 	}
 
 	public void createSolution(String[] cmds, Map<String, Object> options) {
@@ -4139,7 +4462,7 @@ public class Devops extends CommandRunnerBase {
 		String solutionId = argId(op, cmds);
 		Solution solution = convert(options, Solution.class);
 		debug("Updating Solution: %s %s", solutionId, solution);
-		devopsClient.updateSolution(solution, null);
+		devopsClient.updateSolution(solutionId, solution, null);
 		if (isEcho()) {
 			Solution solution2 = devopsClient.getSolution(solutionId, null);
 			printObj(solution2);			
@@ -4240,6 +4563,9 @@ public class Devops extends CommandRunnerBase {
 		if (Space.class.equals(type)) {
 			return SPACE_DEFAULT_FORMAT;
 		}
+		if (Authority.class.equals(type)) {
+			return AUTHORITY_DEFAULT_FORMAT;
+		}
 		if (Deployment.class.equals(type)) {
 			return DEPLOYMENT_DEFAULT_FORMAT;
 		}
@@ -4299,6 +4625,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		if (Space.class.equals(type)) {
 			return SPACE_WIDE_FORMAT;
+		}
+		if (Authority.class.equals(type)) {
+			return AUTHORITY_WIDE_FORMAT;
 		}
 		if (Deployment.class.equals(type)) {
 			return DEPLOYMENT_WIDE_FORMAT;
@@ -4360,20 +4689,27 @@ public class Devops extends CommandRunnerBase {
 
 		if (Cluster.class.equals(type)) {
 		} else if (Space.class.equals(type)) {
+		} else if (Authority.class.equals(type)) {
 		} else if (Deployment.class.equals(type)) {
-			switch (fmt) {
+			switch (cols) {
 			case "cicd": case "build":
 				return DEPLOYMENT_CICD_FORMAT;
+			case "resources":
+				return DEPLOYMENT_RESOURCES_FORMAT;
 			}
 		} else if (Job.class.equals(type)) {
-			switch (fmt) {
+			switch (cols) {
 			case "cicd": case "build":
-				return DEPLOYMENT_CICD_FORMAT;
+				return JOB_CICD_FORMAT;
+			case "resources":
+				return JOB_RESOURCES_FORMAT;				
 			}
 		} else if (CronJob.class.equals(type)) {
-			switch (fmt) {
+			switch (cols) {
 			case "cicd": case "build":
-				return DEPLOYMENT_CICD_FORMAT;
+				return CRONJOB_CICD_FORMAT;
+			case "resources":
+				return CRONJOB_RESOURCES_FORMAT;
 			}
 		} else if (Domain.class.equals(type)) {
 		} else if (Registry.class.equals(type)) {
@@ -4400,8 +4736,11 @@ public class Devops extends CommandRunnerBase {
 		if (Space.class.equals(type)) {
 			return new String[] {};
 		}
+		if (Authority.class.equals(type)) {
+			return new String[] {};
+		}
 		if (Deployment.class.equals(type)) {
-			return c("cicd","build");
+			return c("cicd","build", "resources");
 		}
 		if (Job.class.equals(type)) {
 			return new String[] {};

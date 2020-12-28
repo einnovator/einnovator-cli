@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -235,6 +234,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		printCmds(cmd, kcmd, subcmds, true);
 	}
 
+	private static String[] addPrefix(String prefix, String[] ss) {
+		if (prefix==null || ss==null) {
+			return null;
+		}
+		String[] ss2 = new String[ss.length];
+		for (int i=0; i<ss.length; i++) {
+			ss2[i] = prefix + (ss[i]!=null ? ss[i] : "");
+		}
+		return ss2;
+	}
 	public void printUsage(String cmd, String subcmd) {
 		String kcmd = cmd, ksubcmd = subcmd;
 		String[] alias0 = findCommand(cmd);
@@ -249,6 +258,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		String key = kcmd + (!ksubcmd.isEmpty() ? "." + ksubcmd : "");		
 
 		String[][] subsubcmds = findSubSubCommands(kcmd, ksubcmd);
+		
+		alias = addPrefix(cmd + " ", alias);
 		printUsageDetails(qname, key, alias, subsubcmds!=null && subsubcmds.length>0);			
 		printCmds(qname, key, subsubcmds, true);
 	}
@@ -272,7 +283,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		alias = findSubSubCommand(kcmd, ksubcmd, ksubsubcmd);
 		String qname = cmd + " " + subcmd + (!subsubcmd.isEmpty() ? " " + subsubcmd : "");
 		String key = kcmd + "." + ksubcmd + "." + ksubsubcmd;
-		printUsageDetails(qname, key, null, false);
+		
+		alias = addPrefix(cmd + " " + subcmd + " ", alias);
+		printUsageDetails(qname, key, alias, false);
 	}
 
 
@@ -703,15 +716,6 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	// Util
 	//
 
-	public String schemaToString(Class<?> type) {
-		return schemaToString(type, " ");
-	}
-
-	public String schemaToString(Class<?> type, String separator) {
-		List<String> props = MetaUtil.collectAllPropertyNames(type);
-		return String.join(separator, props.toArray(new String[props.size()]));
-	}
-	
 	protected OAuth2RestTemplate makeOAuth2RestTemplate(ResourceOwnerPasswordResourceDetails resource, ConnectionConfiguration conncConfig) {
 		DefaultOAuth2ClientContext context = new DefaultOAuth2ClientContext();
 		OAuth2RestTemplate template = new OAuth2RestTemplate(resource, context);
@@ -837,6 +841,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			}
 			int[] widths = getColsWidth(table);
 			String[] cols = getFormatCols(fmt);
+			if (cols==null) {
+				return;
+			}
 			if (cols.length>widths.length) {
 				widths = Arrays.copyOf(widths, cols.length);
 			}
@@ -882,17 +889,17 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj==null) {
 			return;
 		}
-		String fmt = getCols(obj);
 		if (isTabular()) {
-			List<String> values = getFields(obj, fmt);
-			String[] cols = getFormatCols(fmt);
-			int[] widths = new int[Math.max(values.size(), cols.length)];
+			String cols = getCols(obj);
+			List<String> values = getFields(obj, cols);
+			String[] cols2 = getFormatCols(cols);
+			int[] widths = new int[Math.max(values.size(), cols2.length)];
 			for (int i=0; i<widths.length; i++) {
-				widths[i] = i<cols.length && i<values.size() ? Math.max(values.get(i).length(), cols[i].length()) :
-					i<cols.length ? cols[i].length() : values.get(i).length();
+				widths[i] = i<cols2.length && i<values.size() ? Math.max(values.get(i).length(), cols2[i].length()) :
+					i<cols2.length ? cols2[i].length() : values.get(i).length();
 			}
-			for (int j = 0; j<cols.length; j++) {
-				String col = formatColName(cols[j]);
+			for (int j = 0; j<cols2.length; j++) {
+				String col = formatColName(cols2[j]);
 				printW(col, widths[j]+3);
 			}
 			System.out.println();
@@ -996,7 +1003,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj==null) {
 			return "";
 		}
-		String fmt = getCols(obj);
+		String fmt = getFormat();
 		if ("raw".equals(fmt)) {
 			return obj.toString();
 		} else if ("json".equals(fmt)) {
@@ -1006,12 +1013,14 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			String s = toYaml(obj);
 			return s;
 		}
-		if (fmt!=null && !fmt.isEmpty()) {
+		String cols = getCols(obj);
+		
+		if (cols!=null && !cols.isEmpty()) {
 			StringBuilder sb = new StringBuilder();
 			Map<String, Object> map = MappingUtils.toMap(obj);
 			if (map==null) {
 				sb.append("???");
-			} else if (fmt=="+") {
+			} else if (cols=="+") {
 				for (Map.Entry<String, Object> e: map.entrySet()) {
 					if (sb.length()>0) {
 						sb.append(" ");						
@@ -1019,7 +1028,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					sb.append(e.getValue());
 				}
 			} else {
-				String[] props = getFormatProps(fmt);
+				String[] props = getFormatProps(cols);
 				for (String s: props) {
 					if (!s.isEmpty()) {
 						sb.append(" ");						
@@ -1089,7 +1098,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 		int i = name.indexOf(".");
 		String prop = i<0 ? name : name.substring(0, i);
-		Member member = MetaUtil.getPropertyMember(obj.getClass(), prop, false);
+		Member member = MetaUtil.getPropertyMember(obj.getClass(), prop, false, false);
 		if (member==null) {
 			return null;
 		}
@@ -1290,46 +1299,36 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		for (Map.Entry<String, Object> e: map.entrySet()) {
 			String prop = e.getKey();
 			Object value = e.getValue();
-			if (value!=null) {
-				Class<?> propType = MetaUtil.getPropertyType(type, prop);
-				if (propType!=null && propType.isEnum()) {
-					String s = value.toString();
-					Method parse = getMethod(propType, "parse", 1);
-					if (parse!=null) {
-						Object out = MetaUtil.invoke(value, parse, new Object[] {s});
-						if (out!=null) {
-							value = out;
+			Member member = MetaUtil.getPropertyMember(type, prop, false, false);
+			if (member!=null) {
+				prop = MetaUtil.getPropertyName(member);
+				if (value!=null && !value.toString().isEmpty()) {
+					Class<?> propType = MetaUtil.getPropertyType(type, prop);
+					if (propType!=null && propType.isEnum()) {
+						String s = value.toString();
+						Method parse = MetaUtil.getMethod(propType, "parse", 1);
+						if (parse!=null) {
+							Object out = MetaUtil.invoke(value, parse, new Object[] {s});
+							if (out!=null) {
+								value = out;
+							}
+						} else {
+							value = parseEnum2(propType, s);
 						}
-					} else {
-						value = parseEnum2(propType, s);
+					}
+				} else {
+					Class<?> propType = MetaUtil.getPropertyType(type, prop);
+					if (propType!=null && (Boolean.TYPE.equals(propType) || Boolean.class.equals(propType))) {
+						value = true;
 					}
 				}
-
 			}
-			props.put(e.getKey(), value);
+			props.put(prop, value);
 		}
 		return props;
 	}
 
-	private Method getMethod(Class<?> type, String name, Integer arity) {
-		Method[] methods = MetaUtil.getMethods(type, name);
-		if (name!=null && methods!=null) {
-			for (Method method: methods) {
-				if (!name.equals(method.getName())) {
-					continue;
-				}
-				if (Modifier.isStatic(method.getModifiers())) {
-					continue;
-				}
-				if (arity!=null && method.getParameterCount()!=arity) {
-					continue;
-				}
-				return method;
-			}
-		}
-		return null;
-		
-	}
+	
 	protected Object parseEnum(Class<?> type, String name){
 		for(Object e: type.getEnumConstants()) {
 			if(((Enum<?>)e).name().equalsIgnoreCase(name)){
@@ -1606,5 +1605,33 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return admin;
 	}
 
+	//
+	// Schema
+	//
+	
+	public String schemaToString(Class<?> type) {
+		return schemaToString(type, " ");
+	}
 
+	public String schemaToString(Class<?> type, String separator) {
+		List<String> props = MetaUtil.collectAllPropertyNames(type);
+		return String.join(separator, props.toArray(new String[props.size()]));
+	}
+	
+
+	public void schema(Class<?> type, Class<?> filterType, Class<?> optionsType, Map<String, Object> options) {
+		if (options.get("f")!=null) {
+			schema(filterType);
+			return;
+		}
+		if (options.get("g")!=null) {
+			schema(optionsType);
+			return;
+		}
+		schema(type);
+	}
+
+	public void schema(Class<?> type) {
+		printLine(schemaToString(type));
+	}
 }
