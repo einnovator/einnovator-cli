@@ -106,9 +106,16 @@ public class Payments extends CommandRunnerBase {
 		return subcommands;
 	}
 	
+	/**
+	 * @deprecated Use {@link #init(Map<String, Object>,RestTemplate,boolean,ResourceBundle)} instead
+	 */
 	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
+		init(options, template, interactive, bundle);
+	}
+
+	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive, bundle);
+			super.init(options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
 			if (template instanceof OAuth2RestTemplate) {
@@ -128,8 +135,8 @@ public class Payments extends CommandRunnerBase {
 		}
 	}
 
-	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
-		setLine(type, op, cmds, options);
+	public void run(String type, String op, String[] cmds, String[] extra, Map<String, Object> options) {
+		setLine(type, op, cmds, extra, options);
 		switch (type) {
 		case "help": case "":
 			printUsage();

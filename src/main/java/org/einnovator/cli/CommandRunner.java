@@ -26,9 +26,9 @@ public interface CommandRunner {
 
 	void printUsage();
 	
-	void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle);
+	void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle);
 
-	void run(String type, String op, String[] cmds, Map<String, Object> options);
+	void run(String type, String op, String[] cmds, String[] extra, Map<String, Object> options);
 
 	void setEndpoints(Map<String, Object> endpoints);
 

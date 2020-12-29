@@ -89,11 +89,11 @@ public class Documents extends CommandRunnerBase {
 	protected Map<String, String[][]> getSubCommands() {
 		return subcommands;
 	}
-	
+
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
-			super.init(cmds, options, template, interactive, bundle);
+			super.init(options, template, interactive, bundle);
 			config.setServer(server);
 			updateObjectFromNonNull(config, convert(options, DocumentsClientConfiguration.class));
 
@@ -114,8 +114,8 @@ public class Documents extends CommandRunnerBase {
 		}
 	}
 
-	public void run(String type, String op, String[] cmds, Map<String, Object> options) {
-		setLine(type, op, cmds, options);
+	public void run(String type, String op, String[] cmds, String[] extra, Map<String, Object> options) {
+		setLine(type, op, cmds, extra, options);
 		String path = op;
 		switch (type) {
 		case "help": case "":

@@ -39,6 +39,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 
 	protected String[] cmds;
+	protected String[] extra;
 	protected Map<String, Object> options;
 	protected RestTemplate template;
 	protected boolean interactive;
@@ -115,18 +116,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return null;
 	}
 	
+
 	@Override
-	public void init(String[] cmds, Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
+	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		super.init(interactive, bundle);
-		this.cmds = cmds;
 		this.options = options;
 		this.template = template;
 	}
 
-	protected void setLine(String type, String op, String[] cmds, Map<String, Object> options) {	
+	protected void setLine(String type, String op, String[] cmds, String[] extra, Map<String, Object> options) {	
 		this.type = type;
 		this.op = op;
 		this.cmds = cmds;
+		this.extra = extra;
 		this.options = options;
 	}
 		
@@ -140,7 +142,14 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 
-	
+	protected RestTemplate makeRestTemplate(ConnectionConfiguration connection) {
+		RestTemplate template = new RestTemplate();
+		if (connection!=null) {			
+			template.setRequestFactory(connection.makeClientHttpRequestFactory());			
+		}
+		return template;
+	}
+
 	protected boolean isHelp() {
 		if (options.get("h")!=null) {
 			return true;
@@ -456,8 +465,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 			}
 		}
-
-		System.out.println(String.format("\n  Usage: %s%s", asb, (sub ? " ..." : "")));					
+		String extra = resolve(xkey + ".extra", false);
+		System.out.println(String.format("\n  Usage: %s%s%s", asb, (sub ? " ..." : ""), extra!=null ? (" -- " + extra) : ""));					
 		if (argsDescr.size()>0) {
 			System.out.println("\n  Args:");
 			for (Map.Entry<String, String> e: argsDescr.entrySet()) {
@@ -1548,26 +1557,6 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected Sso getSso() {
 		return (Sso)getRunnerByName(Sso.SSO_NAME);
-	}
-	
-	public static String[] c(String... ss) {
-		String[] a = new String[ss.length];
-		int i = 0;
-		for (String s: ss) {
-			a[i] = s;
-			i++;
-		}
-		return a;
-	}
-
-	public static String[][] c(String[]... sss) {
-		String[][] a = new String[sss.length][];
-		int i = 0;
-		for (String[] ss: sss) {
-			a[i] = ss;
-			i++;
-		}
-		return a;
 	}
 	
 	public static Map<String, String[][]> m(String key, Map<String, Map<String, String[][]>> parent) {

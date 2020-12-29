@@ -1,6 +1,13 @@
 package org.einnovator.cli;
 
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.Map.Entry;
+
+import org.einnovator.util.script.TextTemplates;
+import org.springframework.web.client.RestTemplate;
 
 
 public class Generic extends CommandRunnerBase {
@@ -13,6 +20,8 @@ public class Generic extends CommandRunnerBase {
 
 	public static final String GENERIC_NAME = "generic";
 
+	private Map<String, Object> env = new LinkedHashMap<>();
+	
 	@Override
 	public String getName() {
 		return GENERIC_NAME;
@@ -27,6 +36,9 @@ public class Generic extends CommandRunnerBase {
 		c("pwd"),
 		c("cd"),
 		c("version"),
+		c("set"),
+		c("echo"),
+		c("exit"),
 		c("help")
 	);
 		
@@ -36,8 +48,17 @@ public class Generic extends CommandRunnerBase {
 	}
 
 	@Override
-	public void run(String type, String op, String[] args, Map<String, Object> options) {
-		setLine(type, op, cmds, options);
+	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
+		super.init(options, template, interactive, bundle);
+		if (env==null) {
+			env = makeEnv(null);			
+		}
+	}
+	
+
+	@Override
+	public void run(String type, String op, String[] cmds, String[] extra, Map<String, Object> options) {
+		setLine(type, op, cmds, extra, options);
 		switch (type) {
 		case "help": case "":
 			printUsageGlobal();
@@ -55,8 +76,17 @@ public class Generic extends CommandRunnerBase {
 		case "cd": 
 			cd(cmds, options);
 			break;
+		case "set": 
+			set(c(op,cmds), options);
+			break;
+		case "echo": 
+			echo(c(op,cmds), options);
+			break;
 		case "version": 
 			version(cmds, options);
+			break;
+		case "exit": 
+			exit(c(op,cmds), options);
 			break;
 		default: 
 			invalidOp(type, op);
@@ -80,7 +110,39 @@ public class Generic extends CommandRunnerBase {
 		}
 	}
 
-	
+	private void set(String[] cmds, Map<String, Object> options) {
+		if (cmds.length==0) {
+			error("missing variable name in set");
+			exit(-1);
+			return;
+		}
+		String name = cmds[0];
+		String value = cmds.length>1 ? cmds[1] : "";
+		env.put(name, value);
+	}
+
+	private void echo(String[] cmds, Map<String, Object> options) {
+		if (cmds.length==0) {
+			error("missing variable name in set");
+			exit(-1);
+			return;
+		}
+		StringBuilder sb = new StringBuilder();
+		for (String s: cmds) {
+			if (sb.length()>0) {
+				sb.append(" ");
+			}
+			s = s.trim();
+			s = expand(s, env);
+			sb.append(s);
+		}
+		System.out.println(sb.toString());
+	}
+
+	private void exit(String[] cmds, Map<String, Object> options) {
+		System.exit(0);
+	}
+
 	private void run(String cmd, String[] cmds, Map<String, Object> options, boolean nl) {
 		boolean b = false;
 		boolean first = true;
@@ -88,12 +150,12 @@ public class Generic extends CommandRunnerBase {
 			if (!runner.getClass().getSimpleName().equals(this.getClass().getSimpleName())) {
 				if (runner.supports(cmd, options) || (options.get("h")!=null && runner.supports(cmd))) {
 					if (!(runner instanceof Sso)) {
-						runner.init(cmds, options, template, interactive, bundle);		
+						runner.init(options, template, interactive, bundle);		
 					}
 					if (!first && nl) {
 						System.out.println();								
 					}
-					runner.run(cmd, op, cmds, options);
+					runner.run(cmd, op, cmds, null, options);
 					b = true;
 					first = false;
 				}
@@ -104,12 +166,12 @@ public class Generic extends CommandRunnerBase {
 				if (!runner.getClass().getSimpleName().equals(this.getClass().getSimpleName())) {
 					if (runner.supports(cmd, null)) {
 						if (!(runner instanceof Sso)) {
-							runner.init(cmds, options, template, interactive, bundle);		
+							runner.init(options, template, interactive, bundle);		
 						}
 						if (!first && nl) {
 							System.out.println();								
 						}
-						runner.run(cmd, op, cmds, options);
+						runner.run(cmd, op, cmds, null, options);
 						first = false;
 					}
 				}
@@ -121,6 +183,36 @@ public class Generic extends CommandRunnerBase {
 	private void version(String[] cmds, Map<String, Object> options) {
 		System.out.println(String.format("%s - %s", APP_NAME, APP_VERSION));
 		System.out.println(String.format("%s - %s - %s", APP_COPYRIGHT, APP_LICENSE, APP_SUPPORT));
+	}
+
+	private TextTemplates templates;
+
+	private Map<String, Object> makeEnv(Map<String, Object> env) {
+		if (env==null) {
+			env = new LinkedHashMap<>();
+		}
+		for (Map.Entry<String, String> e: System.getenv().entrySet()) {
+			env.put(e.getKey(), e.getValue());
+		}
+		for (Entry<Object, Object> e: System.getProperties().entrySet()) {
+			env.put(e.getKey().toString(), e.getValue());
+		}
+		
+		return env;
+	}
+
+	@Override
+	public String expand(String s, Map<String, Object> env) {
+		if (templates==null) {
+			templates = new TextTemplates();			
+		}
+		String out = templates.expand(s, env);
+		return out;
+	}
+
+	@Override
+	protected Map<String, Object> getEnv() {
+		return env;
 	}
 
 }

@@ -194,35 +194,45 @@ public abstract class RunnerBase {
 	}
 	
 	public void printUsageGlobal() {
-		String descr = resolve("cli.descr", false);
-		if (descr!=null) {
-			System.out.println(descr);
+		printUsageGlobal(true, true, true);
+	}
+
+	public void printUsageGlobal(boolean welcome, boolean cmds, boolean usage) {
+		if (welcome) {
+			String descr = resolve("cli.descr", false);
+			if (descr!=null) {
+				System.out.println(descr);
+			}			
 		}
 		if (runners!=null) {
-			descr = resolve("cli.service.descr", false);
-			if (descr!=null) {
-				System.out.println();
-				System.out.println(descr);
+			if (cmds) {
+				String descr = resolve("cli.service.descr", false);
+				if (descr!=null) {
+					System.out.println();
+					System.out.println(descr);
+				}				
 			}
 			Map<String, String> descrMap = new LinkedHashMap<>();
 			int width = 0;
 			for (CommandRunner runner: runners) {
 				if (runner.getName()!=null && !Generic.GENERIC_NAME.equals(runner.getName())) {
-					descr = resolve(runner.getName(), "");
+					String descr = resolve(runner.getName(), "");
 					descrMap.put(runner.getName(), descr);					
 					if (runner.getName().length()>width) {
 						width = runner.getName().length();
 					}
 				}
 			}
-			if (descrMap.size()>0) {
-				System.out.println();
-			}
-			for (Map.Entry<String, String> e: descrMap.entrySet()) {
-				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s	%s", e.getKey(), e.getValue()));
-			}
-			if (descrMap.size()>0) {
-				System.out.println();
+			if (cmds) {
+				if (descrMap.size()>0) {
+					System.out.println();
+				}
+				for (Map.Entry<String, String> e: descrMap.entrySet()) {
+					System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s	%s", e.getKey(), e.getValue()));
+				}
+				if (descrMap.size()>0) {
+					System.out.println();
+				}				
 			}
 		}
 		Generic generic = (Generic)getRunnerByName(Generic.GENERIC_NAME);
@@ -231,35 +241,37 @@ public abstract class RunnerBase {
 			System.out.println();
 		}
 		
-		StringBuilder sb = new StringBuilder();
-		sb.append("Usage: ");
-		sb.append(CliRunner.CLI_NAME);			
-		int i = 0;
-		if (runners!=null) {
-			for (CommandRunner runner: runners) {
-				if (runner.getName()!=null && !Generic.GENERIC_NAME.equals(runner.getName())) {
-					String name = runner.getName();
-					if (name==null || name.isEmpty()) {
-						continue;
+		if (usage) {
+			StringBuilder sb = new StringBuilder();
+			sb.append("Usage: ");
+			sb.append(CliRunner.CLI_NAME);			
+			int i = 0;
+			if (runners!=null) {
+				for (CommandRunner runner: runners) {
+					if (runner.getName()!=null && !Generic.GENERIC_NAME.equals(runner.getName())) {
+						String name = runner.getName();
+						if (name==null || name.isEmpty()) {
+							continue;
+						}
+						sb.append(" ");								
+						if (i>0) {
+							sb.append("| ");				
+						}
+						sb.append(name);
+						i++;	
 					}
-					sb.append(" ");								
-					if (i>0) {
-						sb.append("| ");				
-					}
-					sb.append(name);
-					i++;	
-				}
-			}			
-		}
-		if (generic!=null) {
-			if (i>0) {
-				sb.append("| ");				
+				}			
 			}
-			sb.append(generic.getUsage(false));
-		}
+			if (generic!=null) {
+				if (i>0) {
+					sb.append("| ");				
+				}
+				sb.append(generic.getUsage(false));
+			}
 
-		sb.append(" args... [-option value]* [--options=value]*");				
-		System.err.println(sb.toString());
+			sb.append(" args... [-option value]* [--options=value]*");				
+			System.err.println(sb.toString());			
+		}
 	}
 
 	protected boolean openBrowser(String url) {
@@ -365,5 +377,66 @@ public abstract class RunnerBase {
 		}
 	}
 
+	protected String expand(String s, Map<String, Object> env) {
+		Generic runner = (Generic)getRunnerByName(Generic.GENERIC_NAME);
+		if (runner!=null) {
+			return runner.expand(s, env);
+		}
+		return s;
+	}
+
+	protected String[] expand(String[] ss, Map<String, Object> env) {
+		if (ss!=null) {
+			for (int i=0; i<ss.length; i++) {
+				ss[i] = expand(ss[i], env);
+			}			
+		}
+		return ss;
+	}
+	
+	protected String[] expand(String[] ss) {
+		return expand(ss, getEnv());
+	}
+	
+	protected Map<String, Object> getEnv() {
+		Generic runner = (Generic)getRunnerByName(Generic.GENERIC_NAME);
+		if (runner!=null) {
+			return runner.getEnv();
+		}
+		return null;
+	}
+
+	public static String[] c(String... ss) {
+		String[] a = new String[ss.length];
+		int i = 0;
+		for (String s: ss) {
+			a[i] = s;
+			i++;
+		}
+		return a;
+	}
+	
+	public static String[] c(String s, String[] ss) {
+		String[] ss2 = new String[ss!=null ? ss.length+1 : 1];
+		ss2[0] = s;
+		if (ss!=null) {
+			for (int i=0; i<ss.length; i++) {
+				ss2[i+1] = ss[i]; 
+			}			
+		}
+		return ss2;
+	}
+
+
+	public static String[][] c(String[]... sss) {
+		String[][] a = new String[sss.length][];
+		int i = 0;
+		for (String[] ss: sss) {
+			a[i] = ss;
+			i++;
+		}
+		return a;
+	}
+	
 
 }
