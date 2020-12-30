@@ -89,10 +89,10 @@ public class Social extends CommandRunnerBase {
 			c("create", "add"), c("update"), c("delete", "del", "rm"),
 			c("help")));
 		map.put("message", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+			c("post", "create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("help")));
 		map.put("reaction", c(c("ls", "list"), c("get"), c("schema", "meta"), 
-			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+			c("post", "create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 	}
 
 	@Override
@@ -257,12 +257,12 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		Channel channel = convert(options, Channel.class);
-		channel.setName(argName(op, cmds));
+		channel.setName(argId(op, cmds));
 		ChannelOptions options_ = convert(options, ChannelOptions.class);
 		debug("Creating Channel: %s %s", channel, options_);
 		URI uri = socialClient.createChannel(channel, new RequestOptions());
 		if (isEcho()) {
-			printLine("Channel URI:", uri);
+			debug("Channel URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Channel channel2 = socialClient.getChannel(id, options_);
 			printObj(channel2);			
@@ -318,7 +318,7 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
 		debug("Message: %s %s", channelId, messageId);
 		Message message = socialClient.getMessage(channelId, messageId, null);
 		printObj(message);
@@ -335,7 +335,7 @@ public class Social extends CommandRunnerBase {
 		debug("Creating Message: %s %s %s", channelId, message, options_);
 		URI uri = socialClient.postMessage(channelId, message, new RequestOptions());
 		if (isEcho()) {
-			printLine("Message URI:", uri);
+			debug("Message URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Message message2 = socialClient.getMessage(channelId, id, options_);
 			printObj(message2);			
@@ -347,7 +347,7 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
 		Message message = convert(options, Message.class);
 		processMessageOptions(message, cmds, options);
 		MessageOptions options_ = convert(options, MessageOptions.class);
@@ -375,7 +375,7 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
 		MessageOptions options_ = convert(options, MessageOptions.class);
 		debug("Deleting Message: %s %s %s", channelId, messageId, options_);
 		socialClient.deleteMessage(channelId, messageId, options_);
@@ -395,7 +395,7 @@ public class Social extends CommandRunnerBase {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ReactionFilter filter = convert(options, ReactionFilter.class);
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
 		debug("Reactions: %s %s %s %s", channelId, messageId, filter, pageable);
 		Page<Reaction> reactions = socialClient.listReactions(channelId, messageId, filter, pageable);
 		print(reactions);
@@ -406,8 +406,8 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
-		String reactionId = argId2(op, cmds);
+		String messageId = arg1(op, cmds);
+		String reactionId = arg2(op, cmds);
 		ReactionOptions options_ = convert(options, ReactionOptions.class);
 		debug("Reaction: %s %s %s", channelId, messageId, reactionId);
 		Reaction reaction = socialClient.getReaction(channelId, messageId, reactionId, options_);
@@ -419,14 +419,14 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
 		Reaction reaction = convert(options, Reaction.class);
 		processReactionOptions(reaction, cmds, options);
 		ReactionOptions options_ = convert(options, ReactionOptions.class);
 		debug("Creating Reaction: %s %s %s", channelId, messageId, reaction);
 		URI uri = socialClient.postReaction(channelId, messageId, reaction, options_);
 		if (isEcho()) {
-			printLine("Reaction URI:", uri);
+			debug("Reaction URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Reaction reaction2 = socialClient.getReaction(channelId, messageId, id, null);
 			printObj(reaction2);			
@@ -438,8 +438,8 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
-		String reactionId = argId2(op, cmds);
+		String messageId = arg1(op, cmds);
+		String reactionId = arg2(op, cmds);
 		Reaction reaction = convert(options, Reaction.class);
 		processReactionOptions(reaction, cmds, options);
 		debug("Updating Reaction: %s %s %s", channelId, reactionId, reaction);
@@ -459,8 +459,8 @@ public class Social extends CommandRunnerBase {
 			return;
 		}
 		String channelId = argId(op, cmds);
-		String messageId = argId1(op, cmds);
-		String reactionId = argId1(op, cmds);
+		String messageId = arg1(op, cmds);
+		String reactionId = arg1(op, cmds);
 		debug("Deleting Reaction: %s %s %s", channelId, messageId, reactionId);
 		socialClient.deleteReaction(channelId, messageId, reactionId, null);
 		if (isEcho()) {
@@ -482,7 +482,7 @@ public class Social extends CommandRunnerBase {
 		if (Attachment.class.equals(type)) {
 			return ATTACHMENT_DEFAULT_FORMAT;
 		}
-		return null;
+		return super.getDefaultFormat(type);
 	}
 
 	@Override
@@ -499,7 +499,7 @@ public class Social extends CommandRunnerBase {
 		if (Attachment.class.equals(type)) {
 			return ATTACHMENT_WIDE_FORMAT;
 		}
-		return null;
+		return super.getWideFormat(type);
 	}
 	
 	

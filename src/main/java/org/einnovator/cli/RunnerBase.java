@@ -147,7 +147,7 @@ public abstract class RunnerBase {
 					if (!s.isEmpty()) {
 						int i = s.indexOf("$");
 						if (i>=0) {
-							String prefix = i>0 ? s.substring(0, i).trim() : null;
+							String prefix = i>0 ? s.substring(0, i) : null;
 							s = s.substring(i+1).trim();
 							if (s.isEmpty()) {
 								if (prefix==null || prefix.isEmpty()) {
@@ -236,11 +236,37 @@ public abstract class RunnerBase {
 			}
 		}
 		Generic generic = (Generic)getRunnerByName(Generic.GENERIC_NAME);
+		Map<String, String> root = new LinkedHashMap<>();
 		if (generic!=null) {
-			generic.printCmds();
-			System.out.println();
+			String[][] gcmds = generic.getCommands();
+			Map<String, String> map1 = generic.getCmdsDescription(gcmds, true);
+			if (map1!=null) {
+				root.putAll(map1);
+			}
+		}
+
+		if (runners!=null) {
+			for (CommandRunner runner: runners) {
+				if (runner instanceof CommandRunnerBase && runner.getName()!=null && !Generic.GENERIC_NAME.equals(runner.getName())) {
+					CommandRunnerBase runner_ = ((CommandRunnerBase)runner);
+					String name = runner.getName();
+					if (name==null || name.isEmpty()) {
+						continue;
+					}
+					String[][] root1 = runner_.getRootCommands();
+					Map<String, String> map1 = runner_.getCmdsDescription(root1, true);
+					if (map1!=null) {
+						root.putAll(map1);
+					}
+				}
+			}			
 		}
 		
+		System.out.println("Generic Commands:\n");
+		printDescr(root, true);
+
+		System.out.println();
+	
 		if (usage) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("Usage: ");
@@ -271,6 +297,18 @@ public abstract class RunnerBase {
 
 			sb.append(" args... [-option value]* [--options=value]*");				
 			System.err.println(sb.toString());			
+		}
+	}
+
+	protected void printDescr(Map<String, String> map, boolean indent) {
+		int width = 0;
+		for (Map.Entry<String, String> e: map.entrySet()) {
+			if (e.getKey().length()>width) {
+				width = e.getKey().length();
+			}
+		}
+		for (Map.Entry<String, String> e: map.entrySet()) {
+			System.out.println(String.format("%s%" + (width>1 ? "-" + width : "") + "s    %s", indent ? "  " : "", e.getKey(), e.getValue()));
 		}
 	}
 

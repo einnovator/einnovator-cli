@@ -224,7 +224,7 @@ public class Documents extends CommandRunnerBase {
 		debug("Write Document: %s %s", path, options_);
 		URI uri = documentsClient.write(document, options_);
 		if (isEcho()) {
-			printLine("Document URI:", uri);
+			debug("Document URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Mount mount2 = null; documentsClient.read(id, DocumentOptions.META_ONLY);
 			printObj(mount2);			
@@ -237,7 +237,7 @@ public class Documents extends CommandRunnerBase {
 		}
 		debug("mkdir " + path);
 		URI uri = documentsClient.mkdir(path, null);
-		debug("URI:", uri);
+		debug("URI: %s", uri);
 	}
 	
 	public void delete(String path, Map<String, Object> options) {
@@ -287,7 +287,7 @@ public class Documents extends CommandRunnerBase {
 		debug("Creating Mount: %s %s", mount, options_);
 		URI uri = null; //documentsClient.createMount(mount, options_);
 		if (isEcho()) {
-			printLine("Mount URI:", uri);
+			debug("Mount URI: %s", uri);
 			//String id = UriUtils.extractId(uri);
 			Mount mount2 = null; //notificationsClient.getMount(id, null);
 			printObj(mount2);			
@@ -330,7 +330,7 @@ public class Documents extends CommandRunnerBase {
 		if (Mount.class.equals(type)) {
 			return MOUNT_DEFAULT_FORMAT;
 		}
-		return null;
+		return super.getDefaultFormat(type);
 	}
 
 	@Override
@@ -341,7 +341,7 @@ public class Documents extends CommandRunnerBase {
 		if (Mount.class.equals(type)) {
 			return MOUNT_WIDE_FORMAT;
 		}
-		return null;
+		return super.getWideFormat(type);
 	}
 	
 }

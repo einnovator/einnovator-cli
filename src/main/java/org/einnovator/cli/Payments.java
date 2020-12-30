@@ -267,12 +267,12 @@ public class Payments extends CommandRunnerBase {
 			return;
 		}
 		Account account = convert(options, Account.class);
-		account.setName(argName(op, cmds));
+		account.setName(argId(op, cmds));
 		AccountOptions options_ = convert(options, AccountOptions.class);
 		debug("Creating Account: %s %s", account, options_);
 		URI uri = paymentsClient.createAccount(account, options_);
 		if (isEcho()) {
-			printLine("Account URI:", uri);
+			debug("Account URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Account account2 = paymentsClient.getAccount(id, null);
 			printObj(account2);			
@@ -341,7 +341,7 @@ public class Payments extends CommandRunnerBase {
 		debug("Creating Payment: %s %s", payment, options_);
 		URI uri = paymentsClient.submitPayment(payment, options_);
 		if (isEcho()) {
-			printLine("Payment URI:", uri);
+			debug("Payment URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Payment payment2 = paymentsClient.getPayment(id, null);
 			printObj(payment2);			
@@ -410,7 +410,7 @@ public class Payments extends CommandRunnerBase {
 		debug("Creating Tax: %s %s", tax, options_);
 		URI uri = paymentsClient.createTax(tax, options_);
 		if (isEcho()) {
-			printLine("Tax URI:", uri);
+			debug("Tax URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Tax tax2 = paymentsClient.getTax(id, null);
 			printObj(tax2);			
@@ -464,7 +464,7 @@ public class Payments extends CommandRunnerBase {
 		if (Tax.class.equals(type)) {
 			return TAX_DEFAULT_FORMAT;
 		}
-		return null;
+		return super.getDefaultFormat(type);
 	}
 
 	@Override
@@ -487,7 +487,7 @@ public class Payments extends CommandRunnerBase {
 		if (Tax.class.equals(type)) {
 			return TAX_WIDE_FORMAT;
 		}
-		return null;
+		return super.getWideFormat(type);
 	}
 	
 }

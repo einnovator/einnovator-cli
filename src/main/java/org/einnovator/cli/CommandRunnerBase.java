@@ -37,6 +37,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 public abstract class CommandRunnerBase  extends RunnerBase implements CommandRunner {
 
+	private static final String PROPINFO_DEFAULT_FORMAT = "name,type,declaredIn,description";
+	
+
+	private static final String DEFAULT_FORMAT = "id,name";
 
 	protected String[] cmds;
 	protected String[] extra;
@@ -99,6 +103,23 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return null;
 	}
 
+	protected String[][] getRootCommands() {
+		String[][] cmds = getCommands();
+		List<String[]> root = new ArrayList<>();
+		if (cmds!=null) {
+			for (String[] cmd: cmds) {
+				if (isRootCommand(cmd[0])) {
+					root.add(cmd);
+				}
+			}
+		}
+		return root.toArray(new String[root.size()][]);
+	}
+	
+	protected boolean isRootCommand(String cmd) {
+		return supports(cmd, null);
+	}
+	
 	protected Map<String, String[][]> getSubCommands() {
 		return null;
 	}
@@ -297,7 +318,6 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		printUsageDetails(qname, key, alias, false);
 	}
 
-
 	protected void printCmds(String qname, String qkey, String[][] subcmds, boolean indent) {
 		if (subcmds!=null && subcmds.length>0) {
 			int width = 0;
@@ -313,7 +333,25 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				String descr = resolve(getName() + "." + qkey1);
 				System.out.println(String.format("  %" + (width>1 ? "-" + width : "") + "s    %s", qname1, descr));
 			}
+		}		
+	}
+
+
+	protected Map<String, String> getCmdsDescription(String[][] cmds, boolean indent) {
+		return getCmdsDescription(null, null, cmds, indent);
+	}
+
+	protected Map<String, String> getCmdsDescription(String qname, String qkey, String[][] subcmds, boolean indent) {
+		Map<String, String> map = new LinkedHashMap<>();
+		if (subcmds!=null && subcmds.length>0) {
+			for (String[] subcmd: subcmds) {
+				String qname1 = (qname!=null ? qname + " " : "") + subcmd[0];
+				String qkey1 = (qkey!=null ? qkey + "."  : "") + subcmd[0];
+				String descr = resolve(getName() + "." + qkey1);
+				map.put(qname1, descr);
+			}
 		}
+		return map;
 	}
 
 	
@@ -836,55 +874,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 	
 	void print(Iterable<?> it) {
-		boolean ln = false;
-		boolean hrule = false;
 		if (isTabular()) {
-			String fmt = null;
-			List<List<String>> table = new ArrayList<>();
-			for (Object o: it) {
-				if (fmt==null) {
-					fmt = getCols(o);
-				}
-				List<String> row = getFields(o, fmt);
-				table.add(row);
-			}
-			int[] widths = getColsWidth(table);
-			String[] cols = getFormatCols(fmt);
-			if (cols==null) {
-				return;
-			}
-			if (cols.length>widths.length) {
-				widths = Arrays.copyOf(widths, cols.length);
-			}
-			for (int j = 0; j<cols.length; j++) {
-				if (cols[j].length()>widths[j]) {
-					widths[j] = cols[j].length();
-				}
-			}
-			for (int j = 0; j<cols.length; j++) {
-				String col = formatColName(cols[j]);
-				printW(col, widths[j]+3);
-			}
-			System.out.println();
-			if (hrule) {
-				for (int j = 0; j<cols.length; j++) {
-					System.out.print(new String(new char[widths[j]+3]).replace('\0', '-'));
-				}
-				System.out.println();				
-			}
-			int i = 0;
-			for (List<String> row: table) {
-				if (ln) {
-					print("[%-" + digits(table.size()) + "s] ", i);
-				}
-				int j = 0;
-				for (String value: row) {
-					printW(value, widths[j]+3);
-					j++;
-				}
-				System.out.println();
-				i++;
-			}
+			printTabular(it);
 		} else {
 			for (Object obj: it) {
 				String s = format(obj);
@@ -894,35 +885,90 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	}
 
+	void printTabular(Iterable<?> it) {
+		boolean ln = false;
+		boolean hrule = false;
+		String fmt = null;
+		List<List<String>> table = new ArrayList<>();
+		for (Object o: it) {
+			if (fmt==null) {
+				fmt = getCols(o);
+			}
+			List<String> row = getFields(o, fmt);
+			table.add(row);
+		}
+		int[] widths = getColsWidth(table);
+		String[] cols = getFormatCols(fmt);
+		if (cols==null) {
+			return;
+		}
+		if (cols.length>widths.length) {
+			widths = Arrays.copyOf(widths, cols.length);
+		}
+		for (int j = 0; j<cols.length; j++) {
+			if (cols[j].length()>widths[j]) {
+				widths[j] = cols[j].length();
+			}
+		}
+		for (int j = 0; j<cols.length; j++) {
+			String col = formatColName(cols[j]);
+			printW(col, widths[j]+3);
+		}
+		System.out.println();
+		if (hrule) {
+			for (int j = 0; j<cols.length; j++) {
+				System.out.print(new String(new char[widths[j]+3]).replace('\0', '-'));
+			}
+			System.out.println();				
+		}
+		int i = 0;
+		for (List<String> row: table) {
+			if (ln) {
+				print("[%-" + digits(table.size()) + "s] ", i);
+			}
+			int j = 0;
+			for (String value: row) {
+				printW(value, widths[j]+3);
+				j++;
+			}
+			System.out.println();
+			i++;
+		}
+	}
+
 	void printObj(Object obj) {
 		if (obj==null) {
 			return;
 		}
 		if (isTabular()) {
-			String cols = getCols(obj);
-			List<String> values = getFields(obj, cols);
-			String[] cols2 = getFormatCols(cols);
-			int[] widths = new int[Math.max(values.size(), cols2.length)];
-			for (int i=0; i<widths.length; i++) {
-				widths[i] = i<cols2.length && i<values.size() ? Math.max(values.get(i).length(), cols2[i].length()) :
-					i<cols2.length ? cols2[i].length() : values.get(i).length();
-			}
-			for (int j = 0; j<cols2.length; j++) {
-				String col = formatColName(cols2[j]);
-				printW(col, widths[j]+3);
-			}
-			System.out.println();
-			int j = 0;
-			for (String value: values) {
-				printW(value, widths[j]+3);
-				j++;
-			}
-			System.out.println();
+			printTabular(obj);
 		} else {
 			print(obj, 0);
 		}		
 	}
 	
+	void printTabular(Object obj) {
+		String cols = getCols(obj);
+		List<String> values = getFields(obj, cols);
+		String[] cols2 = getFormatCols(cols);
+		int[] widths = new int[Math.max(values.size(), cols2.length)];
+		for (int i=0; i<widths.length; i++) {
+			widths[i] = i<cols2.length && i<values.size() ? Math.max(values.get(i).length(), cols2[i].length()) :
+				i<cols2.length ? cols2[i].length() : values.get(i).length();
+		}
+		for (int j = 0; j<cols2.length; j++) {
+			String col = formatColName(cols2[j]);
+			printW(col, widths[j]+3);
+		}
+		System.out.println();
+		int j = 0;
+		for (String value: values) {
+			printW(value, widths[j]+3);
+			j++;
+		}
+		System.out.println();
+	}
+
 	private String formatColName(String col) {
 		return col.toUpperCase();
 	}
@@ -1278,7 +1324,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 	
 	protected String getDefaultFormat(Class<? extends Object> type) {
-		return "id,name";
+		if (type.equals(PropertyInfo.class)) {
+			return PROPINFO_DEFAULT_FORMAT;
+		}
+		return DEFAULT_FORMAT;
 	}
 
 	protected String getWideFormat(Class<? extends Object> type) {
@@ -1440,29 +1489,24 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return value;
 	}
 
-	protected String argId1(String op, String[] cmds, boolean required) {
+	protected String arg1(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 1, required);
 	}
-	protected String argId2(String op, String[] cmds, boolean required) {
+	protected String arg2(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 2, required);
 	}
-
-	protected String argName(String op, String[] cmds, boolean required) {
-		return argn(op, cmds, 0, required);
-	}
-
-	protected String argName(String op, String[] cmds) {
-		return argName(op, cmds, true);
+	protected String arg3(String op, String[] cmds, boolean required) {
+		return argn(op, cmds, 3, required);
 	}
 
 	protected String argId(String op, String[] cmds) {
 		return argId(op, cmds, true);
 	}
-	protected String argId1(String op, String[] cmds) {
-		return argId1(op, cmds, true);
+	protected String arg1(String op, String[] cmds) {
+		return arg1(op, cmds, true);
 	}
-	protected String argId2(String op, String[] cmds) {
-		return argId2(op, cmds, true);
+	protected String arg2(String op, String[] cmds) {
+		return arg2(op, cmds, true);
 	}
 	
 	protected String argPID(Map<String, Object> options) {
@@ -1597,14 +1641,29 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	//
 	// Schema
 	//
-	
-	public String schemaToString(Class<?> type) {
-		return schemaToString(type, " ");
-	}
 
-	public String schemaToString(Class<?> type, String separator) {
-		List<String> props = MetaUtil.collectAllPropertyNames(type);
-		return String.join(separator, props.toArray(new String[props.size()]));
+	public void schema(Class<?> type) {
+		if (isEcho()) {
+			debug("Schema for: %s", type.getSimpleName());
+		}
+		List<Member> props = MetaUtil.collectAllPropertyMember(type, false);
+		List<PropertyInfo> infos = new ArrayList<>();
+		if (props!=null) {
+			for (Member prop: props) {
+				String name = MetaUtil.getPropertyName(prop);
+				if (name!=null) {
+					if (name.equals("class")) {
+						continue;
+					}
+					Class<?> propType = MetaUtil.getPropertyType(prop);
+					String descr = "";
+					Class<?> declaredId = prop.getDeclaringClass();
+					PropertyInfo info = new PropertyInfo(name, propType!=null ? propType.getSimpleName() : "", declaredId!=null ? declaredId.getSimpleName() :  "", descr);
+					infos.add(info);
+				}
+			}
+		}
+		printTabular(infos);
 	}
 	
 
@@ -1620,7 +1679,4 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		schema(type);
 	}
 
-	public void schema(Class<?> type) {
-		printLine(schemaToString(type));
-	}
 }

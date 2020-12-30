@@ -154,8 +154,8 @@ public class Sso extends CommandRunnerBase {
 	static {
 		Map<String, String[][]> map = new LinkedHashMap<>();
 		subcommands = map;
-		map.put("token", c(c("show"), c("get"),
-			c("delete", "del", "rm", "remove"),
+		map.put("token", c(c("show"),
+			c("delete", "del", "rm", "remove", "logout"),
 			c("help")));
 		map.put("api", c(c("ls", "list"), c("get"),
 			c("delete", "del", "rm", "remove"),
@@ -184,6 +184,15 @@ public class Sso extends CommandRunnerBase {
 		return subcommands;
 	}
 
+	@Override
+	protected boolean isRootCommand(String cmd) {
+		switch (cmd) {
+		case "login": case "token": case "api":
+			return true;
+		}
+		return super.isRootCommand(cmd);
+	}
+	
 	@Override
 	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
@@ -333,9 +342,6 @@ public class Sso extends CommandRunnerBase {
 			switch (op) {
 			case "help": case "":
 				printUsage1();
-				break;
-			case "get":
-				getToken(cmds, options);
 				break;
 			case "show":
 				showToken(cmds, options);
@@ -1275,11 +1281,11 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		User user = convert(options, User.class);
-		user.setUsername(argName(op, cmds));
+		user.setUsername(argId(op, cmds));
 		debug("Creating User: %s", user);
 		URI uri = ssoClient.createUser(user, new RequestOptions());
 		if (isEcho()) {
-			printLine("User URI:", uri);
+			debug("User URI: %s", uri);
 			String id = extractId(uri);
 			User user2 = ssoClient.getUser(id, null);
 			printObj(user2);			
@@ -1343,11 +1349,11 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		Group group = convert(options, Group.class);
-		group.setName(argName(op, cmds));
+		group.setName(argId(op, cmds));
 		debug("Creating Group: %s", group);
 		URI uri = ssoClient.createGroup(group, new RequestOptions());
 		if (isEcho()) {
-			printLine("Group URI:", uri);
+			debug("Group URI: %s", uri);
 			String id = extractId(uri);
 			Group group2 = ssoClient.getGroup(id, null);
 			printObj(group2);			
@@ -1472,7 +1478,7 @@ public class Sso extends CommandRunnerBase {
 		InvitationOptions options_ = convert(options, InvitationOptions.class);
 		Boolean sendMail = get("sendMail", options, true);
 		options_.setSendMail(sendMail);
-		invitation.setInvitee(argName(op, cmds));
+		invitation.setInvitee(argId(op, cmds));
 		debug((Boolean.TRUE.equals(sendMail) ? "Sending Invitation:" : "Creating Invitation:") + "%s", invitation);
 		URI uri = ssoClient.invite(invitation, options_);
 		if (isEcho()) {
@@ -1566,11 +1572,11 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		Role role = convert(options, Role.class);
-		role.setName(argName(op, cmds));
+		role.setName(argId(op, cmds));
 		debug("Creating Role: %s", role);
 		URI uri = ssoClient.createRole(role, new RequestOptions());
 		if (isEcho()) {
-			printLine("Role URI:", uri);
+			debug("Role URI: %s", uri);
 			String id = extractId(uri);
 			Role role2 = ssoClient.getRole(id, null);
 			printObj(role2);			
@@ -1635,11 +1641,11 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		Client client = convert(options, Client.class);
-		client.setClientId(argName(op, cmds));
+		client.setClientId(argId(op, cmds));
 		debug("Creating Client: %s", client);
 		URI uri = ssoClient.createClient(client, new RequestOptions());
 		if (isEcho()) {
-			printLine("Client URI:", uri);
+			debug("Client URI: %s", uri);
 			String id = extractId(uri);
 			Client client2 = ssoClient.getClient(id, null);
 			printObj(client2);			
@@ -1696,7 +1702,7 @@ public class Sso extends CommandRunnerBase {
 		if (Context.class.equals(type)) {
 			return CONTEXT_DEFAULT_FORMAT;
 		}
-		return null;
+		return super.getDefaultFormat(type);
 	}
 
 	@Override
@@ -1722,7 +1728,7 @@ public class Sso extends CommandRunnerBase {
 		if (Context.class.equals(type)) {
 			return CONTEXT_WIDE_FORMAT;
 		}
-		return null;
+		return super.getWideFormat(type);
 	}
 	
 	

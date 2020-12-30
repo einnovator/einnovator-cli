@@ -357,7 +357,7 @@ public class Notifications extends CommandRunnerBase {
 		debug("Creating NotificationType: %s %s", notificationType, options_);
 		URI uri = notificationsClient.createNotificationType(notificationType, options_);
 		if (isEcho()) {
-			printLine("NotificationType URI:", uri);
+			debug("NotificationType URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			NotificationType notificationType2 = notificationsClient.getNotificationType(id, null);
 			printObj(notificationType2);			
@@ -426,7 +426,7 @@ public class Notifications extends CommandRunnerBase {
 		debug("Creating Template: %s %s", template, options_);
 		URI uri = notificationsClient.createTemplate(template, options_);
 		if (isEcho()) {
-			printLine("Template URI:", uri);
+			debug("Template URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Template template2 = notificationsClient.getTemplate(id, null);
 			printObj(template2);			
@@ -494,7 +494,7 @@ public class Notifications extends CommandRunnerBase {
 		debug("Creating Job: %s %s", job, option_);
 		URI uri = notificationsClient.createJob(job, option_);
 		if (isEcho()) {
-			printLine("Job URI:", uri);
+			debug("Job URI: %s", uri);
 			String id = UriUtils.extractId(uri);
 			Job job2 = notificationsClient.getJob(id, null);
 			printObj(job2);			
@@ -545,7 +545,7 @@ public class Notifications extends CommandRunnerBase {
 		if (TrackedEvent.class.equals(type)) {
 			return TRACKEDEVENT_DEFAULT_FORMAT;
 		}
-		return null;
+		return getDefaultFormat(type);
 	}
 
 	@Override
@@ -565,6 +565,6 @@ public class Notifications extends CommandRunnerBase {
 		if (TrackedEvent.class.equals(type)) {
 			return TRACKEDEVENT_WIDE_FORMAT;
 		}
-		return null;
+		return getWideFormat(type);
 	}
 }
