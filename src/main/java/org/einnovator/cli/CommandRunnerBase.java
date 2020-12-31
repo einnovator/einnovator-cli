@@ -757,6 +757,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return value;
 	}
 	
+	protected String getAsString(String name, Map<String, Object> map) {
+		Object value = map.get(name);
+		return (String)value;
+	}
 	
 	
 	//
@@ -936,18 +940,26 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 	}
 
-	void printObj(Object obj) {
+	protected void printObj(Object obj) {
+		printObj(obj, true);
+	}
+	
+	protected void printObj(Object obj, boolean header) {
 		if (obj==null) {
 			return;
 		}
 		if (isTabular()) {
-			printTabular(obj);
+			printTabular(obj, header);
 		} else {
 			print(obj, 0);
-		}		
+		}	
 	}
-	
-	void printTabular(Object obj) {
+
+	protected void printTabular(Object obj) {
+		printTabular(obj, true);
+	}
+
+	protected void printTabular(Object obj, boolean header) {
 		String cols = getCols(obj);
 		List<String> values = getFields(obj, cols);
 		String[] cols2 = getFormatCols(cols);
@@ -956,11 +968,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			widths[i] = i<cols2.length && i<values.size() ? Math.max(values.get(i).length(), cols2[i].length()) :
 				i<cols2.length ? cols2[i].length() : values.get(i).length();
 		}
-		for (int j = 0; j<cols2.length; j++) {
-			String col = formatColName(cols2[j]);
-			printW(col, widths[j]+3);
+		if (header) {
+			for (int j = 0; j<cols2.length; j++) {
+				String col = formatColName(cols2[j]);
+				printW(col, widths[j]+3);
+			}			
+			System.out.println();
 		}
-		System.out.println();
 		int j = 0;
 		for (String value: values) {
 			printW(value, widths[j]+3);
@@ -1126,21 +1140,29 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return sb.toString();
 	}
 	
-	List<String> getFields(Object obj, String fmt) {
+	List<String> getFields(Object obj, String cols) {
 		List<String> values = new ArrayList<>();
 		Map<String, Object> map = MappingUtils.toMap(obj);
 		if (map==null) {
-		} else if ("all".equals(fmt)) {
+		} else if ("all".equals(cols)) {
 			for (Map.Entry<String, Object> e: map.entrySet()) {
 				Object value = getPropertyValue(obj, e.getKey());
 				values.add(formatSimple(value));						
 			}
 		} else {
-			String[] props = getFormatProps(fmt);
+			String[] props = getFormatProps(cols);
 			if (props!=null) {
 				for (String s: props) {
-					Object value = getPropertyValue(obj, s);
-					values.add(formatSimple(value));						
+					String ss[] = s.split("/");
+					StringBuilder sb = new StringBuilder();
+					for (String s1: ss) {
+						Object value = getPropertyValue(obj, s1);
+						if (sb.length()>0) {
+							sb.append("/");
+						}
+						sb.append(formatSimple(value));
+					}
+					values.add(sb.toString());												
 				}				
 			}
 		}
@@ -1347,46 +1369,81 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return obj;
 	}
 
-	protected <T> T convert(Map<String, Object> options, Class<T> type) {
+	public <T> T convert(Map<String, Object> options, Class<T> type) {
 		Map<String, Object> props = extractProps(options, type);
 		return MappingUtils.convert(props, type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	protected Map<String, Object> extractProps(Map<String, Object> map, Class<?> type) {
 		Map<String, Object> props = new LinkedHashMap<>();
 		for (Map.Entry<String, Object> e: map.entrySet()) {
 			String prop = e.getKey();
-			Object value = e.getValue();
-			Member member = MetaUtil.getPropertyMember(type, prop, false, false);
-			if (member!=null) {
-				prop = MetaUtil.getPropertyName(member);
-				if (value!=null && !value.toString().isEmpty()) {
-					Class<?> propType = MetaUtil.getPropertyType(type, prop);
-					if (propType!=null && propType.isEnum()) {
-						String s = value.toString();
-						Method parse = MetaUtil.getMethod(propType, "parse", 1);
-						if (parse!=null) {
-							Object out = MetaUtil.invoke(value, parse, new Object[] {s});
-							if (out!=null) {
-								value = out;
-							}
-						} else {
-							value = parseEnum2(propType, s);
-						}
+			int i = prop.indexOf(".");
+			if (i>0) {
+				String base = prop.substring(0, i);		
+				Class<?> baseType = MetaUtil.getPropertyType(type, base);
+				if (baseType!=null) {					
+					Map<String, Object> map2 = null;
+					Object obj = props.get(base);
+					if (obj instanceof Map) {
+						map2 = (Map<String, Object>) obj;
 					}
-				} else {
-					Class<?> propType = MetaUtil.getPropertyType(type, prop);
-					if (propType!=null && (Boolean.TYPE.equals(propType) || Boolean.class.equals(propType))) {
-						value = true;
+					Map<String, Object> map3 = extractProps(removeKeyPrefix(map, base+"."), baseType);
+					if (map2==null) {
+						props.put(base, map3);
+					} else {
+						map2.putAll(map3);
 					}
 				}
+			} else {
+				Object value = e.getValue();
+				Member member = MetaUtil.getPropertyMember(type, prop, false, false);
+				if (member!=null) {
+					prop = MetaUtil.getPropertyName(member);
+					if (value!=null && !value.toString().isEmpty()) {
+						Class<?> propType = MetaUtil.getPropertyType(type, prop);
+						if (propType!=null && propType.isEnum()) {
+							String s = value.toString();
+							Method parse = MetaUtil.getMethod(propType, "parse", 1, true);
+							if (parse!=null) {
+								Object out = MetaUtil.invoke(null, parse, new Object[] {s});
+								if (out!=null) {
+									value = out;
+								}
+							} else {
+								value = parseEnum2(propType, s);
+							}
+						}
+					} else {
+						Class<?> propType = MetaUtil.getPropertyType(type, prop);
+						if (propType!=null && (Boolean.TYPE.equals(propType) || Boolean.class.equals(propType))) {
+							value = true;
+						}
+					}
+				}
+				props.put(prop, value);
 			}
-			props.put(prop, value);
+
 		}
 		return props;
 	}
 
 	
+	private Map<String, Object> removeKeyPrefix(Map<String, Object> map, String prefix) {
+		Map<String, Object> map2 = new LinkedHashMap<>();
+		if (map!=null) {
+			for (Map.Entry<String, Object> e: map.entrySet()) {
+				String key = e.getKey();
+				if (key.startsWith(prefix)) {
+					key = key.length()>prefix.length() ? key.substring(prefix.length()) : "";
+					map2.put(key, e.getValue());
+				}			
+			}			
+		}
+		return map2;
+	}
+
 	protected Object parseEnum(Class<?> type, String name){
 		for(Object e: type.getEnumConstants()) {
 			if(((Enum<?>)e).name().equalsIgnoreCase(name)){
@@ -1679,4 +1736,41 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		schema(type);
 	}
 
+	protected boolean isTrack() {
+		return options.get("track")!=null;
+	}
+	
+	protected <T> boolean track(T obj, TrackPredicate<T> predicate, int n, long initialDelay, long delay) {
+		sleep(initialDelay);
+		for (int i=0; i<n; i++) {
+			if (predicate.test(obj, i)) {
+				return true;
+			}
+			sleep(delay);
+		}
+		return false;
+	}
+
+	public static final int TRACK_MAX_STEPS = 10;
+	public static final long TRACK_INITIAL_DELAY = 3*1000;
+	public static final long TRACK_DELAY = 3*1000;
+	
+	public static interface TrackPredicate<T> {
+		boolean test(T obj, int n);
+	}
+	
+	protected <T> boolean track(T obj, TrackPredicate<T> predicate) {
+		return track(obj, predicate, TRACK_MAX_STEPS, TRACK_INITIAL_DELAY, TRACK_DELAY);
+	}
+
+	protected <T> boolean track(T obj, TrackPredicate<T> predicate, long initialDelay) {
+		return track(obj, predicate, TRACK_MAX_STEPS, initialDelay, TRACK_DELAY);
+	}
+	
+	public static void sleep(long ms) {
+		try {
+			Thread.sleep(ms);
+		} catch (InterruptedException e) {
+		}
+	}
 }

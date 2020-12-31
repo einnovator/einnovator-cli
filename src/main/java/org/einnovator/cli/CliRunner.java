@@ -419,7 +419,7 @@ public class CliRunner extends RunnerBase {
 		return makeArgsMap(args, cmds, extra, interactive);
 	}
 
-	private static Map<String, Object> makeArgsMap(String[] args, List<String> cmds, List<String> extra, boolean interactive) {
+	public static Map<String, Object> makeArgsMap(String[] args, List<String> cmds, List<String> extra, boolean interactive) {
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
 		for (int i=0; i<args.length; i++) {
 			String a = args[i];

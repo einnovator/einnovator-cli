@@ -17,14 +17,18 @@ import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.Connector;
 import org.einnovator.devops.client.model.CronJob;
 import org.einnovator.devops.client.model.CronJobStatus;
+import org.einnovator.devops.client.model.Deployable;
 import org.einnovator.devops.client.model.Deployment;
+import org.einnovator.devops.client.model.DeploymentKind;
 import org.einnovator.devops.client.model.DeploymentStatus;
 import org.einnovator.devops.client.model.Domain;
+import org.einnovator.devops.client.model.Event;
 import org.einnovator.devops.client.model.Instance;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.JobStatus;
 import org.einnovator.devops.client.model.Mount;
 import org.einnovator.devops.client.model.Pod;
+import org.einnovator.devops.client.model.Port;
 import org.einnovator.devops.client.model.Registry;
 import org.einnovator.devops.client.model.Resources;
 import org.einnovator.devops.client.model.Route;
@@ -33,6 +37,7 @@ import org.einnovator.devops.client.model.Space;
 import org.einnovator.devops.client.model.VarCategory;
 import org.einnovator.devops.client.model.Variable;
 import org.einnovator.devops.client.model.Vcs;
+import org.einnovator.devops.client.model.VolumeClaim;
 import org.einnovator.devops.client.modelx.CatalogFilter;
 import org.einnovator.devops.client.modelx.CatalogOptions;
 import org.einnovator.devops.client.modelx.ClusterFilter;
@@ -43,6 +48,7 @@ import org.einnovator.devops.client.modelx.DeploymentFilter;
 import org.einnovator.devops.client.modelx.DeploymentOptions;
 import org.einnovator.devops.client.modelx.DomainFilter;
 import org.einnovator.devops.client.modelx.DomainOptions;
+import org.einnovator.devops.client.modelx.EventFilter;
 import org.einnovator.devops.client.modelx.ExecOptions;
 import org.einnovator.devops.client.modelx.InstallOptions;
 import org.einnovator.devops.client.modelx.JobFilter;
@@ -56,6 +62,7 @@ import org.einnovator.devops.client.modelx.SpaceFilter;
 import org.einnovator.devops.client.modelx.SpaceOptions;
 import org.einnovator.devops.client.modelx.VcsFilter;
 import org.einnovator.devops.client.modelx.VcsOptions;
+import org.einnovator.devops.client.modelx.VolumeClaimFilter;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.ResourceUtils;
@@ -66,8 +73,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 
@@ -84,8 +93,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String SPACE_DEFAULT_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 	private static final String SPACE_WIDE_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 
-	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready";
-	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas:ready,image.name:image";
+	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready";
+	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image";
 	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
 	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
@@ -265,13 +274,15 @@ public class Devops extends CommandRunnerBase {
 			c("help")));
 		map.put("space", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
-			c("attach"),
+			c("sync"), c("attach"),
+			c("volume", "volumes", "volumeclaim", "volumeclaims"),
 			c("set"), c("unset"),
 			c("auth", "collaborator"),
 			c("help")));
 		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
+			c("events", "event"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("route"), c("go"), c("mount"), c("env", "var"), c("binding"), c("connector"),
 			c("help")));
@@ -280,7 +291,7 @@ public class Devops extends CommandRunnerBase {
 		map.put("job", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"), 
-			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("exec"), c("logs", "log"),
+			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));
@@ -288,7 +299,7 @@ public class Devops extends CommandRunnerBase {
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"),
 			c("job", "jobs"),
-			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"),
+			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"), c("attach"), 
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));			
 		map.put("domain", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
@@ -465,8 +476,17 @@ public class Devops extends CommandRunnerBase {
 			case "delete": case "del": case "rm":
 				deleteSpace(cmds, options);
 				break;
+			case "sync":
+				syncSpace(cmds, options);
+				break;
+			case "attach":
+				attachSpace(cmds, options);
+				break;
 			case "auth": case "collaborator":
 				authSpace(cmds, options);
+				break;
+			case "volume": case "volumes": case "volumeclaim": case "volumeclaims":
+				volumeclaimsSpace(cmds, options);
 				break;
 			default: 
 				invalidOp(type, op);
@@ -517,6 +537,9 @@ public class Devops extends CommandRunnerBase {
 			case "sync":
 				syncDeployment(cmds, options);
 				break;
+			case "attach":
+				attachDeployment(cmds, options);
+				break;
 			case "exec":
 				execDeployment(cmds, extra, options);
 				break;
@@ -525,6 +548,9 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "pod": case "pods": case "instances": case "instance": case "replica": case "replicas": 
 				instancesDeployment(cmds, options);
+				break;
+			case "events": case "event":
+				eventsDeployment(cmds, options);
 				break;
 			case "route": case "routes":
 				routeDeployment(cmds, options);
@@ -638,6 +664,9 @@ public class Devops extends CommandRunnerBase {
 			case "sync":
 				syncJob(cmds, options);
 				break;
+			case "attach":
+				attachJob(cmds, options);
+				break;
 			case "exec":
 				execJob(cmds, extra, options);
 				break;
@@ -704,6 +733,9 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "sync":
 				syncCronJob(cmds, options);
+				break;
+			case "attach":
+				attachCronJob(cmds, options);
 				break;
 			case "mount":
 				mountCronJob(cmds, options);
@@ -1080,8 +1112,15 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String clusterId = argId(op, cmds);
-		debug("Deleting Cluster: %s", clusterId);		
-		devopsClient.deleteCluster(clusterId, null);	
+		ClusterOptions options_ = convert(options, ClusterOptions.class);
+		String[] ids = clusterId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Cluster: %s", id);		
+			devopsClient.deleteCluster(id, options_);	
+		}		
 		if (isEcho()) {
 			listCluster(cmds, options);
 		}
@@ -1104,6 +1143,15 @@ public class Devops extends CommandRunnerBase {
 		debug("Spaces: %s %s", filter, pageable);
 		Page<Space> spaces = devopsClient.listSpaces(filter, pageable);
 		print(spaces, Space.class);
+	}
+	
+	public void getSpace(String spaceId , Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		Space space = devopsClient.getSpace(spaceId, options_);
+		printObj(space);
 	}
 	
 	public void getSpace(String[] cmds, Map<String, Object> options) {
@@ -1213,13 +1261,69 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String spaceId = argIdx(op, cmds);
-		debug("Deleting Space: %s", spaceId);		
-		devopsClient.deleteSpace(spaceId, null);
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		String[] ids = spaceId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Space: %s", id);		
+			devopsClient.deleteSpace(id, options_);	
+		}
 		if (isEcho()) {
 			listSpace(cmds, options);
 		}
 	}
 		
+	
+	public void syncSpace(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argIdx(op, cmds);
+		debug("Sync Space: %s", spaceId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		devopsClient.syncSpace(spaceId, options_);			
+		if (isEcho()) {
+			getSpace(spaceId, options);
+		}
+	}
+	
+	public void attachSpace(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argId(op, cmds);
+		String cluster = this.cluster;
+		debug("Attach Space: %s %s", spaceId, spaceId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		URI uri = devopsClient.attachSpace(cluster, spaceId, options_);			
+		if (isEcho()) {
+			String id = extractId(uri);
+			debug("Space URI: %s", uri);		
+			getSpace(id, options);
+		}
+	}
+
+	//
+	// Space VolumeClaims
+	//
+	
+	public void volumeclaimsSpace(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argIdx1(op, cmds);
+		volumeclaimsSpaceList(spaceId, options);
+	}
+
+	public void volumeclaimsSpaceList(String spaceId, Map<String, Object> options) {
+		VolumeClaimFilter filter = convert(options, VolumeClaimFilter.class);
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("VolumeClaims: %s %s %s", spaceId,filter, options_);		
+		List<VolumeClaim> volumeclaims = devopsClient.listVolumeClaims(spaceId, filter);			
+		print(volumeclaims);
+	}
 	
 	//
 	// Space Authority
@@ -1551,12 +1655,21 @@ public class Devops extends CommandRunnerBase {
 				return;
 			}	
 			if (options.get("j")!=null) {
-				killJob(id, options);
+				killJob(makeIdx(id), options);
 			} else if (options.get("c")!=null) {
-				killCronJob(id, options);
+				killCronJob(makeIdx(id), options);
 			} else {
-				killDeployment(id, options);
+				killDeployment(makeIdx(id), options);
 			}
+		}
+		if (isEcho()) {
+			if (options.get("j")!=null) {
+				listJob(cmds, options);
+			} else if (options.get("c")!=null) {
+				listCronJob(cmds, options);
+			} else {
+				listDeployment(cmds, options);
+			}			
 		}
 	}
 
@@ -1718,7 +1831,13 @@ public class Devops extends CommandRunnerBase {
 		print(deployments, Deployment.class);
 	}
 	
-	
+	public void getDeployment(String deployId, Map<String, Object> options) {
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		debug("Get Deployment: %s", deployId);
+		Deployment deployment = devopsClient.getDeployment(deployId, options_);
+		printObj(deployment);
+	}
+
 	public void getDeployment(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -1764,17 +1883,29 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		Deployment deployment = makeDeployment(name, options);
+		if (deployment==null) {
+			return;
+		}
 		if (start) {
 			deployment.setStart(true);
 		}
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		debug("Creating Deployment: %s %s", deployment, options_);
 		URI uri = devopsClient.createDeployment(spaceId, deployment, options_);
-		if (isEcho()) {
+		if (isEcho() || isTrack()) {
 			debug("Deployment URI: %s", uri);
 			String deployId = extractId(uri);
 			Deployment deployment2 = devopsClient.getDeployment(deployId, null);
 			printObj(deployment2);
+			if (isTrack()) {
+				if (deployment2.getStatus()!=DeploymentStatus.RUNNING) {
+					track(deployId, (id, n)-> {
+						Deployment deployment3 = devopsClient.getDeployment(id, null);
+						printObj(deployment3, false);	
+						return deployment3.getStatus()==DeploymentStatus.RUNNING;
+					});					
+				}
+			}
 		}
 	}
 	
@@ -1786,13 +1917,113 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 	
+	private void processDeployableOptions(Deployable deploy, Map<String, Object> options) {
+		if (deploy.getStack()!=null && deploy.getAutoEnv()==null) {
+			deploy.setAutoEnv(true);
+		}
+	}
+	
 	private Deployment makeDeployment(String name, Map<String, Object> options) {
 		setupDeployOptions(options);
 		Deployment deploy = convert(options, Deployment.class);
 		if (name!=null) {
 			deploy.setName(name);
 		}
+		processDeployableOptions(deploy, options);
+		String s = (String)options.get("s");			
+		if (s!=null) {
+			deploy.setKind(DeploymentKind.STATEFUL_SET);
+		}
+		String host = (String)options.get("host");
+		if (host==null) {
+			host = (String)options.get("r");			
+		}
+		if (host!=null) {
+			if (host.isEmpty()) {
+				host = name;
+			}
+		}
+		if (host!=null && !host.isEmpty()) {
+			Route route = makeRoute(host, options);
+			if (route!=null) {
+				if (deploy.getRoutes()==null) {
+					deploy.setRoutes(new ArrayList<>());
+				}					
+				deploy.getRoutes().add(route);			
+			}
+		}
+		List<Port> ports = new ArrayList<>();
+		if (!makePorts(options, ports)) {
+			return null;
+		}
+		if (!ports.isEmpty()) {
+			deploy.setPorts(ports);
+		}
 		return deploy;
+	}
+	
+	private boolean makePorts(Map<String, Object> options, List<Port> ports) {
+		String pp = (String)options.get("ports");
+		if (pp==null) {
+			pp = (String)options.get("port");
+		}
+		if (pp!=null && !pp.isEmpty()) {
+			String[] ss = pp.split(",");
+			for (String p: ss) {
+				Port port = new Port();
+				int i = p.indexOf(":");
+				Integer portValue = null;
+				Integer targetPort = null;
+				if (i>0 && i<p.length()-1) {
+					portValue = parseInt(p.substring(0,i));
+					targetPort = parseInt(p.substring(i+1));
+				} else if (i<0) {
+					portValue = parseInt(p);
+				}
+				if (portValue==null) {
+					error("Invalid port value: %s", p);
+					exit(-1);
+					return false;
+				}
+				port.setPort(portValue);
+				if (targetPort==null) {
+					targetPort = portValue;
+				}
+				port.setTargetPort(targetPort);
+				ports.add(port);
+			}
+		}
+		return true;
+	}
+
+	private Route makeRoute(String name, Map<String, Object> options) {
+		Route route = null;
+		Domain domain = null;
+		String domainId = (String)options.get("d");
+		if (domainId==null || domainId.isEmpty()) {
+			domainId = this.domain;
+		}
+		if (domainId!=null && !domainId.isEmpty()) {
+			try {
+				domain = devopsClient.getDomain(domainId, null);						
+			 }catch (HttpStatusCodeException e) {
+				if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
+					error("Domain not found: %s", domainId);
+					return null;
+				}
+				throw e;
+			}
+		}
+		route = new Route();
+		route.setHost(name);
+		if (domain!=null) {
+			Domain domain2 = new Domain();
+			domain2.setId(domain.getId());
+			domain2.setUuid(domain.getUuid());
+			domain2.setDns(domain.getDns());
+			route.setDomain(domain2);
+		}
+		return route;
 	}
 
 	public void updateDeployment(String[] cmds, Map<String, Object> options) {
@@ -1802,6 +2033,9 @@ public class Devops extends CommandRunnerBase {
 
 		String deployId = argIdx(op, cmds);
 		Deployment deployment = makeDeployment(null, options);
+		if (deployment==null) {
+			return;
+		}
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		debug("Updating Deployment: %s %s %s", deployId, deployment, options_);
 		devopsClient.updateDeployment(deployId, deployment, options_);
@@ -1834,18 +2068,33 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String deployId = argIdx(op, cmds);
-		deleteDeployment(deployId, options);
+		String deployId = argId(op, cmds);
+		String[] ids = deployId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			deleteDeployment(makeIdx(id), options);			
+		}
+		if (isEcho()) {
+			listDeployment(cmds, options);
+		}
 	}
 	
 	public void deleteDeployment(String deployId, Map<String, Object> options) {
 		deployId = makeIdx(deployId);
 		debug("Deleting Deployment: %s", deployId);	
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
-		devopsClient.deleteDeployment(deployId, options_);		
-		if (isEcho()) {
-			listDeployment(cmds, options);
+		if (options_.getDeployment()==null) {
+			options_.setDeployment(true);
 		}
+		if (options_.getService()==null) {
+			options_.setService(true);
+		}
+		if (options_.getIngress()==null) {
+			options_.setIngress(true);
+		}
+		devopsClient.deleteDeployment(deployId, options_);		
 	}
 	
 	public void scaleDeployment(String[] cmds, Map<String, Object> options) {
@@ -1857,7 +2106,7 @@ public class Devops extends CommandRunnerBase {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		String k = get(new String[] {"k", "replicas", "instances"}, options, String.class);
 		if (k==null) {
-			k = cmds.length>0 ? cmds[0] : null;
+			k = arg1(op, cmds, false);
 		}
 		if (k==null) {
 			error("Missing replica count...");
@@ -1865,14 +2114,19 @@ public class Devops extends CommandRunnerBase {
 		}
 		Integer k_ = parseInt(k);
 		if (k_==null || k_<0) {
-			error("Invalid replica count...");
+			error("Invalid replica count: %s", k);
 			exit(-1);
 		}
-		if (k!=null) {
-			devopsClient.scaleDeployment(deployId, k_, options_);
-			if (isEcho()) {
-				devopsClient.listInstances(deployId, null);
-			}
+		devopsClient.scaleDeployment(deployId, k_, options_);
+		if (isTrack()) {
+			track(deployId, (id, n)-> {
+				Deployment deployment = devopsClient.getDeployment(id, null);
+				printObj(deployment, n==0);	
+				return deployment.getAvailableReplicas()==k_;
+			}, 0);
+		}
+		if (isEcho()) {
+			devopsClient.listInstances(deployId, null);
 		}
 	}
 	
@@ -1915,7 +2169,7 @@ public class Devops extends CommandRunnerBase {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.startDeployment(deployId, options_);		
 		if (isEcho()) {
-			getDeployment(cmds, options);
+			getDeployment(deployId, options);
 		}
 	}
 
@@ -1923,8 +2177,15 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String deployId = argIdx(op, cmds);
-		stopDeployment(deployId, options);
+		String deployId = argId(op, cmds);
+		String[] ids = deployId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			System.out.println("!!" + argPID(options));
+			stopDeployment(makeIdx(id), options);			
+		}
 	}
 
 	public void stopDeployment(String deployId, Map<String, Object> options) {
@@ -1932,7 +2193,7 @@ public class Devops extends CommandRunnerBase {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.stopDeployment(deployId, options_);	
 		if (isEcho()) {
-			getDeployment(cmds, options);
+			getDeployment(deployId, options);
 		}
 	}
 
@@ -1945,7 +2206,7 @@ public class Devops extends CommandRunnerBase {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.restartDeployment(deployId, options_);
 		if (isEcho()) {
-			getDeployment(cmds, options);
+			getDeployment(deployId, options);
 		}
 
 	}
@@ -1959,7 +2220,23 @@ public class Devops extends CommandRunnerBase {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		devopsClient.syncDeployment(deployId, options_);			
 		if (isEcho()) {
-			getDeployment(cmds, options);
+			getDeployment(deployId, options);
+		}
+	}
+	
+	public void attachDeployment(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String deployId = argId(op, cmds);
+		String spaceId = argNS(options);
+		debug("Attach Deployment: %s %s", spaceId, deployId);		
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		URI uri = devopsClient.attachDeployment(spaceId, deployId, options_);			
+		if (isEcho()) {
+			String id = extractId(uri);
+			debug("Deployment URI: %s", uri);		
+			getDeployment(id, options);
 		}
 	}
 
@@ -2081,12 +2358,16 @@ public class Devops extends CommandRunnerBase {
 		eventsDeploymentList(deployId, options);
 	}
 
-
 	public void eventsDeploymentList(String deployId, Map<String, Object> options) {
-		debug("Events: %s", deployId);		
-		//DeploymentFilter options_ = convert(options, DeploymentFilter.class);
-		//List<?> events = devopsClient.listEvents(deployId, options_);			
-		//print(events);
+		EventFilter filter = convert(options, EventFilter.class);
+		String c = (String)options.get("c");
+		if (c!=null) {
+			filter.setCluster(true);
+		}
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("Events: %s %s %s", deployId,filter, options_);		
+		List<Event> events = devopsClient.listEvents(deployId, filter, options_.toPageRequest());			
+		print(events);
 	}
 
 	
@@ -2198,13 +2479,23 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String deployId = argIdx(op, cmds);
-		String routeId = arg1(op, cmds);
+		String routeId = arg1(op, cmds, false);
+		if (routeId==null || routeId.isEmpty()) {
+			error("Missing route hostname:");
+			exit(-1);
+			return;
+		}
 		routeCreate(deployId, routeId, cmds, options);
 	}
 	
 	public void routeCreate(String deployId, String routeId, String[] cmds, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		Route route = convert(options, Route.class);
+		Route route = makeRoute(routeId, options);
+		if (route==null) {
+			error("Missing route deails: %s", routeId);
+			exit(-1);
+			return;
+		}
 		debug("Add Route: %s %s", deployId, route);		
 		URI uri = devopsClient.addRoute(deployId, route, options_);
 		if (isEcho()) {
@@ -2234,7 +2525,7 @@ public class Devops extends CommandRunnerBase {
 	
 	public void routeUpdate(String deployId, String routeId, String[] cmds, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		Route route = convert(options, Route.class);
+		Route route = makeRoute(null, options);
 		debug("Update Route: %s %s %s", deployId, routeId, route);		
 		devopsClient.updateRoute(deployId, routeId, route, options_);
 		if (isEcho()) {
@@ -2911,6 +3202,13 @@ public class Devops extends CommandRunnerBase {
 		print(jobs);
 	}
 
+
+	public void getJob(String jobId, Map<String, Object> options) {
+		JobOptions options_ = convert(options, JobOptions.class);
+		Job job = devopsClient.getJob(jobId, options_);
+		printObj(job);
+	}
+	
 	public void getJob(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -2976,6 +3274,7 @@ public class Devops extends CommandRunnerBase {
 		if (name!=null) {
 			job.setName(name);
 		}
+		processDeployableOptions(job, options);
 		return job;
 	}
 	
@@ -3018,7 +3317,13 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argIdx(op, cmds);
-		deleteJob(jobId, options);
+		String[] ids = jobId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			deleteJob(id, options);			
+		}
 		if (isEcho()) {
 			listJob(cmds, options);
 		}
@@ -3039,7 +3344,10 @@ public class Devops extends CommandRunnerBase {
 		Resources resources = makeResources(options);
 		debug("Scaling Job resources: %s %s", jobId, resources);		
 		JobOptions options_ = convert(options, JobOptions.class);
-		devopsClient.scaleJob(jobId, resources, options_);			
+		devopsClient.scaleJob(jobId, resources, options_);
+		if (isEcho()) {
+			getJob(jobId, options);
+		}
 	}
 
 	public void startJob(String[] cmds, Map<String, Object> options) {
@@ -3051,7 +3359,7 @@ public class Devops extends CommandRunnerBase {
 		JobOptions options_ = convert(options, JobOptions.class);
 		devopsClient.startJob(jobId, options_);		
 		if (isEcho()) {
-			getJob(cmds, options);
+			getJob(jobId, options);
 		}
 	}
 
@@ -3059,8 +3367,14 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String jobId = argIdx(op, cmds);
-		stopJob(jobId, options);
+		String jobId = argId(op, cmds);
+		String[] ids = jobId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			stopJob(makeIdx(id), options);			
+		}
 	}
 	
 	public void stopJob(String jobId, Map<String, Object> options) {	
@@ -3068,7 +3382,7 @@ public class Devops extends CommandRunnerBase {
 		JobOptions options_ = convert(options, JobOptions.class);
 		devopsClient.stopJob(jobId, options_);		
 		if (isEcho()) {
-			getJob(cmds, options);
+			getJob(jobId, options);
 		}
 	}
 
@@ -3080,6 +3394,9 @@ public class Devops extends CommandRunnerBase {
 		debug("Restarting Job: %s", jobId);		
 		JobOptions options_ = convert(options, JobOptions.class);
 		devopsClient.restartJob(jobId, options_);			
+		if (isEcho()) {
+			getJob(jobId, options);
+		}
 	}
 	
 	public void syncJob(String[] cmds, Map<String, Object> options) {
@@ -3091,10 +3408,26 @@ public class Devops extends CommandRunnerBase {
 		JobOptions options_ = convert(options, JobOptions.class);
 		devopsClient.syncJob(jobId, options_);	
 		if (isEcho()) {
-			getJob(cmds, options);
+			getJob(jobId, options);
 		}
 	}
 
+	public void attachJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String jobId = argId(op, cmds);
+		String spaceId = argNS(options);
+		debug("Attach Job: %s %s", spaceId, jobId);		
+		JobOptions options_ = convert(options, JobOptions.class);
+		URI uri = devopsClient.attachJob(spaceId, jobId, options_);			
+		if (isEcho()) {
+			String id = extractId(uri);
+			debug("Job URI: %s", uri);		
+			getJob(id, options);
+		}
+	}
+	
 	public void execJob(String[] cmds, String[] extra, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -3570,6 +3903,12 @@ public class Devops extends CommandRunnerBase {
 		print(cronjobs, CronJob.class);
 	}
 
+	public void getCronJob(String cronjobId, Map<String, Object> options) {
+		CronJobOptions options_ = convert(options, CronJobOptions.class);
+		CronJob cronjob = devopsClient.getCronJob(cronjobId, options_);
+		printObj(cronjob);
+	}
+
 	public void getCronJob(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -3631,11 +3970,12 @@ public class Devops extends CommandRunnerBase {
 
 	private CronJob makeCronJob(String name, Map<String, Object> options) {
 		setupDeployOptions(options);
-		CronJob job = convert(options, CronJob.class);
+		CronJob cronjob = convert(options, CronJob.class);
 		if (name!=null) {
-			job.setName(name);
+			cronjob.setName(name);
 		}
-		return job;
+		processDeployableOptions(cronjob, options);
+		return cronjob;
 	}
 
 	public void updateCronJob(String[] cmds, Map<String, Object> options) {
@@ -3678,16 +4018,22 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String cronjobId = argIdx(op, cmds);
-		deleteCronJob(cronjobId, options);
+		String[] ids = cronjobId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			deleteCronJob(id, options);
+		}
+		if (isEcho()) {
+			listCronJob(cmds, options);
+		}
 	}
 	
 	public void deleteCronJob(String cronjobId, Map<String, Object> options) {
 		cronjobId = makeIdx(cronjobId);
 		debug("Deleting CronJob: %s", cronjobId);
 		devopsClient.deleteCronJob(cronjobId, null);	
-		if (isEcho()) {
-			listCronJob(cmds, options);
-		}
 	}
 
 	public void resourcesCronJob(String[] cmds, Map<String, Object> options) {
@@ -3710,7 +4056,7 @@ public class Devops extends CommandRunnerBase {
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		devopsClient.startCronJob(cronjobId, options_);		
 		if (isEcho()) {
-			getCronJob(cmds, options);
+			getCronJob(cronjobId, options);
 		}
 	}
 
@@ -3718,8 +4064,14 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String cronjobId = argIdx(op, cmds);
-		stopCronJob(cronjobId, options);
+		String cronjobId = argId(op, cmds);
+		String[] ids = cronjobId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			stopCronJob(makeIdx(id), options);			
+		}
 	}
 	
 	public void stopCronJob(String cronjobId, Map<String, Object> options) {
@@ -3727,7 +4079,7 @@ public class Devops extends CommandRunnerBase {
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		devopsClient.stopCronJob(cronjobId, options_);			
 		if (isEcho()) {
-			getCronJob(cmds, options);
+			getCronJob(cronjobId, options);
 		}
 	}
 
@@ -3740,7 +4092,7 @@ public class Devops extends CommandRunnerBase {
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		devopsClient.suspendCronJob(cronjobId, options_);	
 		if (isEcho()) {
-			getCronJob(cmds, options);
+			getCronJob(cronjobId, options);
 		}
 	}
 
@@ -3753,9 +4105,8 @@ public class Devops extends CommandRunnerBase {
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		devopsClient.restartCronJob(cronjobId, options_);		
 		if (isEcho()) {
-			restartCronJob(cmds, options);
+			getCronJob(cronjobId, options);
 		}
-
 	}
 	
 	public void syncCronJob(String[] cmds, Map<String, Object> options) {
@@ -3767,10 +4118,25 @@ public class Devops extends CommandRunnerBase {
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		devopsClient.syncCronJob(cronjobId, options_);	
 		if (isEcho()) {
-			getCronJob(cmds, options);
+			getCronJob(cronjobId, options);
 		}
 	}
 
+	public void attachCronJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String cronjobId = argId(op, cmds);
+		String spaceId = argNS(options);
+		debug("Attach CronJob: %s %s", spaceId, cronjobId);		
+		CronJobOptions options_ = convert(options, CronJobOptions.class);
+		URI uri = devopsClient.attachCronJob(spaceId, cronjobId, options_);			
+		if (isEcho()) {
+			String id = extractId(uri);
+			debug("CronJob URI: %s", uri);		
+			getCronJob(id, options);
+		}
+	}
 	
 	//
 	// CronJob Job instances
@@ -4274,8 +4640,14 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String domainId = (String)get(new String[] {"id", "uuid"}, options);
-		debug("Deleting Domain: %s", domainId);
-		devopsClient.deleteDomain(domainId, null);	
+		String[] ids = domainId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Domain: %s", domainId);
+			devopsClient.deleteDomain(domainId, null);	
+		}
 		if (isEcho()) {
 			listDomain(cmds, options);
 		}
@@ -4401,8 +4773,14 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String registryId = argId(op, cmds);
-		debug("Deleting Registry: %s", registryId);		
-		devopsClient.deleteRegistry(registryId, null);	
+		String[] ids = registryId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Registry: %s", registryId);		
+			devopsClient.deleteRegistry(registryId, null);	
+		}
 		if (isEcho()) {
 			listRegistry(cmds, options);
 		}
@@ -4529,8 +4907,15 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String vcsId = argId(op, cmds);
-		debug("Deleting Vcs: %s", vcsId);
-		devopsClient.deleteVcs(vcsId, null);	
+		VcsOptions options_ = convert(options, VcsOptions.class);
+		String[] ids = vcsId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Vcs: %s", id);
+			devopsClient.deleteVcs(vcsId, options_);	
+		}
 		if (isEcho()) {
 			listVcs(cmds, options);
 		}
@@ -4657,10 +5042,14 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String catalogId = argId(op, cmds);
-		debug("Deleting Catalog: %s", catalogId);		
-		devopsClient.deleteCatalog(catalogId, null);	
-		if (isEcho()) {
-			listCatalog(cmds, options);
+		CatalogOptions options_ = convert(options, CatalogOptions.class);
+		String[] ids = catalogId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Catalog: %s", id);		
+			devopsClient.deleteCatalog(id, options_);	
 		}
 		if (isEcho()) {
 			listCatalog(cmds, options);
@@ -4814,8 +5203,15 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String solutionId = argId(op, cmds);
-		debug("Deleting Solution: %s", solutionId);
-		devopsClient.deleteSolution(solutionId, null);	
+		SolutionOptions options_ = convert(options, SolutionOptions.class);
+		String[] ids = solutionId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting Solution: %s", id);		
+			devopsClient.deleteSolution(id, options_);	
+		}
 		if (isEcho()) {
 			listSolution(cmds, options);
 		}
