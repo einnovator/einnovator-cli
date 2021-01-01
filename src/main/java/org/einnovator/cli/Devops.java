@@ -27,7 +27,9 @@ import org.einnovator.devops.client.model.Event;
 import org.einnovator.devops.client.model.Instance;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.JobStatus;
+import org.einnovator.devops.client.model.KeyPath;
 import org.einnovator.devops.client.model.Mount;
+import org.einnovator.devops.client.model.MountType;
 import org.einnovator.devops.client.model.Pod;
 import org.einnovator.devops.client.model.Port;
 import org.einnovator.devops.client.model.Registry;
@@ -66,6 +68,7 @@ import org.einnovator.devops.client.modelx.VcsOptions;
 import org.einnovator.devops.client.modelx.VolumeClaimFilter;
 import org.einnovator.util.MappingUtils;
 import org.einnovator.util.PageOptions;
+import org.einnovator.util.PathUtil;
 import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.security.Authority;
@@ -148,7 +151,7 @@ public class Devops extends CommandRunnerBase {
 	private static final String AUTHORITY_DEFAULT_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 	private static final String AUTHORITY_WIDE_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 
-	private static final String EVENT_DEFAULT_FORMAT = "type/reason,formattedDate:date,username,description:description";
+	private static final String EVENT_DEFAULT_FORMAT = "type/reason,formattedDate:age,username,description:description";
 	private static final String EVENT_WIDE_FORMAT = EVENT_DEFAULT_FORMAT;
 	
 	private DevopsClient devopsClient;
@@ -1974,6 +1977,20 @@ public class Devops extends CommandRunnerBase {
 		if (!ports.isEmpty()) {
 			deploy.setPorts(ports);
 		}
+		List<Variable> env = new ArrayList<>();
+		if (!makeEnv(options, env)) {
+			return null;
+		}
+		if (!env.isEmpty()) {
+			deploy.setEnv(env);
+		}
+		List<Mount> mount = new ArrayList<>();
+		if (!makeMounts(options, mount)) {
+			return null;
+		}
+		if (!mount.isEmpty()) {
+			deploy.setMounts(mount);
+		}
 		return deploy;
 	}
 	
@@ -2039,6 +2056,211 @@ public class Devops extends CommandRunnerBase {
 			route.setDomain(domain2);
 		}
 		return route;
+	}
+
+	/*
+	 * var1=value,var2=^configmap.key,var3=^^secret.key
+	 */
+	private boolean makeEnv(Map<String, Object> options, List<Variable> env) {
+		String ee = (String)options.get("env");
+		if (ee!=null && !ee.isEmpty()) {
+			String[] ss = ee.split(",");
+			for (String e: ss) {
+				Variable var = new Variable();
+				int i = e.indexOf("=");
+				String name = null;
+				String value = null;
+				if (i>0 && i<e.length()-1) {
+					name = e.substring(0,i);
+					value = e.substring(i+1);
+				} else if (i<0) {
+					name = e;
+				}
+				if (name==null) {
+					error("Invalid environment variable: %s", ee);
+					exit(-1);
+					return false;
+				}
+				name = name.trim();
+				if (name.isEmpty()) {
+					error("Invalid environment variable: %s", ee);
+					exit(-1);
+					return false;
+				}
+				var.setName(name);
+				if (value==null) {
+					value = "";
+				}
+				if (value.startsWith("^^")) {
+					var.setCategory(VarCategory.SECRET);
+					if (value.length()==2) {
+						error("Invalid environment variable: %s", ee);
+						exit(-1);
+						return false;
+					}
+					value = value.substring(2);				
+					i = value.indexOf(".");
+					if (i==0 || i==value.length()-1) {
+						error("Invalid environment variable: %s", ee);
+						exit(-1);
+						return false;
+					}
+					String secret = value.substring(0, i);
+					value = value.substring(i+1);
+					var.setPath(value);
+					var.setSecret(secret);
+				} else if (value.startsWith("^")) {
+					var.setCategory(VarCategory.CONFIGMAP);
+					if (value.length()==1) {
+						error("Invalid environment variable: %s", ee);
+						exit(-1);
+						return false;
+					}
+					value = value.substring(1);						
+					i = value.indexOf(".");
+					if (i==0 || i==value.length()-1) {
+						error("Invalid environment variable: %s", ee);
+						exit(-1);
+						return false;
+					}
+					String configmap = value.substring(0, i);
+					value = value.substring(i+1);
+					var.setPath(value);
+					var.setConfigmap(configmap);
+				} else {
+					var.setCategory(VarCategory.VALUE);
+					var.setValue(value);
+				}
+				env.add(var);
+			}
+		}
+		return true;
+	}
+	
+	
+	/*
+	 * name1:/mountPath=1G1,name2:/mountPath=^configmap.key1+key2,name3:/mountPath=^^secret.key2+key2
+	 */
+	private boolean makeMounts(Map<String, Object> options, List<Mount> mounts) {
+		String ee = (String)options.get("mounts");
+		if (ee!=null && !ee.isEmpty()) {
+			String[] ss = ee.split(",");
+			for (String e: ss) {
+				Mount mount = new Mount();
+				int i = e.indexOf("=");
+				String name = null;
+				String value = null;
+				if (i>0 && i<e.length()-1) {
+					name = e.substring(0,i);
+					value = e.substring(i+1);
+				} else if (i<0) {
+					name = e;
+				}
+				if (name==null) {
+					error("Invalid mount: %s", ee);
+					exit(-1);
+					return false;
+				}
+				name = name.trim();
+				if (name.isEmpty()) {
+					error("Invalid mount: %s", ee);
+					exit(-1);
+					return false;
+				}
+				i = name.indexOf(":");
+				if (i<0 || i==name.length()-1) {
+					error("Invalid mount: %s", ee);
+					exit(-1);
+					return false;
+				}
+				String mountPath = name.substring(i+1);
+				name = name.substring(0,i);
+				mount.setName(name);
+				mount.setMountPath(mountPath);
+				if (value==null) {
+					value = "1Gi";
+				}
+				if (value.startsWith("^^")) {
+					mount.setType(MountType.SECRET);
+					if (value.length()==2) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					value = value.substring(2);				
+					i = value.indexOf(".");
+					if (i==0 || i==value.length()-1) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					String secret = value.substring(0, i);
+					value = value.substring(i+1);
+					mount.setSecret(secret);
+					List<KeyPath> items = new ArrayList<>();
+					if (!makeMountItems(value, mountPath, items)) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					mount.setItems(items);
+				} else if (value.startsWith("^")) {
+					mount.setType(MountType.CONFIGMAP);
+					if (value.length()==1) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					value = value.substring(1);						
+					i = value.indexOf(".");
+					if (i==0 || i==value.length()-1) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					String configmap = value.substring(0, i);
+					value = value.substring(i+1);
+					mount.setConfigmap(configmap);
+					List<KeyPath> items = new ArrayList<>();
+					if (!makeMountItems(value, mountPath, items)) {
+						error("Invalid mount: %s", ee);
+						exit(-1);
+						return false;
+					}
+					mount.setItems(items);
+				} else {
+					mount.setType(MountType.VOLUME);
+					mount.setSize(value);
+				}
+				mounts.add(mount);
+			}
+		}
+		return true;
+	}
+	
+	
+	/*
+	 * config:/config=^configmap.key+key2
+	 */
+	private boolean makeMountItems(String value, String path, List<KeyPath> items) {
+		if (value==null) {
+			return false;
+		}
+		value = value.trim();
+		if (value.isEmpty()) {
+			return false;
+		}
+		String[] keys = value.split("+");
+		for (String key: keys) {
+			if (key==null || key.isEmpty()) {
+				return false;
+			}
+			KeyPath item = new KeyPath();
+			item.setKey(key);
+			item.setPath(PathUtil.concat(path, key));
+			items.add(item);
+		}
+		return items.size()>0 ? true : false;
 	}
 
 	public void updateDeployment(String[] cmds, Map<String, Object> options) {
@@ -3336,6 +3558,20 @@ public class Devops extends CommandRunnerBase {
 			job.setName(name);
 		}
 		processDeployableOptions(job, options);
+		List<Variable> env = new ArrayList<>();
+		if (!makeEnv(options, env)) {
+			return null;
+		}
+		if (!env.isEmpty()) {
+			job.setEnv(env);
+		}
+		List<Mount> mount = new ArrayList<>();
+		if (!makeMounts(options, mount)) {
+			return null;
+		}
+		if (!mount.isEmpty()) {
+			job.setMounts(mount);
+		}
 		return job;
 	}
 	
@@ -4109,6 +4345,20 @@ public class Devops extends CommandRunnerBase {
 			cronjob.setName(name);
 		}
 		processDeployableOptions(cronjob, options);
+		List<Variable> env = new ArrayList<>();
+		if (!makeEnv(options, env)) {
+			return null;
+		}
+		if (!env.isEmpty()) {
+			cronjob.setEnv(env);
+		}
+		List<Mount> mount = new ArrayList<>();
+		if (!makeMounts(options, mount)) {
+			return null;
+		}
+		if (!mount.isEmpty()) {
+			cronjob.setMounts(mount);
+		}
 		return cronjob;
 	}
 
@@ -4302,7 +4552,6 @@ public class Devops extends CommandRunnerBase {
 			break;
 		}
 	}
-
 
 
 	public void eventCronJobList(String[] cmds, Map<String, Object> options) {
