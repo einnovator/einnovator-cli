@@ -1002,6 +1002,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				}
 				i++;
 			}				
+			ww[ww.length-1] = 1;
 		}
 		return ww;
 	}
@@ -1157,10 +1158,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					StringBuilder sb = new StringBuilder();
 					for (String s1: ss) {
 						Object value = getPropertyValue(obj, s1);
-						if (sb.length()>0) {
-							sb.append("/");
+						String svalue = formatSimple(value);
+						if (svalue!=null) {
+							svalue = svalue.trim();
+							if (!svalue.isEmpty()) {
+								if (sb.length()>0) {
+									sb.append("/");
+								}
+								sb.append(svalue);								
+							}
 						}
-						sb.append(formatSimple(value));
 					}
 					values.add(sb.toString());												
 				}				
@@ -1581,11 +1588,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected String argIdx(String op, String[] cmds, int index) {
 		String id = cmds.length > index ? cmds[index] : null;
 		if (id==null) {
-			error(String.format("missing resource id"));
-			exit(-1);
+			missingResourceId(op);
 			return null;
 		}
 		return makeIdx(id);
+	}
+
+	protected void missingResourceId(String op) {
+		if (StringUtil.hasText(op)) {
+			error(String.format("missing resource id for %s", op));				
+		} else {
+			error(String.format("missing resource id"));		
+		}
+		exit(-1);
 	}
 
 	protected void missingResourceId() {

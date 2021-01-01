@@ -13,6 +13,7 @@ import org.einnovator.devops.client.DevopsClient;
 import org.einnovator.devops.client.config.DevopsClientConfiguration;
 import org.einnovator.devops.client.model.Binding;
 import org.einnovator.devops.client.model.Catalog;
+import org.einnovator.devops.client.model.Certificate;
 import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.Connector;
 import org.einnovator.devops.client.model.CronJob;
@@ -147,6 +148,9 @@ public class Devops extends CommandRunnerBase {
 	private static final String AUTHORITY_DEFAULT_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 	private static final String AUTHORITY_WIDE_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 
+	private static final String EVENT_DEFAULT_FORMAT = "type/reason,formattedDate:date,username,description:description";
+	private static final String EVENT_WIDE_FORMAT = EVENT_DEFAULT_FORMAT;
+	
 	private DevopsClient devopsClient;
 
 	private String server = DEVOPS_DEFAULT_SERVER;
@@ -282,7 +286,7 @@ public class Devops extends CommandRunnerBase {
 		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
-			c("events", "event"),
+			c("event", "events"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("route"), c("go"), c("mount"), c("env", "var"), c("binding"), c("connector"),
 			c("help")));
@@ -292,12 +296,14 @@ public class Devops extends CommandRunnerBase {
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"), 
 			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
+			c("events", "event"),
 			c("pod", "pods", "instances", "instance", "replica", "replicas"),
 			c("mount"), c("env", "var"), c("binding"),
 			c("help")));
 		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"),
+			c("events", "event"),
 			c("job", "jobs"),
 			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"), c("attach"), 
 			c("mount"), c("env", "var"), c("binding"),
@@ -342,6 +348,8 @@ public class Devops extends CommandRunnerBase {
 			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		deploy.put("event", c(c("ls", "list"), c("schema", "meta"), c("delete", "del", "remove", "rm"), c("help")));
+
 		deploy.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
@@ -353,6 +361,7 @@ public class Devops extends CommandRunnerBase {
 		Map<String, String[][]> job = m("job", map);
 		job.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		job.put("event", c(c("ls", "list"), c("schema", "meta"), c("delete", "del", "remove", "rm"), c("help")));
 		job.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		job.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
@@ -362,12 +371,12 @@ public class Devops extends CommandRunnerBase {
 		Map<String, String[][]> cronjob = m("cronjob", map);
 		cronjob.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		cronjob.put("event", c(c("ls", "list"), c("schema", "meta"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("mount", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		cronjob.put("job", c(c("ls", "list"), c("help")));
-
 	}
 	
 	@Override
@@ -550,7 +559,7 @@ public class Devops extends CommandRunnerBase {
 				instancesDeployment(cmds, options);
 				break;
 			case "events": case "event":
-				eventsDeployment(cmds, options);
+				eventDeployment(cmds, options);
 				break;
 			case "route": case "routes":
 				routeDeployment(cmds, options);
@@ -673,6 +682,9 @@ public class Devops extends CommandRunnerBase {
 			case "logs": case "log":
 				logJob(cmds, options);
 				break;
+			case "events": case "event":
+				eventJob(cmds, options);
+				break;
 			case "mount":
 				mountJob(cmds, options);
 				break;
@@ -736,6 +748,9 @@ public class Devops extends CommandRunnerBase {
 				break;
 			case "attach":
 				attachCronJob(cmds, options);
+				break;
+			case "events": case "event":
+				eventCronJob(cmds, options);
 				break;
 			case "mount":
 				mountCronJob(cmds, options);
@@ -2350,25 +2365,71 @@ public class Devops extends CommandRunnerBase {
 	// Deployment Events
 	//
 	
-	public void eventsDeployment(String[] cmds, Map<String, Object> options) {
-		if (isHelp2()) {
+	public void eventDeployment(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		switch (op2) {
+		case "help": case "":
+			printUsage2();
+			break;
+		case "ls": case "list": {
+			eventDeploymentList(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			eventDeploymentDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Event.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+
+
+	public void eventDeploymentList(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
 			return;
 		}
 		String deployId = argIdx1(op, cmds);
-		eventsDeploymentList(deployId, options);
+		eventDeploymentList(deployId, options);
 	}
 
-	public void eventsDeploymentList(String deployId, Map<String, Object> options) {
+	public void eventDeploymentList(String deployId, Map<String, Object> options) {
 		EventFilter filter = convert(options, EventFilter.class);
 		String c = (String)options.get("c");
 		if (c!=null) {
 			filter.setCluster(true);
 		}
 		PageOptions options_ = convert(options, PageOptions.class);
-		debug("Events: %s %s %s", deployId,filter, options_);		
-		List<Event> events = devopsClient.listEvents(deployId, filter, options_.toPageRequest());			
+		debug("Deployment Events: %s %s %s", deployId,filter, options_);		
+		Page<Event> events = devopsClient.listEvents(deployId, filter, options_.toPageRequest());			
 		print(events);
 	}
+
+
+	public void eventDeploymentDelete(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String deployId = argIdx1(op, cmds);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		String eventId = arg2(op2, cmds);
+		debug("Remove Event: %s %s %s", deployId, eventId, options_);		
+		//devopsClient.removeEvent(deployId, eventId, options_);
+		if (isEcho()) {
+			eventDeploymentList(cmds, options);
+		}
+	}
+
 
 	
 	//
@@ -3455,6 +3516,79 @@ public class Devops extends CommandRunnerBase {
 	}
 	
 	//
+	// Job Events
+	//
+	
+	public void eventJob(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		switch (op2) {
+		case "help": case "":
+			printUsage2();
+			break;
+		case "ls": case "list": {
+			eventJobList(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			eventJobDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Event.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+
+
+	public void eventJobList(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String jobId = argIdx1(op, cmds);
+		eventJobList(jobId, options);
+	}
+
+	public void eventJobList(String jobId, Map<String, Object> options) {
+		if (isHelp3("ls")) {
+			return;
+		}
+		EventFilter filter = convert(options, EventFilter.class);
+		String c = (String)options.get("c");
+		if (c!=null) {
+			filter.setCluster(true);
+		}
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("Job Events: %s %s %s", jobId,filter, options_);		
+		Page<Event> events = devopsClient.listEvents(jobId, filter, options_.toPageRequest());			
+		print(events);
+	}
+
+
+	public void eventJobDelete(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String jobId = argIdx1(op, cmds);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		String eventId = arg2(op2, cmds);
+		debug("Remove Job Event: %s %s %s", jobId, eventId, options_);		
+		//devopsClient.removeEvent(jobId, eventId, options_);
+		if (isEcho()) {
+			eventJobList(cmds, options);
+		}
+	}
+
+
+	//
 	// Job Instances/Replicas/Pods
 	//
 
@@ -4138,6 +4272,81 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 	
+	
+	//
+	// CronJob Events
+	//
+	
+	public void eventCronJob(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		switch (op2) {
+		case "help": case "":
+			printUsage2();
+			break;
+		case "ls": case "list": {
+			eventCronJobList(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			eventCronJobDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Event.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+
+
+	public void eventCronJobList(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String cronjobId = argIdx1(op, cmds);
+		eventCronJobList(cronjobId, options);
+	}
+
+	public void eventCronJobList(String cronjobId, Map<String, Object> options) {
+		if (isHelp3("ls")) {
+			return;
+		}
+		EventFilter filter = convert(options, EventFilter.class);
+		String c = (String)options.get("c");
+		if (c!=null) {
+			filter.setCluster(true);
+		}
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("CronJob Events: %s %s %s", cronjobId,filter, options_);		
+		Page<Event> events = devopsClient.listEvents(cronjobId, filter, options_.toPageRequest());			
+		print(events);
+	}
+
+
+	public void eventCronJobDelete(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String cronjobId = argIdx1(op, cmds);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		String eventId = arg2(op2, cmds);
+		debug("Remove CronJob Event: %s %s %s", cronjobId, eventId, options_);		
+		//devopsClient.removeEvent(cronjobId, eventId, options_);
+		if (isEcho()) {
+			eventCronJobList(cmds, options);
+		}
+	}
+
+
+	
 	//
 	// CronJob Job instances
 	//
@@ -4606,7 +4815,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		Domain domain = convert(options, Domain.class);
+		Domain domain = makeDomain(options);
+		if (domain==null) {
+			return;
+		}
 		domain.setName(argId(op, cmds));
 		DomainOptions options_ = convert(options, DomainOptions.class);
 		debug("Domain: %s %s", domain, options_);
@@ -4619,13 +4831,50 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 	
-	
+	private Domain makeDomain(Map<String, Object> options) {
+		Domain domain = convert(options, Domain.class);
+		String ca = (String)options.get("ca");
+		Certificate cert = new Certificate();
+		if (ca!=null && !ca.isEmpty()) {
+			String ca_ = readFile(ca, true);
+			if (ca_==null) {
+				return null;
+			}
+			cert.setCa(ca_); 
+		}
+		String crt = (String)options.get("crt");
+		if (crt!=null && !crt.isEmpty()) {
+			String crt_ = readFile(crt, true);
+			if (crt_==null) {
+				return null;
+			}
+			cert.setCa(crt_); 
+		}
+		String key = (String)options.get("key");
+		if (key!=null && !key.isEmpty()) {
+			String key_ = readFile(key, true);
+			if (key_==null) {
+				return null;
+			}
+			cert.setCa(key_); 
+		}
+		if (cert.getCa()!=null || cert.getCrt()!=null || cert.getKey()!=null) {
+			domain.setCertificate(cert);
+			domain.setCert(true);
+			domain.setTls(true);
+		}
+		return domain;
+	}
+
 	public void updateDomain(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
 		}
 		String domainId = (String)get("domain", options);
-		Domain domain = convert(options, Domain.class);
+		Domain domain = makeDomain(options);
+		if (domain==null) {
+			return;
+		}
 		DomainOptions options_ = convert(options, DomainOptions.class);
 		debug("Updating Domain: %s %s %s", domainId, domain, options_);
 		devopsClient.updateDomain(domainId, domain, options_);
@@ -5350,6 +5599,10 @@ public class Devops extends CommandRunnerBase {
 		if (Pod.class.equals(type) || Instance.class.equals(type)) {
 			return POD_DEFAULT_FORMAT;
 		}
+		if (Event.class.equals(type)) {
+			return EVENT_DEFAULT_FORMAT;
+		}
+
 
 		return super.getDefaultFormat(type);
 	}
@@ -5412,6 +5665,9 @@ public class Devops extends CommandRunnerBase {
 		}
 		if (Pod.class.equals(type) || Instance.class.equals(type)) {
 			return POD_WIDE_FORMAT;
+		}
+		if (Event.class.equals(type)) {
+			return EVENT_WIDE_FORMAT;
 		}
 
 		return super.getWideFormat(type);

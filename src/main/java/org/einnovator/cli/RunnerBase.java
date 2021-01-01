@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
 
@@ -384,6 +385,31 @@ public abstract class RunnerBase {
 		return os.indexOf("nix")!=-1 || os.indexOf("nux")!=-1;
 	}
 
+	public String readFile(String uri, boolean required) {
+		String content = readFile(uri);
+		if (required) {
+			if (content==null) {
+				error("file not found: %s", uri);
+				exit(-1);
+				return null;
+			}
+			if (content.isEmpty()) {
+				error("file is empty: %s", uri);
+				exit(-1);
+				return null;
+			}
+		}
+		return content;
+	}
+
+	public static String readFile(String uri) {
+		if (uri.startsWith("http:") || uri.startsWith("https:")) {
+			return ResourceUtils.readUrlResource(uri);
+		} else {
+			return ResourceUtils.readResource(uri, false);
+		}
+	}
+	
 
 	protected boolean isDebug(Map<String, Object> options) {
 		return isDebug(0, options);
