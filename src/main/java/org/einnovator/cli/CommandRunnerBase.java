@@ -1537,10 +1537,14 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return id;
 	}
 		
-	protected String argId(String op, String[] cmds, boolean required) {
+
+	protected String arg0(String op, String[] cmds, boolean required) {
 		return argn(op, cmds, 0, required);
 	}
-	
+	protected String argId(String op, String[] cmds, boolean required) {
+		return arg0(op, cmds, required);
+	}
+
 	protected String argId(String op, String[] cmds, String defaultValue) {
 		String value = argn(op, cmds, 0, false);
 		if (value==null) {
@@ -1565,6 +1569,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected String argId(String op, String[] cmds) {
 		return argId(op, cmds, true);
+	}
+	protected String arg0(String op, String[] cmds) {
+		return arg0(op, cmds, true);
 	}
 	protected String arg1(String op, String[] cmds) {
 		return arg1(op, cmds, true);
