@@ -288,8 +288,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		String key = kcmd + (!ksubcmd.isEmpty() ? "." + ksubcmd : "");		
 
 		String[][] subsubcmds = findSubSubCommands(kcmd, ksubcmd);
-		
 		alias = addPrefix(cmd + " ", alias);
+		
 		printUsageDetails(qname, key, alias, subsubcmds!=null && subsubcmds.length>0);			
 		printCmds(qname, key, subsubcmds, true);
 	}
@@ -565,16 +565,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected String[] findSubCommand(String cmd, String subcmd) {
 		Map<String, String[][]> map = getSubCommands();
 		if (map!=null) {
-			for (Map.Entry<String, String[][]> e: map.entrySet()) {
-				String[][] cmds = e.getValue();
-				if (cmds!=null) {
-					for (String[] alias: cmds) {
-						if (StringUtil.contains(alias, subcmd)) {
-							return alias;
-						}
-					}
-				}				
+			String[] alias = findCommand(cmd);
+			if (alias!=null && alias.length>0) {
+				cmd = alias[0];
 			}
+			String[][] cmds = map.get(cmd);
+			if (cmds!=null) {
+				for (String[] alias2: cmds) {
+					if (StringUtil.contains(alias2, subcmd)) {
+						return alias2;
+					}
+				}
+			}				
 		}
 		return null;
 	}
@@ -1588,14 +1590,29 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return argIdx(op, cmds, 0);
 	}
 
+	protected String argIdx(String op, String[] cmds, boolean required) {
+		return argIdx(op, cmds, 0, required);
+	}
+	
 	protected String argIdx1(String op, String[] cmds) {
 		return argIdx(op, cmds, 1);
 	}
 
+
+	protected String argIdx1(String op, String[] cmds, boolean required) {
+		return argIdx(op, cmds, 1, required);
+	}
+
 	protected String argIdx(String op, String[] cmds, int index) {
+		return argIdx(op, cmds, index, true);
+	}
+	
+	protected String argIdx(String op, String[] cmds, int index, boolean required) {
 		String id = cmds.length > index ? cmds[index] : null;
 		if (id==null) {
-			missingResourceId(op);
+			if (required) {
+				missingResourceId(op);
+			}
 			return null;
 		}
 		return makeIdx(id);
@@ -1700,7 +1717,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}		
 		return openBrowser(url);
 	}
-	
+
+	protected boolean view(String ptype, String pid, String type, String id) {
+		String url = makeUrl(false, ptype, pid, type, id);
+		if (url==null) {
+			error("failed to build resource url: %s %s %s %s", ptype, pid, type, id);
+		}		
+		return openBrowser(url);
+	}
+
 	protected String makeUrl(boolean api, String type, String id) {
 		String server = getServer();
 		if (server==null) {
@@ -1708,6 +1733,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 		return PathUtil.concat(server, (api ? "/api" : "") + (isAdmin() ? "/admin" : "") + type + "/" + id);
 	}
+	
+	protected String makeUrl(boolean api, String ptype, String pid, String type, String id) {
+		String server = getServer();
+		if (server==null) {
+			return null;
+		}
+		return PathUtil.concat(server, (api ? "/api" : "") + (isAdmin() ? "/admin" : "") + ptype + "/" + pid + "/" + type + "/" + id);
+	}
+
 
 	protected String getServer() {
 		return null;
