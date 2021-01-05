@@ -171,6 +171,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return template;
 	}
 
+	protected boolean isDryrun() {
+		if (options.get("dryrun")!=null) {
+			return true;
+		}
+		return false;
+	}
+
 	protected boolean isHelp() {
 		if (options.get("h")!=null) {
 			return true;
@@ -705,7 +712,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	protected void error(String msg, Object... args) {
 		System.err.println(String.format(String.format("ERROR: [%s] %s", getName(), msg), args));
 	}
-
+	
 	protected void singleuserNotSupported() {
 		error("Single user mode not supported!");
 	}
@@ -861,24 +868,41 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	void print(Page<?> page, Class<?> type) {
-		print(page, type.getSimpleName());
+		print(page, type.getSimpleName(), false);
+	}
+
+	void print(Page<?> page, Class<?> type, boolean silent) {
+		print(page, type.getSimpleName(), silent);
 	}
 
 	void print(Page<?> page, String type) {
+		print(page, type, false);
+	}
+
+	void print(Page<?> page, String type, boolean silent) {
 		if (page==null) {
 			operationFailed(type, "list", options);
 			System.exit(-1);
 			return;
 		}
 		if (page.getContent()==null || page.getContent().isEmpty()) {
-			noresources(type, options);
-			System.exit(0);
+			if (!silent) {
+				noresources(type, options);
+				System.exit(0);				
+			}
 			return;
 		}
 
 		print(page.getContent());
 	}
-	
+
+	protected int size(Page<?> page) {
+		if (page==null || page.getContent()==null) {
+			return 0;
+		}
+		return page.getContent().size();
+	}
+
 	void print(Iterable<?> it) {
 		if (isTabular()) {
 			printTabular(it);
@@ -1288,7 +1312,11 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 	}
 
-	protected void info(String s, Object... args) {
+	protected void info(String msg, Object... args) {
+		System.out.println(String.format(String.format("[%s] %s", getName(), msg), args));
+	}
+
+	protected void println(String s, Object... args) {
 		System.out.println(String.format(s, args));
 	}
 

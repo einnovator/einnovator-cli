@@ -222,6 +222,9 @@ public class Documents extends CommandRunnerBase {
 		Document document = convert(options, Document.class);
 		DocumentOptions options_ = convert(options, DocumentOptions.class);
 		debug("Write Document: %s %s", path, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = documentsClient.write(document, options_);
 		if (isEcho()) {
 			debug("Document URI: %s", uri);
@@ -236,6 +239,9 @@ public class Documents extends CommandRunnerBase {
 			return;
 		}
 		debug("mkdir " + path);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = documentsClient.mkdir(path, null);
 		debug("URI: %s", uri);
 	}
@@ -246,6 +252,9 @@ public class Documents extends CommandRunnerBase {
 		}
 		String documentId = argId(path, cmds);
 		debug("Deleting Document: %s", documentId);
+		if (isDryrun()) {
+			return;
+		}
 		documentsClient.delete(path, null);	
 		if (isEcho()) {
 			list(path, options);
@@ -285,6 +294,9 @@ public class Documents extends CommandRunnerBase {
 		Mount mount = convert(options, Mount.class);
 		MountOptions options_ = convert(options, MountOptions.class);
 		debug("Creating Mount: %s %s", mount, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = null; //documentsClient.createMount(mount, options_);
 		if (isEcho()) {
 			debug("Mount URI: %s", uri);
@@ -303,6 +315,9 @@ public class Documents extends CommandRunnerBase {
 		Mount mount = convert(options, Mount.class);
 		MountOptions options_ = convert(options, MountOptions.class);
 		debug("Updating Mount: %s %s %s", mountId, mount, options_);
+		if (isDryrun()) {
+			return;
+		}
 		//documentsClient.updateMount(mount, options_);
 		if (isEcho()) {
 			Mount mount2 = null; //documentsClient.getMount(mountId, null);
@@ -316,6 +331,9 @@ public class Documents extends CommandRunnerBase {
 		}
 		String mountId = argId(op, cmds);
 		debug("Deleting Mount: %s", mountId);
+		if (isDryrun()) {
+			return;
+		}
 		//documentsClient.deleteMount(mountId, null);
 		if (isEcho()) {
 			listMounts(cmds, options);

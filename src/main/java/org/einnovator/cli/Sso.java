@@ -1283,6 +1283,9 @@ public class Sso extends CommandRunnerBase {
 		User user = convert(options, User.class);
 		user.setUsername(argId(op, cmds));
 		debug("Creating User: %s", user);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = ssoClient.createUser(user, new RequestOptions());
 		if (isEcho()) {
 			debug("User URI: %s", uri);
@@ -1300,6 +1303,9 @@ public class Sso extends CommandRunnerBase {
 		String userId = argId(op, cmds);
 		User user = convert(options, User.class);
 		debug("Updating User: %s %s", userId, user);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.updateUser(user, null);
 		if (isEcho()) {
 			User user2 = ssoClient.getUser(userId, null);
@@ -1313,6 +1319,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		String userId = argId(op, cmds);
 		debug("Deleting User: %s", userId);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.deleteUser(userId, null);	
 		if (isEcho()) {
 			listUsers(cmds, options);
@@ -1351,6 +1360,9 @@ public class Sso extends CommandRunnerBase {
 		Group group = convert(options, Group.class);
 		group.setName(argId(op, cmds));
 		debug("Creating Group: %s", group);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = ssoClient.createGroup(group, new RequestOptions());
 		if (isEcho()) {
 			debug("Group URI: %s", uri);
@@ -1367,6 +1379,9 @@ public class Sso extends CommandRunnerBase {
 		String groupId = argId(op, cmds);
 		Group group = convert(options, Group.class);
 		debug("Updating Group: %s %s", groupId, group);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.updateGroup(group, null);
 		if (isEcho()) {
 			Group group2 = ssoClient.getGroup(groupId, null);
@@ -1380,6 +1395,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		String groupId = argId(op, cmds);
 		debug("Deleting Group: %s", groupId);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.deleteGroup(groupId, null);
 		if (isEcho()) {
 			listGroups(cmds, options);
@@ -1429,6 +1447,9 @@ public class Sso extends CommandRunnerBase {
 		printLine("Adding Member...");
 		printLine("User:", userId);		
 		printLine("Group:", groupId);	
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.addMemberToGroup(userId, groupId, null);
 	}
 
@@ -1442,6 +1463,9 @@ public class Sso extends CommandRunnerBase {
 		printLine("Removing Member...");
 		printLine("User:", userId);		
 		printLine("Group:", groupId);		
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.removeMemberFromGroup(userId, groupId, null);
 		if (isEcho()) {
 			listGroupMembers(groupId, options);
@@ -1480,6 +1504,9 @@ public class Sso extends CommandRunnerBase {
 		options_.setSendMail(sendMail);
 		invitation.setInvitee(argId(op, cmds));
 		debug((Boolean.TRUE.equals(sendMail) ? "Sending Invitation:" : "Creating Invitation:") + "%s", invitation);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = ssoClient.invite(invitation, options_);
 		if (isEcho()) {
 			printLine("Invitation URI:", uri);
@@ -1522,6 +1549,9 @@ public class Sso extends CommandRunnerBase {
 		String invitationId = argId(op, cmds);
 		Invitation invitation = convert(options, Invitation.class);
 		debug("Updating Invitation: %s %s", invitationId, invitation);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.updateInvitation(invitation, null);
 		if (isEcho()) {
 			Invitation invitation2 = ssoClient.getInvitation(invitationId, null);
@@ -1535,6 +1565,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		String invitationId = argId(op, cmds);
 		debug("Deleting Invitation: %s", invitationId);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.deleteInvitation(invitationId, null);	
 		if (isEcho()) {
 			listInvitations(cmds, options);
@@ -1574,6 +1607,9 @@ public class Sso extends CommandRunnerBase {
 		Role role = convert(options, Role.class);
 		role.setName(argId(op, cmds));
 		debug("Creating Role: %s", role);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = ssoClient.createRole(role, new RequestOptions());
 		if (isEcho()) {
 			debug("Role URI: %s", uri);
@@ -1590,6 +1626,9 @@ public class Sso extends CommandRunnerBase {
 		String roleId = argId(op, cmds);
 		Role role = convert(options, Role.class);
 		debug("Updating Role: %s %s", roleId, role);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.updateRole(role, null);
 		if (isEcho()) {
 			Role role2 = ssoClient.getRole(roleId, null);
@@ -1603,6 +1642,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		String roleId = argId(op, cmds);
 		debug("Deleting Role: %s", roleId);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.deleteRole(roleId, null);
 		if (isEcho()) {
 			listRoles(cmds, options);
@@ -1643,6 +1685,9 @@ public class Sso extends CommandRunnerBase {
 		Client client = convert(options, Client.class);
 		client.setClientId(argId(op, cmds));
 		debug("Creating Client: %s", client);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = ssoClient.createClient(client, new RequestOptions());
 		if (isEcho()) {
 			debug("Client URI: %s", uri);
@@ -1660,6 +1705,9 @@ public class Sso extends CommandRunnerBase {
 		String clientId = argId(op, cmds);
 		Client client = convert(options, Client.class);
 		debug("Updating Client: %s %s", clientId, client);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.updateClient(client, null);
 		if (isEcho()) {
 			Client client2 = ssoClient.getClient(clientId, null);
@@ -1673,6 +1721,9 @@ public class Sso extends CommandRunnerBase {
 		}
 		String clientId = argId(op, cmds);
 		debug("Deleting Client: %s", clientId);
+		if (isDryrun()) {
+			return;
+		}
 		ssoClient.deleteClient(clientId, null);
 		if (isEcho()) {
 			listClients(cmds, options);

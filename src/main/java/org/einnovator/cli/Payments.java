@@ -270,6 +270,12 @@ public class Payments extends CommandRunnerBase {
 		account.setName(argId(op, cmds));
 		AccountOptions options_ = convert(options, AccountOptions.class);
 		debug("Creating Account: %s %s", account, options_);
+		if (isDryrun()) {
+			return;
+		}
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = paymentsClient.createAccount(account, options_);
 		if (isEcho()) {
 			debug("Account URI: %s", uri);
@@ -287,6 +293,12 @@ public class Payments extends CommandRunnerBase {
 		Account account = convert(options, Account.class);
 		AccountOptions options_ = convert(options, AccountOptions.class);
 		debug("Updating Account: %s %s %s", accountId, account, options_);
+		if (isDryrun()) {
+			return;
+		}
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.updateAccount(account, options_);
 		if (isEcho()) {
 			Account account2 = paymentsClient.getAccount(accountId, null);
@@ -300,6 +312,12 @@ public class Payments extends CommandRunnerBase {
 		}
 		String accountId = argId(op, cmds);
 		debug("Deleting Account: %s", accountId);
+		if (isDryrun()) {
+			return;
+		}
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.deleteAccount(accountId, null);		
 		if (isEcho()) {
 			listAccounts(cmds, options);
@@ -339,6 +357,9 @@ public class Payments extends CommandRunnerBase {
 		Payment payment = convert(options, Payment.class);
 		PaymentOptions options_ = convert(options, PaymentOptions.class);
 		debug("Creating Payment: %s %s", payment, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = paymentsClient.submitPayment(payment, options_);
 		if (isEcho()) {
 			debug("Payment URI: %s", uri);
@@ -356,6 +377,9 @@ public class Payments extends CommandRunnerBase {
 		Payment payment = convert(options, Payment.class);
 		PaymentOptions options_ = convert(options, PaymentOptions.class);
 		debug("Updating Payment: %s %s %s", paymentId, payment, options_);
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.updatePayment(payment, options_);
 		if (isEcho()) {
 			Payment payment2 = paymentsClient.getPayment(paymentId, null);
@@ -369,6 +393,9 @@ public class Payments extends CommandRunnerBase {
 		}
 		String paymentId = argId(op, cmds);
 		debug("Deleting Payment: %s", paymentId);
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.deletePayment(paymentId, null);	
 		if (isEcho()) {
 			listPayments(cmds, options);
@@ -408,6 +435,9 @@ public class Payments extends CommandRunnerBase {
 		Tax tax = convert(options, Tax.class);
 		TaxOptions options_ = convert(options, TaxOptions.class);
 		debug("Creating Tax: %s %s", tax, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = paymentsClient.createTax(tax, options_);
 		if (isEcho()) {
 			debug("Tax URI: %s", uri);
@@ -425,6 +455,9 @@ public class Payments extends CommandRunnerBase {
 		Tax tax = convert(options, Tax.class);
 		TaxOptions options_ = convert(options, TaxOptions.class);
 		debug("Updating Tax: %s %s %s", taxId, tax, options_);
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.updateTax(tax, options_);
 		if (isEcho()) {
 			Tax tax2 = paymentsClient.getTax(taxId, null);
@@ -438,6 +471,9 @@ public class Payments extends CommandRunnerBase {
 		}
 		String taxId = argId(op, cmds);
 		debug("Deleting Tax: %s", taxId);
+		if (isDryrun()) {
+			return;
+		}
 		paymentsClient.deleteTax(taxId, null);
 		if (isEcho()) {
 			listTaxes(cmds, options);

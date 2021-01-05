@@ -260,6 +260,9 @@ public class Social extends CommandRunnerBase {
 		channel.setName(argId(op, cmds));
 		ChannelOptions options_ = convert(options, ChannelOptions.class);
 		debug("Creating Channel: %s %s", channel, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = socialClient.createChannel(channel, new RequestOptions());
 		if (isEcho()) {
 			debug("Channel URI: %s", uri);
@@ -277,6 +280,9 @@ public class Social extends CommandRunnerBase {
 		Channel channel = convert(options, Channel.class);
 		ChannelOptions options_ = convert(options, ChannelOptions.class);
 		debug("Updating Channel: %s %s %s", channelId, channel, options_);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.updateChannel(channel, null);
 		if (isEcho()) {
 			Channel channel2 = socialClient.getChannel(channelId, options_);
@@ -291,6 +297,9 @@ public class Social extends CommandRunnerBase {
 		String channelId = argId(op, cmds);
 		ChannelOptions options_ = convert(options, ChannelOptions.class);
 		debug("Deleting Channel: %s %s", channelId, options_);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.deleteChannel(channelId, options_);
 		if (isEcho()) {
 			listChannels(cmds, options);
@@ -333,6 +342,9 @@ public class Social extends CommandRunnerBase {
 		processMessageOptions(message, cmds, options);
 		MessageOptions options_ = convert(options, MessageOptions.class);
 		debug("Creating Message: %s %s %s", channelId, message, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = socialClient.postMessage(channelId, message, new RequestOptions());
 		if (isEcho()) {
 			debug("Message URI: %s", uri);
@@ -352,6 +364,9 @@ public class Social extends CommandRunnerBase {
 		processMessageOptions(message, cmds, options);
 		MessageOptions options_ = convert(options, MessageOptions.class);
 		debug("Updating Message: %s %s %s %s", channelId, messageId, message, options_);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.updateMessage(channelId, message, options_);
 		if (isEcho()) {
 			Message message2 = socialClient.getMessage(channelId, messageId, null);
@@ -378,6 +393,9 @@ public class Social extends CommandRunnerBase {
 		String messageId = arg1(op, cmds);
 		MessageOptions options_ = convert(options, MessageOptions.class);
 		debug("Deleting Message: %s %s %s", channelId, messageId, options_);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.deleteMessage(channelId, messageId, options_);
 		if (isEcho()) {
 			listMessages(cmds, options);
@@ -424,6 +442,9 @@ public class Social extends CommandRunnerBase {
 		processReactionOptions(reaction, cmds, options);
 		ReactionOptions options_ = convert(options, ReactionOptions.class);
 		debug("Creating Reaction: %s %s %s", channelId, messageId, reaction);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = socialClient.postReaction(channelId, messageId, reaction, options_);
 		if (isEcho()) {
 			debug("Reaction URI: %s", uri);
@@ -444,6 +465,9 @@ public class Social extends CommandRunnerBase {
 		processReactionOptions(reaction, cmds, options);
 		debug("Updating Reaction: %s %s %s", channelId, reactionId, reaction);
 		ReactionOptions options_ = convert(options, ReactionOptions.class);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.updateReaction(channelId, messageId, reaction, options_);
 		if (isEcho()) {
 			Reaction reaction2 = socialClient.getReaction(channelId, messageId, reactionId, options_);
@@ -462,6 +486,9 @@ public class Social extends CommandRunnerBase {
 		String messageId = arg1(op, cmds);
 		String reactionId = arg1(op, cmds);
 		debug("Deleting Reaction: %s %s %s", channelId, messageId, reactionId);
+		if (isDryrun()) {
+			return;
+		}
 		socialClient.deleteReaction(channelId, messageId, reactionId, null);
 		if (isEcho()) {
 			listReactions(cmds, options);

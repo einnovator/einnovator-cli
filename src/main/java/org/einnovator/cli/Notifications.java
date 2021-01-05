@@ -302,8 +302,10 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		Event event = convert(options, Event.class);
-		printLine("Publish TrackedEvent...");
-		print(event);
+		debug("Publish TrackedEvent: %s", event);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.publishEvent(event);
 	}
 
@@ -314,6 +316,9 @@ public class Notifications extends CommandRunnerBase {
 		}
 		String notificationId = argId(op, cmds);
 		debug("Deleting Notification: %s", notificationId);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.deleteNotification(notificationId, null);		
 		if (isEcho()) {
 			listNotifications(cmds, options);
@@ -355,6 +360,9 @@ public class Notifications extends CommandRunnerBase {
 		NotificationType notificationType = convert(options, NotificationType.class);
 		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
 		debug("Creating NotificationType: %s %s", notificationType, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = notificationsClient.createNotificationType(notificationType, options_);
 		if (isEcho()) {
 			debug("NotificationType URI: %s", uri);
@@ -372,6 +380,9 @@ public class Notifications extends CommandRunnerBase {
 		NotificationType account = convert(options, NotificationType.class);
 		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
 		debug("Updating NotificationType: %s %s %s", notificationTypeId, account, options_);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.updateNotificationType(account, options_);
 		if (isEcho()) {
 			NotificationType account2 = notificationsClient.getNotificationType(notificationTypeId, null);
@@ -385,6 +396,9 @@ public class Notifications extends CommandRunnerBase {
 		}
 		String notificationTypeId = argId(op, cmds);
 		debug("Deleting NotificationType: %s", notificationTypeId);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.deleteNotificationType(notificationTypeId, null);
 		if (isEcho()) {
 			listNotificationTypes(cmds, options);
@@ -424,6 +438,9 @@ public class Notifications extends CommandRunnerBase {
 		Template template = convert(options, Template.class);
 		TemplateOptions options_ = convert(options, TemplateOptions.class);
 		debug("Creating Template: %s %s", template, options_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = notificationsClient.createTemplate(template, options_);
 		if (isEcho()) {
 			debug("Template URI: %s", uri);
@@ -441,6 +458,9 @@ public class Notifications extends CommandRunnerBase {
 		Template account = convert(options, Template.class);
 		TemplateOptions options_ = convert(options, TemplateOptions.class);
 		debug("Updating Template: %s %s %s", templateId, account, options_);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.updateTemplate(account, options_);
 		if (isEcho()) {
 			Template account2 = notificationsClient.getTemplate(templateId, null);
@@ -454,6 +474,9 @@ public class Notifications extends CommandRunnerBase {
 		}
 		String templateId = argId(op, cmds);
 		debug("Deleting Template: %s", templateId);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.deleteTemplate(templateId, null);	
 		if (isEcho()) {
 			listTemplates(cmds, options);
@@ -492,6 +515,9 @@ public class Notifications extends CommandRunnerBase {
 		Job job = convert(options, Job.class);
 		JobOptions option_ = convert(options, JobOptions.class);
 		debug("Creating Job: %s %s", job, option_);
+		if (isDryrun()) {
+			return;
+		}
 		URI uri = notificationsClient.createJob(job, option_);
 		if (isEcho()) {
 			debug("Job URI: %s", uri);
@@ -509,6 +535,9 @@ public class Notifications extends CommandRunnerBase {
 		Job account = convert(options, Job.class);
 		JobOptions option_ = convert(options, JobOptions.class);
 		debug("Updating Job: %s %s %s", jobId, account, option_);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.updateJob(account, option_);
 		if (isEcho()) {
 			Job account2 = notificationsClient.getJob(jobId, null);
@@ -522,6 +551,9 @@ public class Notifications extends CommandRunnerBase {
 		}
 		String jobId = argId(op, cmds);
 		debug("Deleting Job: %s", jobId);
+		if (isDryrun()) {
+			return;
+		}
 		notificationsClient.deleteJob(jobId, null);
 		if (isEcho()) {
 			listJobs(cmds, options);

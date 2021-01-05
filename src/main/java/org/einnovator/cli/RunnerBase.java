@@ -434,6 +434,9 @@ public abstract class RunnerBase {
 	}
 	
 	protected static Integer parseInt(String s) {
+		if (s==null) {
+			return null;
+		}
 		try {
 			return Integer.parseInt(s);			
 		} catch (RuntimeException e) {
