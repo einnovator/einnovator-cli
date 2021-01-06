@@ -1,6 +1,6 @@
 package org.einnovator.cli;
 
-import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
+import static org.einnovator.util.MappingUtils.updateObjectFrom;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -119,7 +119,9 @@ public class Notifications extends CommandRunnerBase {
 		if (!init) {
 			super.init(options, template, interactive, bundle);
 			config.setServer(server);
-			updateObjectFromNonNull(config, convert(options, NotificationsClientConfiguration.class));
+			NotificationsClientConfiguration config0 = convert(options, NotificationsClientConfiguration.class);
+			config0.setServer(this.server);
+			updateObjectFrom(config, config0);
 			if (template instanceof OAuth2RestTemplate) {
 				notificationsClient = new NotificationsClient((OAuth2RestTemplate)template, config);				
 			} else {
@@ -135,6 +137,7 @@ public class Notifications extends CommandRunnerBase {
 		String server = (String)endpoints.get("server");
 		if (server!=null) {
 			this.server = server;
+			this.config.setServer(server);
 		}
 	}
 

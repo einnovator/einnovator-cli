@@ -8,18 +8,15 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.net.URI;
-import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
-import java.util.function.Supplier;
 
-import org.apache.http.auth.BasicUserPrincipal;
-import org.apache.http.auth.Credentials;
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
 import org.einnovator.sso.client.model.Client;
@@ -36,10 +33,12 @@ import org.einnovator.sso.client.modelx.MemberFilter;
 import org.einnovator.sso.client.modelx.RoleFilter;
 import org.einnovator.sso.client.modelx.UserFilter;
 import org.einnovator.util.PageOptions;
+import org.einnovator.util.PathUtil;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.client.support.BasicAuthorizationInterceptor;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
@@ -220,18 +219,7 @@ public class Sso extends CommandRunnerBase {
 			debug(1, "Singleuser mode!");
 			if (template==null) {
 				template = new RestTemplate();
-				template.setRequestFactory(new BasicHttpRequestFactory(new Supplier<Credentials>() {
-					public Credentials get() {
-						return new Credentials() {
-							public Principal getUserPrincipal() {
-								return new BasicUserPrincipal(username);
-							}
-							public String getPassword() {
-								return password;
-							}
-						};
-					}
-				}));
+				template.setInterceptors(Arrays.asList(new BasicAuthorizationInterceptor(username, password)));
 			}
 			setTemplate(template);
 			return;
@@ -604,6 +592,7 @@ public class Sso extends CommandRunnerBase {
 	//
 
 
+	@SuppressWarnings("unchecked")
 	public void login(String op, String[] cmds, String[] extra, Map<String, Object> options) {
 		if (isHelp1()) {
 			return;
@@ -655,6 +644,9 @@ public class Sso extends CommandRunnerBase {
 			exit(-1);
 			return;
 		}
+		if (endpoints.get("sso")==null || ((Map<String, Object>)endpoints.get("sso")).get("server")==null) {
+			this.singleuser = true;
+		}
 		this.api = api;
 		allEndpoints = endpoints;
 		if (endpoints!=null) {
@@ -674,8 +666,11 @@ public class Sso extends CommandRunnerBase {
 	private static String API_EI = "https://sso.einnovator.org";
 	private static String API_DOCKER = "https://localhost:5050";
 	private static String API_DEFAULT = API_LOCALHOST;
+	private static String API_SINGLEUSER = "singleuser";
+	private static String API_SINGLEUSER_MONITOR = "singleuser-monitor";
+	private static String API_SINGLEUSER_SERVER = "http://localhost:2502";
+	private static String API_SINGLEUSER_MONITOR_SERVER = "http://localhost:2503";
 
-	
 	public void listApis(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -819,6 +814,12 @@ public class Sso extends CommandRunnerBase {
 		if (api.equals(API_MONITOR)) {
 			return getEndpointsMonitor(cmds, options);			
 		}
+		if (api.equals(API_SINGLEUSER)) {
+			return getEndpointsSingleuser(cmds, options);			
+		}
+		if (api.equals(API_SINGLEUSER_MONITOR)) {
+			return getEndpointsSingleuserMonitor(cmds, options);			
+		}
 
 		if (api.equals(API_EI)) {
 			return getEndpointsEI(cmds, options);			
@@ -841,22 +842,34 @@ public class Sso extends CommandRunnerBase {
 	private Map<String, Object> getEndpointsRemote(String api, String[] cmds, Map<String, Object> options) {
 		RestTemplate template = makeRestTemplate(config.getConnection());
 		try {
-			Map<String, Object> result = template.getForObject(api, Map.class);	
-			Boolean singleuser = Boolean.parseBoolean((String)result.get("singleuser"));
+			String api_ = PathUtil.concat(api, "/api/info");
+			Map<String, Object> result = template.getForObject(api_, Map.class);	
+			debug(3, "Endpoints Info: %s", result);
+			Boolean singleuser = (Boolean)result.get("singleuser");
 			this.singleuser = Boolean.TRUE.equals(singleuser);
 			Map<String, Object> endpoints = (Map<String, Object>) result.get("endpoints");
 			return endpoints;
 		} catch (RuntimeException e) {
+			if (isDump()) {
+				e.printStackTrace();
+			}
 			System.err.println(e);			
 			exit(-1);
 		}
 		
-		return getEndpointsAdhoc(cmds, options, api);
+		return getEndpointsAdhoc(cmds, options, api, false);
 	}
 
+	public Map<String, Object> getEndpointsSingleuser(String[] cmds, Map<String, Object> options) {
+		return getEndpointsAdhoc(cmds, options, API_SINGLEUSER_SERVER, true);
+	}
+	public Map<String, Object> getEndpointsSingleuserMonitor(String[] cmds, Map<String, Object> options) {
+		return getEndpointsAdhoc(cmds, options, API_SINGLEUSER_MONITOR_SERVER, true);
+	}
+			
 	@SuppressWarnings("unchecked")
 	public Map<String, Object> getEndpointsAdhoc(String[] cmds, Map<String, Object> options,
-			String devops_) {
+			String devops_, boolean singleuser) {
 		Map<String, Object> endpoints = makeEndpointsStub(cmds, options);
 		Map<String, Object> sso = (Map<String, Object>)endpoints.get("sso");
 		Map<String, Object> devops = (Map<String, Object>)endpoints.get("devops");
@@ -864,11 +877,11 @@ public class Sso extends CommandRunnerBase {
 		Map<String, Object> notifications = (Map<String, Object>)endpoints.get("notifications");
 		Map<String, Object> payments = (Map<String, Object>)endpoints.get("payments");
 		Map<String, Object> social = (Map<String, Object>)endpoints.get("social");
-		sso.put("server", SSO_DEFAULT_SERVER);
-		devops.put("devops", devops_);
-		documents.put("documents", null);
-		notifications.put("notifications", null);
-		payments.put("payments", null);
+		sso.put("server", singleuser? null : SSO_DEFAULT_SERVER);
+		devops.put("server", devops_);
+		documents.put("server", null);
+		notifications.put("server", null);
+		payments.put("server", null);
 		social.put("server", null);
 		return endpoints;
 	}
@@ -983,11 +996,11 @@ public class Sso extends CommandRunnerBase {
 
 	public void getToken(int level, String[] cmds, Map<String, Object> options) {
 		debug(1, "Credentials: %s %s", username, password!=null && !password.isEmpty() ?  "****" : "");
-		debug(3, "Config: %s", config);
 		if (singleuser) {
 			debug("Singleuser mode. No Token used!");
 			return;
 		}
+		debug(3, "SSO Config: %s", config);
 		if (!StringUtil.hasText(username)) {
 			error("missing username");
 			exit(-1);

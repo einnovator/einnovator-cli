@@ -1,6 +1,6 @@
 package org.einnovator.cli;
 
-import static org.einnovator.util.MappingUtils.updateObjectFromNonNull;
+import static org.einnovator.util.MappingUtils.updateObjectFrom;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -117,7 +117,9 @@ public class Payments extends CommandRunnerBase {
 		if (!init) {
 			super.init(options, template, interactive, bundle);
 			config.setServer(server);
-			updateObjectFromNonNull(config, convert(options, PaymentsClientConfiguration.class));
+			PaymentsClientConfiguration config0 = convert(options, PaymentsClientConfiguration.class);
+			config0.setServer(this.server);
+			updateObjectFrom(config, config0);
 			if (template instanceof OAuth2RestTemplate) {
 				paymentsClient = new PaymentsClient((OAuth2RestTemplate)template, config);				
 			} else {
@@ -132,6 +134,7 @@ public class Payments extends CommandRunnerBase {
 		String server = (String)endpoints.get("server");
 		if (server!=null) {
 			this.server = server;
+			this.config.setServer(server);
 		}
 	}
 

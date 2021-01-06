@@ -39,9 +39,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	private static final String PROPINFO_DEFAULT_FORMAT = "name,type,declaredIn,description";
 	
+	protected static final String DEFAULT_FORMAT = "id,name";
 
-	private static final String DEFAULT_FORMAT = "id,name";
-
+	protected static final String EMPTY_VALUE = "<none>";
+	
 	protected String[] cmds;
 	protected String[] extra;
 	protected Map<String, Object> options;
@@ -173,6 +174,13 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected boolean isDryrun() {
 		if (options.get("dryrun")!=null) {
+			return true;
+		}
+		return false;
+	}
+
+	protected boolean isDump() {
+		if (options.get("dump")!=null) {
 			return true;
 		}
 		return false;
@@ -753,12 +761,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		invalidType(type);
 	}
 
-	protected void missingArg(String type, String op, String name) {
-		error("missing argument %s in %s %s", name, type, op);
+	protected void missingArg(String name, String type, String opS) {
+		error("missing argument %s in %s", name, type);
 	}
 	
 	protected void missingArg(String name) {
-		missingArg(name, op, name);
+		missingArg(name, type, op);
 	}
 	
 	protected Object get(String name, Map<String, Object> map) {
@@ -1184,8 +1192,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					StringBuilder sb = new StringBuilder();
 					for (String s1: ss) {
 						Object value = getPropertyValue(obj, s1);
-						String svalue = formatSimple(value);
-						if (svalue!=null) {
+						String svalue = formatSimple(value, ss.length>1 ? "0" : EMPTY_VALUE);
+						if (svalue!=null && !svalue.isEmpty()) {
 							svalue = svalue.trim();
 							if (!svalue.isEmpty()) {
 								if (sb.length()>0) {
@@ -1235,12 +1243,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	public static final int MAX_COL_SIZE = 32;
-	
+
 	private String formatSimple(Object value) {
+		return formatSimple(value, EMPTY_VALUE);
+	}
+
+	private String formatSimple(Object value, String defaultValue) {
 		if (value==null) {
-			return "";
+			return defaultValue;
 		}
 		if (value instanceof String) {
+			if (((String) value).isEmpty()) {
+				return defaultValue;	
+			}
 			return (String)value;
 		}
 		if (value.getClass().isEnum()) {
@@ -1263,7 +1278,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				if (sb.length()>0) {
 					sb.append(",");
 				}
-				String s = formatSimple(item);
+				String s = formatSimple(item, null);
+				if (s==null || s.isEmpty()) {
+					continue;
+				}
 				if (i>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
 					sb.append("...");
 					break;
@@ -1285,7 +1303,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					sb.append(",");
 				}
 				Object item = Array.get(a, i);
-				String s = formatSimple(item);
+				String s = formatSimple(item, null);
+				if (s==null || s.isEmpty()) {
+					continue;
+				}
 				if (j>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
 					sb.append("...");
 					break;

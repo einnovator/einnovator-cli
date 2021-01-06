@@ -1,10 +1,9 @@
 package org.einnovator.cli;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.ResourceBundle;
 import java.util.Map.Entry;
+import java.util.ResourceBundle;
 
 import org.einnovator.util.script.TextTemplates;
 import org.springframework.web.client.RestTemplate;

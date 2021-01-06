@@ -105,32 +105,32 @@ public class Devops extends CommandRunnerBase {
 	private static final String SPACE_DEFAULT_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 	private static final String SPACE_WIDE_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 
-	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready";
-	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image";
+	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
+	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image,age";
 	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
 	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
-	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status,creationDateFormatted:age";
-	private static final String JOB_WIDE_FORMAT = "id,name,displayName,kind,status,completions,parallelism,creationDateFormatted:age";
+	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status,age";
+	private static final String JOB_WIDE_FORMAT = "id,name,displayName,kind,status,completions,parallelism,age";
 	private static final String JOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
 	private static final String JOB_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
-	private static final String CRONJOB_DEFAULT_FORMAT = "id,name,displayName,schedule,status,suspend,active,lastScheduleTime:last scheduled,creationDateFormatted:age";
-	private static final String CRONJOB_WIDE_FORMAT = "id,name,displayName,schedule,status,suspend,active,lastScheduleTime:last scheduled,creationDateFormatted:age";
+	private static final String CRONJOB_DEFAULT_FORMAT = "id,name,displayName,kind,schedule,status,suspend,active,lastScheduleAge:last scheduled,age";
+	private static final String CRONJOB_WIDE_FORMAT = "id,name,displayName,kind,schedule,status,suspend,active,lastScheduleAge:last scheduled,age";
 	private static final String CRONJOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
 	private static final String CRONJOB_RESOURCES_FORMAT = "id,name,displayName,status,suspend,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
-	private static final String DOMAIN_DEFAULT_FORMAT ="id,name,tls";
-	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,cert,root,parent,enabled";
+	private static final String DOMAIN_DEFAULT_FORMAT ="id,name,tls,age";
+	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,cert,root,parent,enabled,age";
 
-	private static final String REGISTRY_DEFAULT_FORMAT = "id,name,server,username";
-	private static final String REGISTRY_WIDE_FORMAT = "id,name,server,username";
+	private static final String REGISTRY_DEFAULT_FORMAT = "id,name,server,username,age";
+	private static final String REGISTRY_WIDE_FORMAT = "id,name,server,username,age";
 
-	private static final String VCS_DEFAULT_FORMAT = "id,name,url,username";
-	private static final String VCS_WIDE_FORMAT = "id,name,url,username";
+	private static final String VCS_DEFAULT_FORMAT = "id,name,url,username,age";
+	private static final String VCS_WIDE_FORMAT = "id,name,url,username,age";
 
-	private static final String CATALOG_DEFAULT_FORMAT = "id,name,type,enabled";
-	private static final String CATALOG_WIDE_FORMAT = "id,name,type,enabled";
+	private static final String CATALOG_DEFAULT_FORMAT = "id,name,type,enabled,age";
+	private static final String CATALOG_WIDE_FORMAT = "id,name,type,enabled,age";
 
 	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,type,kind,category,keywords";
 	private static final String SOLUTION_WIDE_FORMAT = "id,name,type,kind,category,keywords,url";
@@ -153,11 +153,11 @@ public class Devops extends CommandRunnerBase {
 	private static final String VAR_DEFAULT_FORMAT = "name,category,value,configMap,secret";
 	private static final String VAR_WIDE_FORMAT = "name,category,type,value,configMap,secret";
 
-	private static final String POD_DEFAULT_FORMAT = "name,containers/readyContainers:ready,status,restarts,creationDateFormatted:age";
-	private static final String POD_WIDE_FORMAT = "name,containers/readyContainers:ready,status,restarts,creationDateFormatted:age,ip,node";
+	private static final String POD_DEFAULT_FORMAT = "name,containers/readyContainers:ready,status,restarts,age";
+	private static final String POD_WIDE_FORMAT = "name,containers/readyContainers:ready,status,restarts,age,ip,node";
 
-	private static final String REPLICASET_DEFAULT_FORMAT = "name,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,creationDateFormatted:age";
-	private static final String REPLICASET_WIDE_FORMAT = "name,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,creationDateFormatted:age";
+	private static final String REPLICASET_DEFAULT_FORMAT = "name,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
+	private static final String REPLICASET_WIDE_FORMAT = "name,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
 
 	private static final String AUTHORITY_DEFAULT_FORMAT = "username,groupId,manage,write:dev,read:auditor";
 	private static final String AUTHORITY_WIDE_FORMAT = "username,groupId,manage,write:dev,read:auditor";
@@ -165,8 +165,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String EVENT_DEFAULT_FORMAT = "type/reason,formattedDate:age,username,description:description";
 	private static final String EVENT_WIDE_FORMAT = EVENT_DEFAULT_FORMAT;
 
-	private static final String VOLUMECLAIM_DEFAULT_FORMAT = "name,mode,size,storageClass,creationDateFormatted:age";
-	private static final String VOLUMECLAIM_WIDE_FORMAT = "name,mode,size,storageClass,creationDateFormatted:age";
+	private static final String VOLUMECLAIM_DEFAULT_FORMAT = "name,mode,size,storageClass,age";
+	private static final String VOLUMECLAIM_WIDE_FORMAT = "name,mode,size,storageClass,age";
 
 	private DevopsClient devopsClient;
 
@@ -187,8 +187,11 @@ public class Devops extends CommandRunnerBase {
 	public void init(Map<String, Object> options, RestTemplate template, boolean interactive, ResourceBundle bundle) {
 		if (!init) {
 			super.init(options, template, interactive, bundle);
-			updateObjectFrom(config, convert(options, DevopsClientConfiguration.class));
+			DevopsClientConfiguration config0 = convert(options, DevopsClientConfiguration.class);
+			config0.setServer(this.server);
+			updateObjectFrom(config, config0);
 			config.setServer(server);
+			debug(3, "Devops Config: %s %s", config, template instanceof OAuth2RestTemplate ? "OAuth2" : "Basic");
 			if (template instanceof OAuth2RestTemplate) {
 				devopsClient = new DevopsClient((OAuth2RestTemplate)template, config);
 			} else {
@@ -203,6 +206,7 @@ public class Devops extends CommandRunnerBase {
 		String server = (String)endpoints.get("server");
 		if (server!=null) {
 			this.server = server;
+			this.config.setServer(server);
 		}
 	}
 	
@@ -2453,33 +2457,40 @@ public class Devops extends CommandRunnerBase {
 		return true;
 	}
 
-	private Route makeRoute(String name, Map<String, Object> options) {
-		Route route = null;
-		Domain domain = null;
+	private Domain makeRouteDomain(Map<String, Object> options) {
 		String domainId = (String)options.get("d");
 		if (domainId==null || domainId.isEmpty()) {
 			domainId = this.domain;
 		}
+		Domain domain = null;
 		if (domainId!=null && !domainId.isEmpty()) {
 			try {
 				domain = devopsClient.getDomain(domainId, null);						
 			 }catch (HttpStatusCodeException e) {
 				if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
 					error("Domain not found: %s", domainId);
+					exit(-1);
 					return null;
 				}
 				throw e;
 			}
 		}
+		if (domain==null) {
+			return null;
+		}
+		Domain domain2 = new Domain();
+		domain2.setId(domain.getId());
+		domain2.setUuid(domain.getUuid());
+		domain2.setDns(domain.getDns());
+		return domain2;
+	}
+
+	private Route makeRoute(String name, Map<String, Object> options) {
+		Route route = null;
+		Domain domain = makeRouteDomain(options);
 		route = new Route();
 		route.setHost(name);
-		if (domain!=null) {
-			Domain domain2 = new Domain();
-			domain2.setId(domain.getId());
-			domain2.setUuid(domain.getUuid());
-			domain2.setDns(domain.getDns());
-			route.setDomain(domain2);
-		}
+		route.setDomain(domain);
 		return route;
 	}
 
@@ -2824,7 +2835,7 @@ public class Devops extends CommandRunnerBase {
 		if (mem!=null) {
 			resources.setMemory(mem);
 		}
-		String disk = get(new String[] {"d", "disk", "storage"}, options, String.class);
+		String disk = get(new String[] {"disk", "storage"}, options, String.class);
 		if (disk!=null) {
 			resources.setDisk(disk);
 		}
@@ -6490,19 +6501,18 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	public void installFromCatalog(String catalogId, String solutionId, Map<String, Object> options) {
-		InstallOptions options_ = convert(options, InstallOptions.class);
+		InstallOptions install = makeInstallOptions(options);
 		String spaceId = argNS(options);
 		if (spaceId==null) {
 			missingArg("install", "", "-n");
 			return;
 		}
-		options_.setStart(true);
-		options_.setSpace(spaceId);
-		debug("Install Solution from Catalog: %s %s", solutionId, options_);
+		install.setSpace(spaceId);
+		debug("Install Solution from Catalog: %s %s", solutionId, install);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = devopsClient.install(catalogId, solutionId, options_);
+		URI uri = devopsClient.install(catalogId, solutionId, install);
 		if (isEcho()) {
 			Object deploy = getAny(uri, options);
 			printObj(deploy);
@@ -6653,23 +6663,73 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	public void installSolution(String solutionId, Map<String, Object> options) {
-		InstallOptions options_ = convert(options, InstallOptions.class);
+		InstallOptions install = makeInstallOptions(options);
 		String spaceId = argNS(options);
 		if (spaceId==null) {
 			missingArg("install", "", "-n");
 			return;
 		}
-		options_.setSpace(spaceId);
-		options_.setStart(true);
-		debug("Install Solution: %s %s", solutionId, options_);
+		install.setSpace(spaceId);
+		debug("Install Solution: %s %s", solutionId, install);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = devopsClient.install(solutionId, options_);
+		URI uri = devopsClient.install(solutionId, install);
 		if (isEcho()) {
 			Object deploy = getAny(uri, options);
 			printObj(deploy);
 		}			
+	}
+	
+	private InstallOptions makeInstallOptions(Map<String, Object> options) {
+		InstallOptions install = convert(options, InstallOptions.class);
+		Integer k = parseInt((String)options.get("k"));
+		if (k!=null) {
+			install.setInstances(k);
+		}
+		Resources resources = makeResources(options);
+		if (resources!=null) {
+			install.setResources(resources);
+		}
+		if (install.getStart()==null) {
+			install.setStart(true);			
+		}
+		String host = (String)options.get("host");
+		String r = (String)options.get("r");
+		if (r!=null) {
+			if (r.equalsIgnoreCase("false")) {
+				install.setRoute(false);
+				host = null;
+			} else {
+				if (host==null) {
+					host = r;			
+				}
+			}
+		}
+		if (host!=null && !host.isEmpty()) {
+			install.setHost(host);
+			install.setRoute(true);
+			Domain domain = makeRouteDomain(options);
+			if (domain!=null) {
+				install.setDomain(domain.getUuid());
+			}
+		}
+
+		List<Variable> env = new ArrayList<>();
+		if (!makeEnv(options, env)) {
+			return null;
+		}
+		if (!env.isEmpty()) {
+			//install.setEnv(env);
+		}
+		List<Mount> mount = new ArrayList<>();
+		if (!makeMounts(options, mount)) {
+			return null;
+		}
+		if (!mount.isEmpty()) {
+			install.setMounts(mount);
+		}
+		return install;
 	}
 	
 	private Object getAny(URI uri, Map<String, Object> options) {
