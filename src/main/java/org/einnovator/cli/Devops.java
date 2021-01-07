@@ -266,20 +266,24 @@ public class Devops extends CommandRunnerBase {
 		c("vcs", "git"),
 		c("catalog", "catalogs"),
 		c("solution", "solutions"),
-		c("marketplace", "market"),
-		c("ps"),
-		c("kill"),
-		c("run"),
-		c("install"),
 		c("ls", "list"),
+		c("ps"),
+		c("cd"),
 		c("pwd"),
-		c("cd")
+		c("run"),
+		c("kill"),
+		c("market", "marketplace"),
+		c("install")
 	);
 	
 	@Override
 	protected boolean isRootCommand(String cmd) {
 		switch (cmd) {
 		case "run":
+		case "kill":
+		case "market":
+		case "install":
+
 			return true;
 		}
 		return super.isRootCommand(cmd);
@@ -1017,18 +1021,24 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		String q = argId(op, cmds, false);
+		listCluster(q, options);
+	}
+
+	public void listCluster(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		ClusterFilter filter = convert(options, ClusterFilter.class);
-		String q = argId(op, cmds, false);
-		if (q!=null) {
+		if (StringUtil.hasText(q)) {
 			filter.setQ(q);
 		}
 		debug("Clusters: %s %s", filter, pageable);
 		Page<Cluster> clusters = devopsClient.listClusters(filter, pageable);
 		print(clusters, Cluster.class);
 	}
-
-
+	
 	public void getCluster(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -1197,10 +1207,17 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		String q = argId(op, cmds, false);
+		listSpace(q, options);
+	}
+	
+	public void listSpace(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		SpaceFilter filter = convert(options, SpaceFilter.class);
-		String q = argId(op, cmds, false);
-		if (q!=null) {
+		if (StringUtil.hasText(q)) {
 			filter.setQ(q);
 		}
 		debug("Spaces: %s %s", filter, pageable);
@@ -2050,28 +2067,28 @@ public class Devops extends CommandRunnerBase {
 		}
 		boolean b = false;
 		if (options.get("n")!=null) {
-			listSpace(cmds, options);
+			listSpace(op, options);
 			b = true;
 		}
 		if (options.get("c")!=null) {
-			listCluster(cmds, options);
+			listCluster(op, options);
 			b = true;
 		}
 		if (options.get("d")!=null) {
-			listDomain(cmds, options);
+			listDomain(op, options);
 			b = true;
 		}
 		if (options.get("r")!=null || options.get("reg")!=null) {
-			listRegistry(cmds, options);
+			listRegistry(op, options);
 			b = true;
 		}
 		if (options.get("vcs")!=null || options.get("git")!=null) {
-			listVcs(cmds, options);
+			listVcs(op, options);
 			b = true;
 		}
 
 		if (!b) {
-			listSpace(cmds, options);
+			listSpace(op, options);
 		}
 	}
 
@@ -2158,15 +2175,17 @@ public class Devops extends CommandRunnerBase {
 			exit(-1);
 			return;
 		}
+		String image = arg0(op, cmds, false);
+
 		if (options.get("j")!=null || options.get("p")!=null || options.get("completions")!=null || options.get("parallelism")!=null) {
-			createJob(id, true, extra, options);
+			createJob(id, image, true, extra, options);
 			return;
 		}
 		if (options.get("c")!=null || options.get("schedule")!=null) {
-			createCronJob(id, true, extra, options);
+			createCronJob(id, image, true, extra, options);
 			return;
 		}
-		createDeployment(id, true, extra, options);
+		createDeployment(id, image, true, extra, options);
 	}
 	
 
@@ -2293,16 +2312,17 @@ public class Devops extends CommandRunnerBase {
 		}
 		String start = (String)options.get("--start");
 		String name = argId(op, cmds);
-		createDeployment(name, start!=null, extra, options);
+		String image = arg1(op, cmds, false);
+		createDeployment(name, image, start!=null, extra, options);
 	}
 
-	public void createDeployment(String name, boolean start, String[] extra, Map<String, Object> options) {
+	public void createDeployment(String name, String image, boolean start, String[] extra, Map<String, Object> options) {
 		String spaceId = argNS(options);
 		if (spaceId==null) {
 			missingArg("-n");
 			return;
 		}
-		Deployment deployment = makeDeployment(name, extra, options);
+		Deployment deployment = makeDeployment(name, image, extra, options);
 		if (deployment==null) {
 			return;
 		}
@@ -2332,9 +2352,12 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 	
-	void setupDeployOptions(Map<String, Object> options) {
-		String image = (String)options.get("image");
-		if (image!=null) {
+	void setupDeployOptions(String image, Map<String, Object> options) {
+		String image_ = (String)options.get("image");
+		if (image_==null && StringUtil.hasText(image)) {
+			image_ = image;
+		}
+		if (image_!=null) {
 			options.remove("image");
 			options.put("image.name", image);
 		}
@@ -2364,8 +2387,8 @@ public class Devops extends CommandRunnerBase {
 		return deploy;
 	}
 	
-	private Deployment makeDeployment(String name, String[] extra, Map<String, Object> options) {
-		setupDeployOptions(options);
+	private Deployment makeDeployment(String name, String image, String[] extra, Map<String, Object> options) {
+		setupDeployOptions(image, options);
 		Deployment deploy = convert(options, Deployment.class);
 		if (name!=null) {
 			deploy.setName(name);
@@ -2705,7 +2728,8 @@ public class Devops extends CommandRunnerBase {
 		}
 
 		String deployId = argIdx(op, cmds);
-		Deployment deployment = makeDeployment(null, extra, options);
+		String image = arg1(op, cmds, false);
+		Deployment deployment = makeDeployment(null, image, extra, options);
 		if (deployment==null) {
 			return;
 		}
@@ -4195,16 +4219,17 @@ public class Devops extends CommandRunnerBase {
 		}
 		String start = (String)options.get("--start");
 		String name = argId(op, cmds);
-		createJob(name, start!=null, extra, options);
+		String image = arg1(op, cmds, false);
+		createJob(name, image, start!=null, extra, options);
 	}
 
-	public void createJob(String name, boolean start, String[] extra, Map<String, Object> options) {
+	public void createJob(String name, String image, boolean start, String[] extra, Map<String, Object> options) {
 		String spaceId = argNS(options);
 		if (spaceId==null) {
 			missingArg("-n");
 			return;
 		}
-		Job job = makeJob(name, extra, options);
+		Job job = makeJob(name, image, extra, options);
 		if (start) {
 			job.setStart(true);
 		}
@@ -4222,8 +4247,8 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
-	private Job makeJob(String name, String[] extra, Map<String, Object> options) {
-		setupDeployOptions(options);
+	private Job makeJob(String name, String image, String[] extra, Map<String, Object> options) {
+		setupDeployOptions(image, options);
 		Job job = convert(options, Job.class);
 		if (name!=null) {
 			job.setName(name);
@@ -4261,7 +4286,8 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argIdx(op, cmds);
-		Job job = makeJob(jobId, extra, options);
+		String image = arg1(op, cmds, false);
+		Job job = makeJob(jobId, image, extra, options);
 		JobOptions options_ = convert(options, JobOptions.class);
 		debug("Updating Job: %s %s %s", jobId, job, options_);
 		if (isDryrun()) {
@@ -5098,16 +5124,17 @@ public class Devops extends CommandRunnerBase {
 		}
 		String start = (String)options.get("--start");
 		String cronjobId = argIdx(op, cmds);
-		createCronJob(cronjobId, start!=null, extra, options);
+		String image = arg1(op, cmds, false);
+		createCronJob(cronjobId, image, start!=null, extra, options);
 	}
 		
-	public void createCronJob(String name, boolean start, String[] extra, Map<String, Object> options) {
+	public void createCronJob(String name, String image, boolean start, String[] extra, Map<String, Object> options) {
 		String spaceId = argNS(options);
 		if (spaceId==null) {
 			missingArg("-n");
 			return;
 		}
-		CronJob cronjob = makeCronJob(name, extra, options);
+		CronJob cronjob = makeCronJob(name, image, extra, options);
 		if (start) {
 			cronjob.setStart(true);
 		}
@@ -5125,8 +5152,8 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
-	private CronJob makeCronJob(String name, String[] extra, Map<String, Object> options) {
-		setupDeployOptions(options);
+	private CronJob makeCronJob(String name, String image, String[] extra, Map<String, Object> options) {
+		setupDeployOptions(image, options);
 		CronJob cronjob = convert(options, CronJob.class);
 		if (name!=null) {
 			cronjob.setName(name);
@@ -5165,7 +5192,8 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String cronjobId = argIdx(op, cmds);
-		CronJob cronjob = makeCronJob(null, extra, options);
+		String image = arg1(op, cmds, false);
+		CronJob cronjob = makeCronJob(null, image, extra, options);
 		CronJobOptions options_ = convert(options, CronJobOptions.class);
 		debug("Updating CronJob: %s %s %s", cronjobId, cronjob, options_);
 		if (isDryrun()) {
@@ -5878,10 +5906,17 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		String q = argId(op, cmds, false);
+		listDomain(q, options);
+	}
+	
+	public void listDomain(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		DomainFilter filter = convert(options, DomainFilter.class);
-		String q = argId(op, cmds, false);
-		if (q!=null) {
+		if (StringUtil.hasText(q)) {
 			filter.setQ(q);
 		}
 		debug("Domains: %s %s", filter, pageable);
@@ -6064,10 +6099,17 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		String q = argId(op, cmds, false);
+		listRegistry(q, options);
+	}
+	
+	public void listRegistry(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		RegistryFilter filter = convert(options, RegistryFilter.class);
-		String q = argId(op, cmds, false);
-		if (q!=null) {
+		if (StringUtil.hasText(q)) {
 			filter.setQ(q);
 		}
 		debug("Registries: %s %s", filter, pageable);
@@ -6208,10 +6250,17 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		String q = argId(op, cmds, false);
+		listVcs(q, options);
+	}
+	
+	public void listVcs(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		VcsFilter filter = convert(options, VcsFilter.class);
-		String q = argId(op, cmds, false);
-		if (q!=null) {
+		if (StringUtil.hasText(q)) {
 			filter.setQ(q);
 		}
 		debug("Vcs: %s %s", filter, pageable);
