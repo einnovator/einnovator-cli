@@ -1,10 +1,11 @@
 package org.einnovator.cli;
 
-import org.springframework.beans.factory.annotation.Autowired;
-
-import static org.einnovator.cli.LoginTests.*;
+import static org.einnovator.cli.LoginTests.API;
+import static org.einnovator.cli.LoginTests.PASSWORD;
+import static org.einnovator.cli.LoginTests.USERNAME;
 
 import org.junit.Before;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public class TestsBase {
 

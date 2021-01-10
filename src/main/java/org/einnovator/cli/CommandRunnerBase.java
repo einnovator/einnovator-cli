@@ -861,7 +861,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	@SuppressWarnings("rawtypes")
 	void print(Object obj, int n) {
 		if (obj instanceof Iterable) {
-			print((Iterable)obj);
+			print((Iterable)obj, null);
 			return;
 		}
 		if (n>0) {
@@ -876,32 +876,25 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 	}
 
 	void print(Page<?> page, Class<?> type) {
-		print(page, type.getSimpleName(), false);
-	}
-
-	void print(Page<?> page, Class<?> type, boolean silent) {
-		print(page, type.getSimpleName(), silent);
-	}
-
-	void print(Page<?> page, String type) {
 		print(page, type, false);
 	}
 
-	void print(Page<?> page, String type, boolean silent) {
+
+	void print(Page<?> page, Class<?> type, boolean silent) {
 		if (page==null) {
-			operationFailed(type, "list", options);
+			operationFailed(type.getSimpleName().toLowerCase(), "list", options);
 			System.exit(-1);
 			return;
 		}
 		if (page.getContent()==null || page.getContent().isEmpty()) {
 			if (!silent) {
-				noresources(type, options);
+				noresources(type.getSimpleName().toLowerCase(), options);
 				System.exit(0);				
 			}
 			return;
 		}
 
-		print(page.getContent());
+		print(page.getContent(), type);
 	}
 
 	protected int size(Page<?> page) {
@@ -911,8 +904,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return page.getContent().size();
 	}
 
-	void print(Iterable<?> it) {
-		if (isTabular()) {
+	void print(Iterable<?> it, Class<?> type) {
+		if (isBlock()) {
+			if (type!=null) {
+				printBlock(it, type);
+			}
+		} else if (isTabular()) {
 			printTabular(it);
 		} else {
 			for (Object obj: it) {
@@ -974,6 +971,35 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		}
 	}
 
+	
+	void printBlock(Iterable<?> it, Class<?> type) {
+		String cols_ = getCols(type);
+		String[] cols = getFormatCols(cols_);
+		if (cols==null) {
+			return;
+		}
+		int width = 0;
+		for (int i=0; i<cols.length; i++) {
+			if (cols[i].length()>width) {
+				width = cols[i].length();
+			}
+		}
+		int i = 0;
+		for (Object o: it) {
+			if (i>0) {
+				System.out.println();				
+			}
+			List<String> row = getFields(o, cols_);
+			for (int j = 0; j<cols.length; j++) {
+				String col = formatColName(cols[j]);
+				printW(col, width+3);
+				printW(row.get(j), 0);
+				System.out.println();
+			}
+			i++;
+		}
+	}
+
 	protected void printObj(Object obj) {
 		printObj(obj, true);
 	}
@@ -982,7 +1008,9 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj==null) {
 			return;
 		}
-		if (isTabular()) {
+		if (isBlock()) {
+			printBlock(obj);
+		}  else if (isTabular()) {
 			printTabular(obj, header);
 		} else {
 			print(obj, 0);
@@ -1017,6 +1045,25 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		System.out.println();
 	}
 
+	protected void printBlock(Object obj) {
+		String cols = getCols(obj);
+		List<String> values = getFields(obj, cols);
+		String[] cols2 = getFormatCols(cols);
+		int width = 0;
+		for (int i=0; i<cols2.length; i++) {
+			if (cols2[i].length()>width) {
+				width = cols2[i].length();
+			}
+		}
+		for (int j = 0; j<cols2.length; j++) {
+			String col = formatColName(cols2[j]);
+			printW(col, width+3);
+			String value = values.get(j);
+			printW(value, 0);
+			System.out.println();
+		}	
+	}
+	
 	private String formatColName(String col) {
 		return col.toUpperCase();
 	}
@@ -1070,6 +1117,19 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			return false;
 		default: 
 			return true;
+		}
+	}
+	
+	protected boolean isBlock() {
+		String o = getFormat();
+		if (o==null) {
+			return false;
+		}
+		switch (o) {
+		case "block":
+			return true;
+		default: 
+			return false;
 		}
 	}
 
@@ -1385,22 +1445,26 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return "";
 	}
 
-	protected String getCols(Object obj) {
-		if (obj==null) {
-			return "";
-		}
+	protected String getCols(Class<?> type) {
 		String fmt = getFormat();
-		String cols = getCols(fmt, getCols(), obj.getClass());
+		String cols = getCols(fmt, getCols(), type);
 		if (StringUtil.hasText(cols)) {
 			return cols.trim();
 		}	
 		if ("wide".equals(fmt)) {
-			fmt = getWideFormat(obj.getClass());
+			fmt = getWideFormat(type);
 		} 
 		if (!StringUtil.hasText(fmt)) {
-			fmt = getDefaultFormat(obj.getClass());
+			fmt = getDefaultFormat(type);
 		} 
 		return fmt;
+	}
+
+	protected String getCols(Object obj) {
+		if (obj==null) {
+			return "";
+		}
+		return getCols(obj.getClass());
 	}
 	
 	protected String getDefaultFormat(Class<? extends Object> type) {

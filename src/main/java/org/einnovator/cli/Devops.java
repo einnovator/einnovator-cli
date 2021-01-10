@@ -12,7 +12,9 @@ import java.util.ResourceBundle;
 
 import org.einnovator.devops.client.DevopsClient;
 import org.einnovator.devops.client.config.DevopsClientConfiguration;
+import org.einnovator.devops.client.model.Bill;
 import org.einnovator.devops.client.model.Binding;
+import org.einnovator.devops.client.model.Build;
 import org.einnovator.devops.client.model.Catalog;
 import org.einnovator.devops.client.model.Certificate;
 import org.einnovator.devops.client.model.Cluster;
@@ -42,6 +44,8 @@ import org.einnovator.devops.client.model.VarCategory;
 import org.einnovator.devops.client.model.Variable;
 import org.einnovator.devops.client.model.Vcs;
 import org.einnovator.devops.client.model.VolumeClaim;
+import org.einnovator.devops.client.modelx.BuildFilter;
+import org.einnovator.devops.client.modelx.BuildOptions;
 import org.einnovator.devops.client.modelx.CatalogFilter;
 import org.einnovator.devops.client.modelx.CatalogOptions;
 import org.einnovator.devops.client.modelx.ClusterFilter;
@@ -107,19 +111,19 @@ public class Devops extends CommandRunnerBase {
 
 	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
 	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image,age";
-	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
+	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,builder,builderKindworkspace.type:workspace,webhook.enabled:webhook,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry";
 	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status,age";
 	private static final String JOB_WIDE_FORMAT = "id,name,displayName,kind,status,completions,parallelism,age";
-	private static final String JOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
-	private static final String JOB_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
-
+	private static final String JOB_CICD_FORMAT = DEPLOYMENT_CICD_FORMAT;
+	private static final String JOB_RESOURCES_FORMAT = DEPLOYMENT_RESOURCES_FORMAT;
+	
 	private static final String CRONJOB_DEFAULT_FORMAT = "id,name,displayName,kind,schedule,status,suspend,active,lastScheduleAge:last scheduled,age";
 	private static final String CRONJOB_WIDE_FORMAT = "id,name,displayName,kind,schedule,status,suspend,active,lastScheduleAge:last scheduled,age";
-	private static final String CRONJOB_CICD_FORMAT = "id,name,displayName,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,builder,builderKind,workspace:workspace,webhook:webhook";
-	private static final String CRONJOB_RESOURCES_FORMAT = "id,name,displayName,status,suspend,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
-
+	private static final String CRONJOB_CICD_FORMAT = DEPLOYMENT_CICD_FORMAT;
+	private static final String CRONJOB_RESOURCES_FORMAT = DEPLOYMENT_RESOURCES_FORMAT;
+	
 	private static final String DOMAIN_DEFAULT_FORMAT ="id,name,tls,age";
 	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,cert,root,parent,enabled,age";
 
@@ -168,6 +172,9 @@ public class Devops extends CommandRunnerBase {
 	private static final String VOLUMECLAIM_DEFAULT_FORMAT = "name,mode,size,storageClass,age";
 	private static final String VOLUMECLAIM_WIDE_FORMAT = "name,mode,size,storageClass,age";
 
+	private static final String BUILD_DEFAULT_FORMAT = "name,status,shortMessage:message,step,startAge:age,duration";
+	private static final String BUILD_WIDE_FORMAT = "name,status,shortMessage:message,step,startAge:age,duration";
+	
 	private DevopsClient devopsClient;
 
 	private String server = DEVOPS_DEFAULT_SERVER;
@@ -255,11 +262,12 @@ public class Devops extends CommandRunnerBase {
 		c("cluster", "clusters"),
 		c("space", "spaces", "namespace", "namespaces", "ns"),
 		c("deployment", "deploy", "deployments", "deploys"),
+		c("job", "jobs"),
+		c("cronjob", "cronjobs"),
+		c("build", "builds"),
 		c("pod", "pods", "instance", "instances"),
 		c("replicaset", "replicasets", "rs"),
 		c("volumeclaim", "volumeclaims", "volc"),
-		c("job", "jobs"),
-		c("cronjob", "cronjobs"),
 		c("route", "routes"),
 		c("mount", "mounts"),
 		c("env", "var", "vars"),
@@ -316,6 +324,7 @@ public class Devops extends CommandRunnerBase {
 		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
+			c("build"),
 			c("event", "events"),
 			c("route", "routes"),
 			c("go"),
@@ -328,6 +337,7 @@ public class Devops extends CommandRunnerBase {
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"), 
 			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
+			c("build"),
 			c("events", "event"),
 			c("mount", "mount"),
 			c("env", "var", "vars"),
@@ -336,9 +346,10 @@ public class Devops extends CommandRunnerBase {
 		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"),
+			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"), c("attach"), 
+			c("build"),
 			c("events", "event"),
 			c("job", "jobs"),
-			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"), c("attach"), 
 			c("mount", "mount"),
 			c("env", "var", "vars"),
 			c("binding", "bindings"),
@@ -361,6 +372,10 @@ public class Devops extends CommandRunnerBase {
 				c("schema", "meta"), c("help")));	
 		map.put("volumeclaim", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("create", "add"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("build", c(c("ls", "list"), c("get"),
+				c("create"),
+				c("kill", "delete", "del", "remove", "rm"),
+				c("schema", "meta"), c("help")));
 		map.put("domain", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"),
 			c("set"), c("unset"),
@@ -409,9 +424,7 @@ public class Devops extends CommandRunnerBase {
 			c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		deploy.put("connector", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 			c("add", "create"), c("update"), c("refresh"), c("delete", "del", "remove", "rm"), c("help")));
-		deploy.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "remove", "rm"), c("help")));
-		deploy.put("replicaset", c(c("ls", "list"), c("kill", "delete", "del", "remove", "rm"), c("help")));
-
+	
 		Map<String, String[][]> job = m("job", map);
 		job.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
@@ -420,8 +433,7 @@ public class Devops extends CommandRunnerBase {
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		job.put("binding", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
-		job.put("pod", c(c("ls", "list"), c("kill", "delete", "del", "remove", "rm"), c("help")));
-
+	
 		Map<String, String[][]> cronjob = m("cronjob", map);
 		cronjob.put("env", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("add", "create"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
@@ -485,6 +497,9 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "replicaset": case "replicasets": case "rs":
 			replicaset(cmds, options);
+			break;
+		case "build": case "builds":
+			build(cmds, options);
 			break;
 		case "deployment": case "deploy": case "deploys": case "deployments":
 			deployment(cmds, options);
@@ -1022,7 +1037,6 @@ public class Devops extends CommandRunnerBase {
 	// Space Pods
 	//
 
-
 	public void pod(String[] cmds, Map<String, Object> options) {
 		switch (op) {
 		case "help": case "":
@@ -1415,7 +1429,143 @@ public class Devops extends CommandRunnerBase {
 			volumeclaimList(spaceId, options);
 		}
 	}
+
 	
+	//
+	// Space Builds
+	//
+
+	public void build(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage1();
+			break;
+		case "ls": case "list": {
+			buildList(cmds, options);
+			break;
+		}
+		case "get": {
+			buildGet(cmds, options);
+			break;
+		}
+		case "create": {
+			buildCreate(cmds, options);
+			break;
+		}
+		case "kill": case "remove": case "rm": case "delete": case "del": {
+			buildDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp2()) {
+				return;
+			}
+			schema(Build.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+	
+	public void buildList(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String id = argId(op, cmds, false);
+		buildList(spaceId, id, options);			
+	}
+	
+	public void buildList(String spaceId, String deployId, Map<String, Object> options) {
+		BuildFilter filter = convert(options, BuildFilter.class);
+		if (deployId!=null) {
+			filter.setDeployId(deployId);
+		}
+		debug("Builds: %s %s %s", spaceId, filter);		
+		List<Build> builds = devopsClient.listBuilds(spaceId, filter);			
+		print(builds);
+	}
+	
+	public void buildGet(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		if (spaceId==null) {
+			return;
+		}
+		String buildId = argId(op, cmds);
+		buildGet(spaceId, buildId, options);
+	}
+	
+	public void buildGet(String spaceId, String buildId, Map<String, Object> options) {
+		debug("Build: %s %s", spaceId, buildId);		
+		BuildOptions options_ = convert(options, BuildOptions.class);
+		Build build = devopsClient.getBuild(spaceId, buildId, options_);			
+		printObj(build);
+	}
+
+	public void buildCreate(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String deployId = argId(op, cmds);
+		if (options.get("j")!=null) {
+			buildJob(deployId, options);
+		} else if (options.get("c")!=null) {
+			buildCronJob(deployId, options);
+		} else {
+			buildDeployment(deployId, options);
+		}
+	}
+	
+	private BuildOptions makeBuildOptions(Map<String, Object> options) {
+		BuildOptions options_ = convert(options, BuildOptions.class);
+		String deploy = (String)options.get("d");
+		if (deploy!=null) {
+		}
+		return options_;
+	}
+
+
+	public void buildDelete(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String buildId = argId(op, cmds);
+		buildDelete(spaceId, buildId, options);
+	}
+
+	public void buildDelete(String spaceId, String buildId, Map<String, Object> options) {
+		debug("Delete Build: %s %s", spaceId, buildId);		
+		BuildOptions options_ = convert(options, BuildOptions.class);
+		if (isDryrun()) {
+			return;
+		}
+		devopsClient.deleteBuild(spaceId, buildId, options_);
+		if (isEcho()) {
+			buildList(spaceId, null, options);
+		}
+	}
+
 	//
 	// Space Authority
 	//
@@ -1952,6 +2102,9 @@ public class Devops extends CommandRunnerBase {
 		case "logs": case "log":
 			logDeployment(cmds, options);
 			break;
+		case "build":
+			buildDeployment(cmds, options);
+			break;
 		case "events": case "event":
 			eventDeployment(cmds, options);
 			break;
@@ -1964,7 +2117,7 @@ public class Devops extends CommandRunnerBase {
 		case "mount":
 			mountDeployment(cmds, options);
 			break;
-		case "var": case "env":
+		case "env": case "var": case "vars": 
 			envDeployment(cmds, options);
 			break;
 		case "binding": case "bind":
@@ -2648,7 +2801,6 @@ public class Devops extends CommandRunnerBase {
 			if (id.isEmpty()) {
 				continue;
 			}
-			System.out.println("!!" + argPID(options));
 			stopDeployment(makeIdx(id), options);			
 		}
 	}
@@ -2775,7 +2927,42 @@ public class Devops extends CommandRunnerBase {
 		}
 		return options_;
 	}
-	
+
+	public void buildDeployment(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String deployId = argIdx(op, cmds);
+		buildDeployment(deployId, options);
+	}
+
+	public void buildDeployment0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String deployId = argIdx(op, cmds);
+		buildDeployment(deployId, options);
+	}
+
+	public void buildDeployment(String deployId, Map<String, Object> options) {
+		BuildOptions options_ = makeBuildOptions(options);
+		debug("Build Deployment: %s %s", deployId, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		if (spaceId==null) {
+			return;
+		}		
+		URI uri = devopsClient.buildDeployment(deployId, options_);
+		if (isEcho()) {
+			debug("Build URI: %s", uri);
+			String id = extractId(uri);
+			Build build = devopsClient.getBuild(spaceId, id, options_);
+			printObj(build);			
+		}
+	}
+
 	//
 	// Deployment Pod/Instances
 	//
@@ -3298,23 +3485,23 @@ public class Devops extends CommandRunnerBase {
 			printUsage1();
 			break;
 		case "ls": case "list": {
-			mountDeploymentList(cmds, options);
+			mountDeploymentList0(cmds, options);
 			break;
 		}
 		case "get": {
-			mountDeploymentGet(cmds, options);
+			mountDeploymentGet0(cmds, options);
 			break;
 		}
 		case "add": case "create": {
-			mountDeploymentCreate(cmds, options);
+			mountDeploymentCreate0(cmds, options);
 			break;
 		}
 		case "update": {
-			mountDeploymentUpdate(cmds, options);
+			mountDeploymentUpdate0(cmds, options);
 			break;
 		}
 		case "remove": 	case "rm": case "delete": case "del": {
-			mountDeploymentDelete(cmds, options);
+			mountDeploymentDelete0(cmds, options);
 			break;
 		}
 		case "schema": case "meta":
@@ -3343,7 +3530,7 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	public void mountDeploymentList0(String[] cmds, Map<String, Object> options) {
-		if (isHelp()) {
+		if (isHelp2()) {
 			return;
 		}
 		String deployId = argIdx(op, cmds);
@@ -4383,13 +4570,16 @@ public class Devops extends CommandRunnerBase {
 		case "logs": case "log":
 			logJob(cmds, options);
 			break;
+		case "build":
+			buildJob(cmds, options);
+			break;
 		case "events": case "event":
 			eventJob(cmds, options);
 			break;
 		case "mount":
 			mountJob(cmds, options);
 			break;
-		case "var": case "env":
+		case "env": case "var": case "vars": 
 			envJob(cmds, options);
 			break;
 		case "binding": case "bind":
@@ -4735,6 +4925,41 @@ public class Devops extends CommandRunnerBase {
 		System.out.println(out);
 	}
 	
+	public void buildJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String jobId = argIdx(op, cmds);
+		buildJob(jobId, options);
+	}
+
+	public void buildJob0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String jobId = argIdx(op, cmds);
+		buildJob(jobId, options);
+	}
+
+	public void buildJob(String jobId, Map<String, Object> options) {
+		BuildOptions options_ = makeBuildOptions(options);
+		debug("Build Job: %s %s", jobId, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		if (spaceId==null) {
+			return;
+		}		
+		URI uri = devopsClient.buildJob(jobId, options_);
+		if (isEcho()) {
+			debug("Build URI: %s", uri);
+			String id = extractId(uri);
+			Build build = devopsClient.getBuild(spaceId, id, options_);
+			printObj(build);			
+		}
+	}
+
 	//
 	// Job Events
 	//
@@ -5620,13 +5845,16 @@ public class Devops extends CommandRunnerBase {
 		case "attach":
 			attachCronJob(cmds, options);
 			break;
+		case "build":
+			buildCronJob(cmds, options);
+			break;
 		case "events": case "event":
 			eventCronJob(cmds, options);
 			break;
 		case "mount":
 			mountCronJob(cmds, options);
 			break;
-		case "var": case "env":
+		case "env": case "var": case "vars":
 			envCronJob(cmds, options);
 			break;
 		case "binding": case "bind":
@@ -5954,6 +6182,41 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 	
+	public void buildCronJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String cronjobId = argIdx(op, cmds);
+		buildCronJob(cronjobId, options);
+	}
+
+	public void buildCronJob0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String cronjobId = argIdx(op, cmds);
+		buildCronJob(cronjobId, options);
+	}
+
+	public void buildCronJob(String cronjobId, Map<String, Object> options) {
+		BuildOptions options_ = makeBuildOptions(options);
+		debug("Build CronJob: %s %s", cronjobId, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		if (spaceId==null) {
+			return;
+		}		
+		URI uri = devopsClient.buildCronJob(cronjobId, options_);
+		if (isEcho()) {
+			debug("Build URI: %s", uri);
+			String id = extractId(uri);
+			Build build = devopsClient.getBuild(spaceId, id, options_);
+			printObj(build);			
+		}
+	}
+
 	
 	//
 	// CronJob Events
@@ -8127,6 +8390,9 @@ public class Devops extends CommandRunnerBase {
 		if (Event.class.equals(type)) {
 			return EVENT_DEFAULT_FORMAT;
 		}
+		if (Build.class.equals(type)) {
+			return BUILD_DEFAULT_FORMAT;
+		}
 		return super.getDefaultFormat(type);
 	}
 
@@ -8198,6 +8464,9 @@ public class Devops extends CommandRunnerBase {
 		if (Event.class.equals(type)) {
 			return EVENT_WIDE_FORMAT;
 		}
+		if (Build.class.equals(type)) {
+			return BUILD_WIDE_FORMAT;
+		}
 
 		return super.getWideFormat(type);
 	}
@@ -8245,6 +8514,7 @@ public class Devops extends CommandRunnerBase {
 		} else if (Mount.class.equals(type)) {
 		} else if (ReplicaSet.class.equals(type)) {
 		} else if (VolumeClaim.class.equals(type)) {
+		} else if (Build.class.equals(type)) {
 		}
 		if (cols!=null && !cols.isEmpty()) {
 			return cols;
@@ -8313,6 +8583,9 @@ public class Devops extends CommandRunnerBase {
 		if (VolumeClaim.class.equals(type)) {
 			return new String[] {};
 		}
+		if (Build.class.equals(type)) {
+			return new String[] {};
+		}
 		return null;
 	}
 
@@ -8322,12 +8595,21 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	protected String argNS(Map<String, Object> options) {
-		String spaceId = (String)options.get("n");
-		if (spaceId!=null) {
-			return spaceId;
-		}
-		return this.space;
+		return argNS(options, false);
 	}
+
+	protected String argNS(Map<String, Object> options, boolean required) {
+		String spaceId = (String)options.get("n");
+		if (spaceId==null) {
+			spaceId = this.space;
+		}
+		if (required && spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+		}
+		return spaceId;
+	}
+
 
 	protected String argCluster(Map<String, Object> options) {
 		String clusterId = (String)options.get("c");
@@ -8346,4 +8628,19 @@ public class Devops extends CommandRunnerBase {
 		error(String.format("missing space id"));
 		exit(-1);
 	}
+	
+	protected String extractSpaceId(URI uri) {
+		String s = uri.toString();
+		int i = s.indexOf("/space/");
+		if (i<0) {
+			return null;
+		}
+		s = s.substring(i + "/space".length());
+		i = s.indexOf("/");
+		if (i>0) {
+			s = s.substring(0, i);
+		}
+		return s;
+	}
+
 }
