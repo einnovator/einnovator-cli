@@ -1129,8 +1129,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		case "block":
 			return true;
 		default: 
-			return false;
+			break;
 		}
+		if (options.get("b")!=null) {
+			return true;
+		}
+		return false;
 	}
 
 	String[] getFormatCols(String fmt) {

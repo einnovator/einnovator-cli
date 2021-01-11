@@ -19,6 +19,7 @@ import org.einnovator.devops.client.model.Catalog;
 import org.einnovator.devops.client.model.Certificate;
 import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.Connector;
+import org.einnovator.devops.client.model.CredentialsType;
 import org.einnovator.devops.client.model.CronJob;
 import org.einnovator.devops.client.model.CronJobStatus;
 import org.einnovator.devops.client.model.Deployable;
@@ -111,7 +112,7 @@ public class Devops extends CommandRunnerBase {
 
 	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
 	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image,age";
-	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,builder,builderKindworkspace.type:workspace,webhook.enabled:webhook,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry";
+	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,builder,builderKind,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,workspace.type:workspace,webhook.enabled:webhook";
 	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status,age";
@@ -127,20 +128,20 @@ public class Devops extends CommandRunnerBase {
 	private static final String DOMAIN_DEFAULT_FORMAT ="id,name,tls,age";
 	private static final String DOMAIN_WIDE_FORMAT ="id,name,tls,cert,root,parent,enabled,age";
 
-	private static final String REGISTRY_DEFAULT_FORMAT = "id,name,server,username,age";
-	private static final String REGISTRY_WIDE_FORMAT = "id,name,server,username,age";
+	private static final String REGISTRY_DEFAULT_FORMAT = "id,name,displayName,server,credentialsType:auth,username,age";
+	private static final String REGISTRY_WIDE_FORMAT = "id,name,displayName,server,credentialsType:auth,username,email,age";
 
-	private static final String VCS_DEFAULT_FORMAT = "id,name,url,username,age";
-	private static final String VCS_WIDE_FORMAT = "id,name,url,username,age";
+	private static final String VCS_DEFAULT_FORMAT = "id,name,displayName,url,credentialsType:auth,username,age";
+	private static final String VCS_WIDE_FORMAT = "id,name,displayName,url,credentialsType:auth,username,age";
 
-	private static final String CATALOG_DEFAULT_FORMAT = "id,name,type,enabled,age";
-	private static final String CATALOG_WIDE_FORMAT = "id,name,type,enabled,age";
+	private static final String CATALOG_DEFAULT_FORMAT = "id,name,displayName,type,enabled,age";
+	private static final String CATALOG_WIDE_FORMAT = "id,name,displayName,type,enabled,age";
 
-	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,type,kind,category,keywords";
-	private static final String SOLUTION_WIDE_FORMAT = "id,name,type,kind,category,keywords,url";
+	private static final String SOLUTION_DEFAULT_FORMAT = "id,name,displayName,type,kind,category,keywords";
+	private static final String SOLUTION_WIDE_FORMAT = "id,name,displayName,type,kind,category,keywords,url";
 
-	private static final String CATALOG_SOLUTION_DEFAULT_FORMAT = "name,category,keywords";
-	private static final String CATALOG_SOLUTION_WIDE_FORMAT = "name,category,keywords,url";
+	private static final String CATALOG_SOLUTION_DEFAULT_FORMAT = "name,displayName,category,keywords";
+	private static final String CATALOG_SOLUTION_WIDE_FORMAT = "name,displayName,category,keywords,url";
 
 	private static final String BINDING_DEFAULT_FORMAT = "id,selector,spec";
 	private static final String BINDING_WIDE_FORMAT = "id,selector,spec,meta";
@@ -274,7 +275,7 @@ public class Devops extends CommandRunnerBase {
 		c("binding", "bindings"),
 		c("connector", "connectors"),
 		c("domain", "domains"),
-		c("registry", "registries"),
+		c("registry", "registries", "reg"),
 		c("vcs", "git"),
 		c("catalog", "catalogs"),
 		c("solution", "solutions"),
@@ -528,7 +529,7 @@ public class Devops extends CommandRunnerBase {
 		case "domain": case "domains":
 			domain(cmds, options);
 			break;
-		case "registry": case "registries":
+		case "registry": case "registries": case "reg":
 			registry(cmds, options);
 			break;
 		case "vcs": case "vcss": case "git":
@@ -3377,18 +3378,13 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		String deployId = argIdx(op, cmds);
-		String routeId = arg1(op, cmds);
+		String routeId = arg1(op, cmds, false);
 		routeGo(deployId, routeId, options);
 	}
 	
-	public void routeGo(String deployId, String routeId, Map<String, Object> options) {
-		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
-		debug("Go Route: %s %s", deployId, routeId);		
-		Route route = devopsClient.getRoute(deployId, routeId, options_);
-		routeGo(deployId, routeId, route);
-	}
-
+	
 	public void routeGo(String deployId, String routeId, Route route) {
+
 		String url = route.getUrl();
 		if (!StringUtil.hasText(url)) {
 			error("missing url for route: %s %s", deployId, routeId);
@@ -3405,13 +3401,14 @@ public class Devops extends CommandRunnerBase {
 		}
 		String deployId = argIdx(op, cmds);
 		String routeId = arg1(op, cmds, false);
+		routeGo(deployId, routeId, options);
+	}
+	
+	public void routeGo(String deployId, String routeId, Map<String, Object> options) {
 		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
 		if (routeId==null) {
-			List<Route> routes = devopsClient.listRoutes(deployId, options_);
-			Route route = Route.findPrimary(routes, true);
+			Route route = getPrimaryRoute(deployId, options);
 			if (route==null) {
-				error("no Route found for: %s", deployId);
-				exit(-1);
 				return;
 			}
 			routeGo(deployId, route.getUrl(), route);
@@ -3421,6 +3418,17 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
+	private Route getPrimaryRoute(String deployId, Map<String, Object> options) {
+		DeploymentOptions options_ = convert(options, DeploymentOptions.class);
+		List<Route> routes = devopsClient.listRoutes(deployId, options_);
+		Route route = Route.findPrimary(routes, true);
+		if (route==null) {
+			error("no Route found for: %s", deployId);
+			exit(-1);
+			return route;
+		}
+		return route;
+	}
 	public void routeSchema(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -7405,8 +7413,8 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		Registry registry = convert(options, Registry.class);
-		registry.setName(argId(op, cmds));
+		String name = argId(op, cmds);
+		Registry registry = makeRegistry(name, options);
 		RegistryOptions options_ = convert(options, RegistryOptions.class);
 		debug("Creating Registry: %s %s", registry, options_);
 		if (isDryrun()) {
@@ -7421,12 +7429,58 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
+	private Registry makeRegistry(String name, Map<String, Object> options) {
+		Registry registry = convert(options, Registry.class);
+		if (!StringUtil.hasText(registry.getUsername())) {
+			String username = (String)options.get("u");
+			if (username!=null) {
+				registry.setUsername(username);
+			}
+		}
+		if (!StringUtil.hasText(registry.getPassword())) {
+			String password = (String)options.get("u");
+			if (password!=null) {
+				registry.setPassword(password);
+			}
+		}
+		if (!StringUtil.hasText(registry.getEmail())) {
+			String email = (String)options.get("m");
+			if (email!=null) {
+				registry.setEmail(email);
+			}
+		}
+		if (!StringUtil.hasText(registry.getServer())) {
+			String server = (String)options.get("url");
+			if (server!=null) {
+				registry.setServer(server);
+			}
+		}
+		if (StringUtil.hasText(name)) {
+			registry.setName(name);
+		}
+		if (registry.getCredentialsType()==null) {
+			String auth = (String)options.get("auth");
+			if (auth!=null) {
+				CredentialsType ctype = CredentialsType.parse(auth);
+				registry.setCredentialsType(ctype);
+			}
+		}
+		if (!StringUtil.hasText(registry.getDisplayName())) {
+			String dname = (String)options.get("dname");
+			if (dname!=null) {
+				registry.setDisplayName(dname);
+			}
+		}
+		return registry;
+	}
+
+
 	public void updateRegistry(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
 		}
 		String registryId = argId(op, cmds);
-		Registry registry = convert(options, Registry.class);
+		Registry registry = makeRegistry(null, options);
 		RegistryOptions options_ = convert(options, RegistryOptions.class);
 		debug("Updating Registry: %s %s %s", registryId, registry, options_);
 		if (isDryrun()) {
@@ -7597,8 +7651,8 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		Vcs vcs = convert(options, Vcs.class);
-		vcs.setName(argId(op, cmds));
+		String name = argId(op, cmds); 
+		Vcs vcs = makeVcs(name, options);
 		VcsOptions options_ = convert(options, VcsOptions.class);
 		debug("Creating Vcs: %s %s", vcs, options_);
 		if (isDryrun()) {
@@ -7613,12 +7667,51 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
+	private Vcs makeVcs(String name, Map<String, Object> options) {
+		Vcs vcs = convert(options, Vcs.class);
+		if (!StringUtil.hasText(vcs.getUsername())) {
+			String username = (String)options.get("u");
+			if (username!=null) {
+				vcs.setUsername(username);
+			}
+		}
+		if (!StringUtil.hasText(vcs.getPassword())) {
+			String password = (String)options.get("u");
+			if (password!=null) {
+				vcs.setPassword(password);
+			}
+		}
+		if (!StringUtil.hasText(vcs.getUrl())) {
+			String server = (String)options.get("server");
+			if (server!=null) {
+				vcs.setUrl(server);
+			}
+		}
+		if (vcs.getCredentialsType()==null) {
+			String auth = (String)options.get("auth");
+			if (auth!=null) {
+				CredentialsType ctype = CredentialsType.parse(auth);
+				vcs.setCredentialsType(ctype);
+			}
+		}
+		if (StringUtil.hasText(name)) {
+			vcs.setName(name);
+		}
+		if (!StringUtil.hasText(vcs.getDisplayName())) {
+			String dname = (String)options.get("dname");
+			if (dname!=null) {
+				vcs.setDisplayName(dname);
+			}
+		}
+		return vcs;
+	}
+
 	public void updateVcs(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
 		}
 		String vcsId = argId(op, cmds);
-		Vcs vcs = convert(options, Vcs.class);
+		Vcs vcs = makeVcs(null, options);
 		VcsOptions options_ = convert(options, VcsOptions.class);
 		debug("Updating Vcs: %s %s %s", vcsId, vcs, options_);
 		if (isDryrun()) {
