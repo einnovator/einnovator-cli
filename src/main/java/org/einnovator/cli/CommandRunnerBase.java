@@ -1426,6 +1426,10 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (o!=null) {
 			return true;
 		}
+		String b = (String)options.get("b");
+		if (b!=null) {
+			return true;
+		}
 		o = (String)options.get("O");
 		if (o!=null) {
 			return true;

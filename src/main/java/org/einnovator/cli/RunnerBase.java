@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.UUID;
 
 import org.einnovator.util.ResourceUtils;
 import org.einnovator.util.StringUtil;
@@ -439,7 +440,22 @@ public abstract class RunnerBase {
 		}
 		try {
 			return Integer.parseInt(s);			
-		} catch (RuntimeException e) {
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	protected static boolean isUuid(String s) {
+		return parseUuid(s)!=null;
+	}
+
+	protected static UUID parseUuid(String s) {
+		if (s==null || s.isEmpty()) {
+			return null;
+		}
+		try {
+			return UUID.fromString(s);
+		} catch (IllegalArgumentException e) {
 			return null;
 		}
 	}

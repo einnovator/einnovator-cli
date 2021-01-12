@@ -12,7 +12,6 @@ import java.util.ResourceBundle;
 
 import org.einnovator.devops.client.DevopsClient;
 import org.einnovator.devops.client.config.DevopsClientConfiguration;
-import org.einnovator.devops.client.model.Bill;
 import org.einnovator.devops.client.model.Binding;
 import org.einnovator.devops.client.model.Build;
 import org.einnovator.devops.client.model.Catalog;
@@ -28,6 +27,7 @@ import org.einnovator.devops.client.model.DeploymentKind;
 import org.einnovator.devops.client.model.DeploymentStatus;
 import org.einnovator.devops.client.model.Domain;
 import org.einnovator.devops.client.model.Event;
+import org.einnovator.devops.client.model.Image;
 import org.einnovator.devops.client.model.Job;
 import org.einnovator.devops.client.model.JobStatus;
 import org.einnovator.devops.client.model.KeyPath;
@@ -37,6 +37,7 @@ import org.einnovator.devops.client.model.Pod;
 import org.einnovator.devops.client.model.Port;
 import org.einnovator.devops.client.model.Registry;
 import org.einnovator.devops.client.model.ReplicaSet;
+import org.einnovator.devops.client.model.Repository;
 import org.einnovator.devops.client.model.Resources;
 import org.einnovator.devops.client.model.Route;
 import org.einnovator.devops.client.model.Solution;
@@ -45,6 +46,8 @@ import org.einnovator.devops.client.model.VarCategory;
 import org.einnovator.devops.client.model.Variable;
 import org.einnovator.devops.client.model.Vcs;
 import org.einnovator.devops.client.model.VolumeClaim;
+import org.einnovator.devops.client.model.Webhook;
+import org.einnovator.devops.client.model.Workspace;
 import org.einnovator.devops.client.modelx.BuildFilter;
 import org.einnovator.devops.client.modelx.BuildOptions;
 import org.einnovator.devops.client.modelx.CatalogFilter;
@@ -112,7 +115,7 @@ public class Devops extends CommandRunnerBase {
 
 	private static final String DEPLOYMENT_DEFAULT_FORMAT = "id,name,displayName,kind,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,age";
 	private static final String DEPLOYMENT_WIDE_FORMAT = "id,name,displayName,kind,type,category,status,availableReplicas:available,desiredReplicas:desired,readyReplicas/replicas:ready,image.name:image,age";
-	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,builder,builderKind,repositories.url:git,buildImage.name:image,buildImage.registry.name:registry,workspace.type:workspace,webhook.enabled:webhook";
+	private static final String DEPLOYMENT_CICD_FORMAT = "id,name,builder,builderKind,repository.url:repo,repository.vcs.name:vcs,buildImage.name:buildimage,buildImage.registry.name:registry,workspace.type:workspace,webhook.enabled:webhook";
 	private static final String DEPLOYMENT_RESOURCES_FORMAT = "id,name,displayName,status,resources.memory:Memory,resources.disk:Disk,resources.cpu:Cpu";
 
 	private static final String JOB_DEFAULT_FORMAT = "id,name,displayName,kind,status,age";
@@ -2246,12 +2249,38 @@ public class Devops extends CommandRunnerBase {
 	
 	void setupDeployOptions(String image, Map<String, Object> options) {
 		String image_ = (String)options.get("image");
-		if (image_==null && StringUtil.hasText(image)) {
-			image_ = image;
-		}
-		if (image_!=null) {
+		if (StringUtil.hasText(image_)) {
 			options.remove("image");
+			if (image==null) {
+				image = image_;				
+			}
+		}
+		if (image!=null) {
 			options.put("image.name", image);
+		}
+		String buildImage = (String)options.get("buildImage");
+		if (buildImage!=null) {
+			options.remove("buildImage");
+			options.put("buildImage.name", buildImage);
+		}
+		String registry = (String)options.get("registry");
+		if (registry!=null) {
+			options.remove("registry");			
+			options.put("reg", registry);			
+		}
+		String workspace = (String)options.get("workspace");
+		if (workspace!=null) {
+			options.remove("workspace");
+			MountType mountType = MountType.parse(workspace);
+			if (mountType!=null) {
+				options.put("workspace.type", mountType);				
+			}
+		}
+		String webhook = (String)options.get("webhook");
+		if (webhook!=null) {
+			options.remove("webhook");
+			boolean enabled = webhook.isEmpty() || "true".equalsIgnoreCase(webhook);
+			options.put("webhook.enabled", enabled);				
 		}
 	}
 	
@@ -2275,6 +2304,109 @@ public class Devops extends CommandRunnerBase {
 				exit(-1);
 				return null;
 			}
+		}
+		String reg = (String)options.get("reg");
+		if (reg!=null) {
+			try {
+				Registry registry = devopsClient.getRegistry(reg, null);	
+				Image image = deploy.getImage();
+				if (image==null) {
+					image  = new Image();
+					deploy.setImage(image);
+				}
+				image.setRegistryId(registry.getUuid());
+				Image buildImage = deploy.getBuildImage();
+				if (buildImage==null) {
+					buildImage  = new Image();
+					deploy.setBuildImage(buildImage);
+				}
+				buildImage.setRegistryId(registry.getUuid());
+			} catch (HttpStatusCodeException e) {
+				if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
+					error("registry not found: %s", reg);
+					exit(-1);
+					return null;
+				} else {
+					throw e;					
+				}
+			}
+		}
+		String repo = (String)options.get("repo");
+		String git = (String)options.get("vcs");
+		if (git==null) {
+			git = (String)options.get("git"); 
+		}
+		Repository repository = deploy.getRepository();
+		if (repo!=null || git!=null) {
+			if (repository==null) {
+				repository = new Repository();
+				deploy.setRepository(repository);
+			}						
+		}
+		if (repo!=null) {
+			repository.setUrl(repo);
+		}
+		if (git!=null) {
+			try {
+				Vcs vcs = devopsClient.getVcs(git, null);	
+				repository.setVcsId(vcs.getUuid());
+			} catch (HttpStatusCodeException e) {
+				if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
+					error("vcs not found: %s", git);
+					exit(-1);
+					return null;
+				} else {
+					throw e;					
+				}
+			}
+		}
+
+		
+		String wsize = (String)options.get("wsize");
+		if (wsize!=null && !wsize.isEmpty()) {
+			Workspace workspace = deploy.getWorkspace();
+			if (workspace==null) {
+				workspace = new Workspace();
+				deploy.setWorkspace(workspace);
+			}
+			workspace.setType(MountType.VOLUME_TEMPLATE);
+			workspace.setSize(wsize);
+		}
+		String ws = (String)options.get("ws");
+		if (ws!=null && !ws.isEmpty()) {
+			Workspace workspace = deploy.getWorkspace();
+			if (workspace==null) {
+				workspace = new Workspace();
+				deploy.setWorkspace(workspace);
+			}
+			workspace.setType(MountType.VOLUME);
+			workspace.setVolc(ws);
+			String subpath = (String)options.get("subpath");
+			if (subpath!=null && !subpath.isEmpty()) {
+				workspace.setSubPath(subpath);
+			}
+		}
+		String wh = (String)options.get("webhook");
+		if (wh==null) {
+			wh = (String)options.get("webhooks");
+		}
+		if (wh==null) {
+			wh = (String)options.get("wh");
+		}
+		String autodeploy = (String)options.get("wd");
+		if (wh!=null || autodeploy!=null) {
+			Webhook webhook = deploy.getWebhook();
+			if (webhook==null) {
+				webhook = new Webhook();
+				deploy.setWebhook(webhook);
+			}
+		}
+		Webhook webhook = deploy.getWebhook();
+		if (webhook!=null) {
+			boolean bautodeploy = autodeploy!=null && (autodeploy.isEmpty() || "true".equalsIgnoreCase(autodeploy));
+			boolean enabled = bautodeploy || (wh!=null && (wh.isEmpty() || "true".equalsIgnoreCase(wh)));
+			webhook.setEnabled(enabled);
+			webhook.setDeploy(bautodeploy);
 		}
 		return deploy;
 	}
@@ -3384,7 +3516,6 @@ public class Devops extends CommandRunnerBase {
 	
 	
 	public void routeGo(String deployId, String routeId, Route route) {
-
 		String url = route.getUrl();
 		if (!StringUtil.hasText(url)) {
 			error("missing url for route: %s %s", deployId, routeId);
@@ -7354,8 +7485,9 @@ public class Devops extends CommandRunnerBase {
 		if (registryId==null) {
 			return;
 		}
-		debug("Registry: %s", registryId);
-		Registry registry = devopsClient.getRegistry(registryId, null);
+		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		debug("Registry: %s %s", registryId, options_);
+		Registry registry = devopsClient.getRegistry(registryId, options_);
 		printObj(registry);
 	}
 	
@@ -7367,8 +7499,9 @@ public class Devops extends CommandRunnerBase {
 		if (registryId==null) {
 			return;
 		}
-		debug("View Registry: %s", registryId);
-		Registry registry = devopsClient.getRegistry(registryId, null);
+		RegistryOptions options_ = convert(options, RegistryOptions.class);
+		debug("View Registry: %s %s", registryId, options_);
+		Registry registry = devopsClient.getRegistry(registryId, options_);
 		view("registry", registry.getUuid());
 	}
 	
@@ -7592,7 +7725,7 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		VcsOptions options_ = convert(options, VcsOptions.class);
-		debug("Vcs: %s", vcsId);
+		debug("Vcs: %s %s", vcsId, options_);
 		Vcs vcs = devopsClient.getVcs(vcsId, options_);
 		printObj(vcs);
 	}
@@ -7606,7 +7739,7 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		VcsOptions options_ = convert(options, VcsOptions.class);
-		debug("View Vcs: %s", vcsId);
+		debug("View Vcs: %s %s", vcsId, options_);
 		Vcs vcs = devopsClient.getVcs(vcsId, options_);
 		view("vcs", vcs.getUuid());
 	}
