@@ -11,7 +11,7 @@ Out-of-the-box, it supports integration with **Cloud Manager** and several servi
 - social - Social Hub operations
 - payments - Payment Gateway operations
 
-The following help message is shows by default:
+The following help message is displayed by default:
 
 ```
 Welcome to the EInnovator CLI (Command-Line Tool).
@@ -47,6 +47,10 @@ Generic commands:
 Usage: ei sso | devops | notifications | documents | social | payments | 
   ls | pwd | cd | version | set | echo | exit | help args... [-option value]* [--options=value]*
 ```
+
+## Related Resources
+
+- [**Cloud Manager** CLI Tool Reference](https://cms.einnovator.org/publication/cloud-manager-reference-manual/_/cli.md)
 
 ## Command Resolution
 
