@@ -302,7 +302,7 @@ public class Payments extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		paymentsClient.updateAccount(account, options_);
+		paymentsClient.updateAccount(accountId, account, options_);
 		if (isEcho()) {
 			Account account2 = paymentsClient.getAccount(accountId, null);
 			printObj(account2);			
@@ -383,7 +383,7 @@ public class Payments extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		paymentsClient.updatePayment(payment, options_);
+		paymentsClient.updatePayment(paymentId, payment, options_);
 		if (isEcho()) {
 			Payment payment2 = paymentsClient.getPayment(paymentId, null);
 			printObj(payment2);			
@@ -461,7 +461,7 @@ public class Payments extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		paymentsClient.updateTax(tax, options_);
+		paymentsClient.updateTax(taxId, tax, options_);
 		if (isEcho()) {
 			Tax tax2 = paymentsClient.getTax(taxId, null);
 			printObj(tax2);			

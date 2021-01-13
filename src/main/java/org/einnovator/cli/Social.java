@@ -22,7 +22,6 @@ import org.einnovator.social.client.modelx.ReactionOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.StringUtil;
 import org.einnovator.util.UriUtils;
-import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -266,7 +265,7 @@ public class Social extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = socialClient.createChannel(channel, new RequestOptions());
+		URI uri = socialClient.createChannel(channel, options_);
 		if (isEcho()) {
 			debug("Channel URI: %s", uri);
 			String id = UriUtils.extractId(uri);
@@ -286,7 +285,7 @@ public class Social extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		socialClient.updateChannel(channel, null);
+		socialClient.updateChannel(channelId, channel, options_);
 		if (isEcho()) {
 			Channel channel2 = socialClient.getChannel(channelId, options_);
 			printObj(channel2);			
@@ -348,7 +347,7 @@ public class Social extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = socialClient.postMessage(channelId, message, new RequestOptions());
+		URI uri = socialClient.postMessage(channelId, message, options_);
 		if (isEcho()) {
 			debug("Message URI: %s", uri);
 			String id = UriUtils.extractId(uri);
@@ -370,7 +369,7 @@ public class Social extends CommandRunnerBase {
 		if (isDryrun()) {
 			return;
 		}
-		socialClient.updateMessage(channelId, message, options_);
+		socialClient.updateMessage(channelId, messageId, message, options_);
 		if (isEcho()) {
 			Message message2 = socialClient.getMessage(channelId, messageId, null);
 			printObj(message2);			
@@ -466,12 +465,12 @@ public class Social extends CommandRunnerBase {
 		String reactionId = arg2(op, cmds);
 		Reaction reaction = convert(options, Reaction.class);
 		processReactionOptions(reaction, cmds, options);
-		debug("Updating Reaction: %s %s %s", channelId, reactionId, reaction);
 		ReactionOptions options_ = convert(options, ReactionOptions.class);
+		debug("Updating Reaction: %s %s %s %s %s", channelId, messageId, reactionId, reaction, options_);
 		if (isDryrun()) {
 			return;
 		}
-		socialClient.updateReaction(channelId, messageId, reaction, options_);
+		socialClient.updateReaction(channelId, messageId, reactionId, reaction, options_);
 		if (isEcho()) {
 			Reaction reaction2 = socialClient.getReaction(channelId, messageId, reactionId, options_);
 			printObj(reaction2);			

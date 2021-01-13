@@ -26,16 +26,20 @@ import org.einnovator.sso.client.model.Member;
 import org.einnovator.sso.client.model.Role;
 import org.einnovator.sso.client.model.User;
 import org.einnovator.sso.client.modelx.ClientFilter;
+import org.einnovator.sso.client.modelx.ClientOptions;
 import org.einnovator.sso.client.modelx.GroupFilter;
+import org.einnovator.sso.client.modelx.GroupOptions;
 import org.einnovator.sso.client.modelx.InvitationFilter;
 import org.einnovator.sso.client.modelx.InvitationOptions;
 import org.einnovator.sso.client.modelx.MemberFilter;
+import org.einnovator.sso.client.modelx.MemberOptions;
 import org.einnovator.sso.client.modelx.RoleFilter;
+import org.einnovator.sso.client.modelx.RoleOptions;
 import org.einnovator.sso.client.modelx.UserFilter;
+import org.einnovator.sso.client.modelx.UserOptions;
 import org.einnovator.util.PageOptions;
 import org.einnovator.util.PathUtil;
 import org.einnovator.util.StringUtil;
-import org.einnovator.util.web.RequestOptions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.client.support.BasicAuthorizationInterceptor;
@@ -1295,11 +1299,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		User user = convert(options, User.class);
 		user.setUsername(argId(op, cmds));
-		debug("Creating User: %s", user);
+		UserOptions options_ = convert(options, UserOptions.class);
+		debug("Creating User: %s %s", user, options_);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = ssoClient.createUser(user, new RequestOptions());
+		URI uri = ssoClient.createUser(user, options_);
 		if (isEcho()) {
 			debug("User URI: %s", uri);
 			String id = extractId(uri);
@@ -1315,11 +1320,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		String userId = argId(op, cmds);
 		User user = convert(options, User.class);
-		debug("Updating User: %s %s", userId, user);
+		UserOptions options_ = convert(options, UserOptions.class);
+		debug("Updating User: %s %s %s", userId, user, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.updateUser(user, null);
+		ssoClient.updateUser(userId, user, options_);
 		if (isEcho()) {
 			User user2 = ssoClient.getUser(userId, null);
 			printObj(user2);			
@@ -1331,11 +1337,12 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String userId = argId(op, cmds);
-		debug("Deleting User: %s", userId);
+		UserOptions options_ = convert(options, UserOptions.class);
+		debug("Deleting User: %s %s", userId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.deleteUser(userId, null);	
+		ssoClient.deleteUser(userId, options_);	
 		if (isEcho()) {
 			listUsers(cmds, options);
 		}
@@ -1372,11 +1379,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		Group group = convert(options, Group.class);
 		group.setName(argId(op, cmds));
-		debug("Creating Group: %s", group);
+		GroupOptions options_ = convert(options, GroupOptions.class);
+		debug("Creating Group: %s %s", group, options_);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = ssoClient.createGroup(group, new RequestOptions());
+		URI uri = ssoClient.createGroup(group, options_);
 		if (isEcho()) {
 			debug("Group URI: %s", uri);
 			String id = extractId(uri);
@@ -1391,11 +1399,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		String groupId = argId(op, cmds);
 		Group group = convert(options, Group.class);
-		debug("Updating Group: %s %s", groupId, group);
+		GroupOptions options_ = convert(options, GroupOptions.class);
+		debug("Updating Group: %s %s %s", groupId, group, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.updateGroup(group, null);
+		ssoClient.updateGroup(groupId, group, options_);
 		if (isEcho()) {
 			Group group2 = ssoClient.getGroup(groupId, null);
 			printObj(group2);			
@@ -1407,11 +1416,12 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String groupId = argId(op, cmds);
-		debug("Deleting Group: %s", groupId);
+		GroupOptions options_ = convert(options, GroupOptions.class);
+		debug("Deleting Group: %s %s", groupId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.deleteGroup(groupId, null);
+		ssoClient.deleteGroup(groupId, options_);
 		if (isEcho()) {
 			listGroups(cmds, options);
 		}
@@ -1457,13 +1467,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		String userId = (String)get("user", options);
 		String groupId = (String)get("group", options);
-		printLine("Adding Member...");
-		printLine("User:", userId);		
-		printLine("Group:", groupId);	
+		MemberOptions options_ = convert(options, MemberOptions.class);
+		debug("Adding Member: %s %s %s", userId, groupId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.addMemberToGroup(userId, groupId, null);
+		ssoClient.addMemberToGroup(userId, groupId, options_);
 	}
 
 	
@@ -1473,13 +1482,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		String userId = (String)get("user", options);
 		String groupId = (String)get("group", options);
-		printLine("Removing Member...");
-		printLine("User:", userId);		
-		printLine("Group:", groupId);		
+		MemberOptions options_ = convert(options, MemberOptions.class);
+		debug("Removing Member: %s %s %s", userId, groupId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.removeMemberFromGroup(userId, groupId, null);
+		ssoClient.removeMemberFromGroup(userId, groupId, options_);
 		if (isEcho()) {
 			listGroupMembers(groupId, options);
 		}
@@ -1497,7 +1505,7 @@ public class Sso extends CommandRunnerBase {
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		MemberFilter filter = convert(options, MemberFilter.class);
 		debug("Members: %s %s %s", groupId, filter, pageable);
-		Page<Member> members = ssoClient.listGroupMembers(groupId, null, null);
+		Page<Member> members = ssoClient.listGroupMembers(groupId, filter, pageable);
 		print(members);
 	}
 
@@ -1548,11 +1556,11 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String invitationId = argId(op, cmds);
-		debug("Invitation: %s", invitationId);
-		Invitation invitation = ssoClient.getInvitation(invitationId, null);
+		InvitationOptions options_ = convert(options, InvitationOptions.class);
+		debug("Invitation: %s %s", invitationId, options_);
+		Invitation invitation = ssoClient.getInvitation(invitationId, options_);
 		printObj(invitation);
 	}
-
 
 	
 	public void updateInvitation(String[] cmds, Map<String, Object> options) {
@@ -1561,13 +1569,14 @@ public class Sso extends CommandRunnerBase {
 		}
 		String invitationId = argId(op, cmds);
 		Invitation invitation = convert(options, Invitation.class);
-		debug("Updating Invitation: %s %s", invitationId, invitation);
+		InvitationOptions options_ = convert(options, InvitationOptions.class);
+		debug("Updating Invitation: %s %s %s", invitationId, invitation, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.updateInvitation(invitation, null);
+		ssoClient.updateInvitation(invitationId, invitation, options_);
 		if (isEcho()) {
-			Invitation invitation2 = ssoClient.getInvitation(invitationId, null);
+			Invitation invitation2 = ssoClient.getInvitation(invitationId, options_);
 			printObj(invitation2);			
 		}
 	}
@@ -1577,11 +1586,12 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String invitationId = argId(op, cmds);
-		debug("Deleting Invitation: %s", invitationId);
+		InvitationOptions options_ = convert(options, InvitationOptions.class);
+		debug("Deleting Invitation: %s %s", invitationId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.deleteInvitation(invitationId, null);	
+		ssoClient.deleteInvitation(invitationId, options_);	
 		if (isEcho()) {
 			listInvitations(cmds, options);
 		}
@@ -1608,8 +1618,9 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String roleId = argId(op, cmds);
-		debug("Role: %s", roleId);
-		Role role = ssoClient.getRole(roleId, null);
+		RoleOptions options_ = convert(options, RoleOptions.class);
+		debug("Role: %s %s", roleId, options_);
+		Role role = ssoClient.getRole(roleId, options_);
 		printObj(role);
 	}
 	
@@ -1619,11 +1630,12 @@ public class Sso extends CommandRunnerBase {
 		}
 		Role role = convert(options, Role.class);
 		role.setName(argId(op, cmds));
-		debug("Creating Role: %s", role);
+		RoleOptions options_ = convert(options, RoleOptions.class);
+		debug("Creating Role: %s %s", role, options_);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = ssoClient.createRole(role, new RequestOptions());
+		URI uri = ssoClient.createRole(role, options_);
 		if (isEcho()) {
 			debug("Role URI: %s", uri);
 			String id = extractId(uri);
@@ -1638,13 +1650,14 @@ public class Sso extends CommandRunnerBase {
 		}
 		String roleId = argId(op, cmds);
 		Role role = convert(options, Role.class);
-		debug("Updating Role: %s %s", roleId, role);
+		RoleOptions options_ = convert(options, RoleOptions.class);
+		debug("Updating Role: %s %s %s", roleId, role, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.updateRole(role, null);
+		ssoClient.updateRole(roleId, role, options_);
 		if (isEcho()) {
-			Role role2 = ssoClient.getRole(roleId, null);
+			Role role2 = ssoClient.getRole(roleId, options_);
 			printObj(role2);			
 		}
 	}
@@ -1654,11 +1667,12 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String roleId = argId(op, cmds);
-		debug("Deleting Role: %s", roleId);
+		RoleOptions options_ = convert(options, RoleOptions.class);
+		debug("Deleting Role: %s %s", roleId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.deleteRole(roleId, null);
+		ssoClient.deleteRole(roleId, options_);
 		if (isEcho()) {
 			listRoles(cmds, options);
 		}
@@ -1696,12 +1710,13 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		Client client = convert(options, Client.class);
+		ClientOptions options_ = convert(options, ClientOptions.class);
 		client.setClientId(argId(op, cmds));
-		debug("Creating Client: %s", client);
+		debug("Creating Client: %s %s", client, options_);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = ssoClient.createClient(client, new RequestOptions());
+		URI uri = ssoClient.createClient(client, options_);
 		if (isEcho()) {
 			debug("Client URI: %s", uri);
 			String id = extractId(uri);
@@ -1717,13 +1732,14 @@ public class Sso extends CommandRunnerBase {
 		}
 		String clientId = argId(op, cmds);
 		Client client = convert(options, Client.class);
-		debug("Updating Client: %s %s", clientId, client);
+		ClientOptions options_ = convert(options, ClientOptions.class);
+		debug("Updating Client: %s %s %s", clientId, client, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.updateClient(client, null);
+		ssoClient.updateClient(clientId, client, options_);
 		if (isEcho()) {
-			Client client2 = ssoClient.getClient(clientId, null);
+			Client client2 = ssoClient.getClient(clientId, options_);
 			printObj(client2);			
 		}
 	}
@@ -1733,11 +1749,12 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		String clientId = argId(op, cmds);
-		debug("Deleting Client: %s", clientId);
+		ClientOptions options_ = convert(options, ClientOptions.class);
+		debug("Deleting Client: %s %s", clientId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		ssoClient.deleteClient(clientId, null);
+		ssoClient.deleteClient(clientId, options_);
 		if (isEcho()) {
 			listClients(cmds, options);
 		}

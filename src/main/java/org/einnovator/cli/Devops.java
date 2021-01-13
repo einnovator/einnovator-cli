@@ -153,7 +153,7 @@ public class Devops extends CommandRunnerBase {
 	private static final String CONNECTOR_WIDE_FORMAT = "id,name,spec,meta";
 
 	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain.dns:domain,tls";
-	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls";
+	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls,primary";
 
 	private static final String MOUNT_DEFAULT_FORMAT = "id,name,type,mountPath,size";
 	private static final String MOUNT_WIDE_FORMAT = "id,name,type,mountPath,size";
@@ -1548,10 +1548,22 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String spaceId = argNS(options);
+		String spaceId = argNS(options, true);
 		if (spaceId==null) {
-			missingSpaceId();
-			exit(-1);
+			return;
+		}
+		String a = (String)options.get("a");
+		if (a!=null) {
+			String deployId = argId(op, cmds, false);
+			BuildFilter filter = convert(options, BuildFilter.class);				
+			if (deployId!=null) {
+				filter.setDeployId(deployId);
+			}
+			List<Build> builds = devopsClient.listBuilds(spaceId, filter);	
+			BuildOptions options_ = convert(options, BuildOptions.class);
+			for (Build build: builds) {
+				devopsClient.deleteBuild(spaceId, build.getName(), options_);				
+			}
 			return;
 		}
 		String buildId = argId(op, cmds);
@@ -2281,6 +2293,11 @@ public class Devops extends CommandRunnerBase {
 			options.remove("webhook");
 			boolean enabled = webhook.isEmpty() || "true".equalsIgnoreCase(webhook);
 			options.put("webhook.enabled", enabled);				
+		}
+		String wsecret = (String)options.get("wsecret");
+		if (wsecret!=null) {
+			options.remove("wsecret");
+			options.put("webhook.secret", wsecret);
 		}
 	}
 	

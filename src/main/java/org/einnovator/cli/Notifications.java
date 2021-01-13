@@ -7,7 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-import org.einnovator.devops.client.modelx.JobOptions;
 import org.einnovator.notifications.client.NotificationsClient;
 import org.einnovator.notifications.client.config.NotificationsClientConfiguration;
 import org.einnovator.notifications.client.model.Event;
@@ -17,6 +16,7 @@ import org.einnovator.notifications.client.model.NotificationType;
 import org.einnovator.notifications.client.model.Template;
 import org.einnovator.notifications.client.model.TrackedEvent;
 import org.einnovator.notifications.client.modelx.JobFilter;
+import org.einnovator.notifications.client.modelx.JobOptions;
 import org.einnovator.notifications.client.modelx.NotificationFilter;
 import org.einnovator.notifications.client.modelx.NotificationTypeFilter;
 import org.einnovator.notifications.client.modelx.NotificationTypeOptions;
@@ -351,8 +351,9 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
-		debug("NotificationType: %s", notificationTypeId);
-		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, null);
+		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
+		debug("NotificationType: %s %s", notificationTypeId, options_);
+		NotificationType notificationType = null; notificationsClient.getNotificationType(notificationTypeId, options_);
 		printObj(notificationType);
 	}
 	
@@ -380,13 +381,13 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
-		NotificationType account = convert(options, NotificationType.class);
+		NotificationType notificationType = convert(options, NotificationType.class);
 		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
-		debug("Updating NotificationType: %s %s %s", notificationTypeId, account, options_);
+		debug("Updating NotificationType: %s %s %s", notificationTypeId, notificationType, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.updateNotificationType(account, options_);
+		notificationsClient.updateNotificationType(notificationTypeId, notificationType, options_);
 		if (isEcho()) {
 			NotificationType account2 = notificationsClient.getNotificationType(notificationTypeId, null);
 			printObj(account2);			
@@ -398,11 +399,12 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String notificationTypeId = argId(op, cmds);
-		debug("Deleting NotificationType: %s", notificationTypeId);
+		NotificationTypeOptions options_ = convert(options, NotificationTypeOptions.class);
+		debug("Deleting NotificationType: %s %s", notificationTypeId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.deleteNotificationType(notificationTypeId, null);
+		notificationsClient.deleteNotificationType(notificationTypeId, options_);
 		if (isEcho()) {
 			listNotificationTypes(cmds, options);
 		}
@@ -458,13 +460,13 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String templateId = argId(op, cmds);
-		Template account = convert(options, Template.class);
+		Template template = convert(options, Template.class);
 		TemplateOptions options_ = convert(options, TemplateOptions.class);
-		debug("Updating Template: %s %s %s", templateId, account, options_);
+		debug("Updating Template: %s %s %s", templateId, template, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.updateTemplate(account, options_);
+		notificationsClient.updateTemplate(templateId, template, options_);
 		if (isEcho()) {
 			Template account2 = notificationsClient.getTemplate(templateId, null);
 			printObj(account2);			
@@ -476,11 +478,12 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String templateId = argId(op, cmds);
-		debug("Deleting Template: %s", templateId);
+		TemplateOptions options_ = convert(options, TemplateOptions.class);
+		debug("Deleting Template: %s %s", templateId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.deleteTemplate(templateId, null);	
+		notificationsClient.deleteTemplate(templateId, options_);	
 		if (isEcho()) {
 			listTemplates(cmds, options);
 		}
@@ -506,8 +509,9 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argId(op, cmds);
-		debug("Job: %s", jobId);
-		Job job = notificationsClient.getJob(jobId, null);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Job: %s %s", jobId, options_);
+		Job job = notificationsClient.getJob(jobId, options_);
 		printObj(job);
 	}
 	
@@ -516,12 +520,12 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		Job job = convert(options, Job.class);
-		JobOptions option_ = convert(options, JobOptions.class);
-		debug("Creating Job: %s %s", job, option_);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Creating Job: %s %s", job, options_);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = notificationsClient.createJob(job, option_);
+		URI uri = notificationsClient.createJob(job, options_);
 		if (isEcho()) {
 			debug("Job URI: %s", uri);
 			String id = UriUtils.extractId(uri);
@@ -535,15 +539,15 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argId(op, cmds);
-		Job account = convert(options, Job.class);
-		JobOptions option_ = convert(options, JobOptions.class);
-		debug("Updating Job: %s %s %s", jobId, account, option_);
+		Job job = convert(options, Job.class);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Updating Job: %s %s %s", jobId, job, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.updateJob(account, option_);
+		notificationsClient.updateJob(jobId, job, options_);
 		if (isEcho()) {
-			Job account2 = notificationsClient.getJob(jobId, null);
+			Job account2 = notificationsClient.getJob(jobId, options_);
 			printObj(account2);			
 		}
 	}
@@ -553,11 +557,12 @@ public class Notifications extends CommandRunnerBase {
 			return;
 		}
 		String jobId = argId(op, cmds);
-		debug("Deleting Job: %s", jobId);
+		JobOptions options_ = convert(options, JobOptions.class);
+		debug("Deleting Job: %s %s", jobId, options_);
 		if (isDryrun()) {
 			return;
 		}
-		notificationsClient.deleteJob(jobId, null);
+		notificationsClient.deleteJob(jobId, options_);
 		if (isEcho()) {
 			listJobs(cmds, options);
 		}
