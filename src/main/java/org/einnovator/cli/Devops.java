@@ -1467,7 +1467,7 @@ public class Devops extends CommandRunnerBase {
 			schema(Build.class);
 		default:
 			invalidOp();
-			printUsage2();
+			printUsage1();
 			break;
 		}
 	}
