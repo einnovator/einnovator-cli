@@ -1,19 +1,19 @@
 package org.einnovator.cli;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class AppConfig {
 
 	public List<CommandRunner> getAllRunners() {
-		List<CommandRunner> runners = new ArrayList<>();
-		runners.add(new Generic());
-		runners.add(new Sso());
-		runners.add(new Devops());
-		runners.add(new Notifications());
-		runners.add(new Documents());
-		runners.add(new Social());
-		runners.add(new Payments());
-		return runners;
+		return Arrays.asList(
+			new Generic(),
+			new Sso(),
+			new Devops(),
+			new Notifications(),
+			new Documents(),
+			new Social(),
+			new Payments()
+		);
 	}
 }

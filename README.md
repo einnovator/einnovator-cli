@@ -4,12 +4,12 @@ This is the repository for **EInnovator** CLI tool. The tools is designed to be 
 The overall goal of the tool is to support multi-cluster/multi-cloud Kubernetes devops, and micro-service development. 
 Out-of-the-box, it supports integration with **Cloud Manager** and several services in **EInnovator** micro-service suite.
 
-- sso  ---          SSO operations
-- devops ---    Cloud Manager Devops operations
+- sso --- SSO operations
+- devops --- Cloud Manager Devops operations
 - notifications --- Notifications Hub operations
-- documents  ---   Document Store operations
-- social     ---   Social Hub operations
-- payments   ---    Payment Gateway operations
+- documents --- Document Store operations
+- social --- Social Hub operations
+- payments --- Payment Gateway operations
 
 ## Command Resolution
 
@@ -18,14 +18,16 @@ Commands can be prefixed by the service name it implements the command for direc
 Some command are general purpose and are implemented by `Generic`. This `CommandRunner` deletes execution of commands to other runners
 based on flags on commands. The following commands are considered general purpose:
 
--  ls   --- List resources (Spaces by default; implemented by Devops)
--  kill   --- Kill workloads (Deployments by default; implemented by Devops)
+- ls --- List resources (Spaces by default; implemented by Devops)
+- kill --- Kill workloads (Deployments by default; implemented by Devops)
 
 
 ## Extending the CLI
 
 Each service is supported by implementing a `CommandRunner`, typically by extending `CommandRunnerBase`.
-Each service as name returned by method `CommandRunner.getName()`.
+Each runner as a unique name returned by method `CommandRunner.getName()`.
+To register a  `CommandRunner` add in in the list returned by method `AppConfig.getAllRunners`.
+
 Method `CommandRunner.init` is called to initialize the runner.
 Method `CommandRunner.run` is called to run a command.
 Parameters `type` and `op`, represent the first and second arguments in the command-line. The remaining arcuments are passed in parameter `args`.
@@ -38,16 +40,21 @@ The `SSO` runner the special purpose task of implementing OAuth2 token based log
 It also supports a single-user mode with BASIC authentication, for services deployed in a mode that does not integrated with the SSO Gateway.
 For example, **Cloud Manager** can be run in multi-user or single-user mode. The tool used the `/info` endpoint of the service to detected which mode to use.
 
-Providing proper help messages is a big part of implementing a runner. File `message.proprerties`  contains the messages for all the commands.
+Method `CommandRunner.getCommands` is called to return the list of top-level commands returned by the runner.
+Each command can have a list of aliases. Method `CommandRunner.getSubCommands` is used to return sub-commands, and 
+method `CommandRunner.getSubSubCommands` is used to return sub-sub-commands.
+	
+Providing proper help messages is a big part of implementing a runner. File `message.proprerties` contains the messages for all the commands.
 To create help for a command use the following keys:
 
 ```
-service.command = One line description
+service.command = One-line description
 service.command.args = Comma-separated list of arguments (+ suffix implies optional; ++ implies varied number)
 service.command.args.name = One-line description of argument
 service.command.options = Comma-separated list of options (+ suffix implies optional; ++ implies varied number). For alias, use: name1|name2|..
 service.command.options.name = One-line description of options (name only first alias)
+service.command.descr = Multi-line description
 ```
 
-To show help call methods  `CommandRunnerBase.printUsage*()` or `CommandRunnerBase.isHelp*()`.
+To show help call methods `CommandRunnerBase.printUsage*()` or `CommandRunnerBase.isHelp*()`.
 
