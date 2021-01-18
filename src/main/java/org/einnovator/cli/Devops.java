@@ -5,6 +5,7 @@ import static  org.einnovator.util.MappingUtils.updateObjectFrom;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import org.einnovator.devops.client.model.Build;
 import org.einnovator.devops.client.model.Catalog;
 import org.einnovator.devops.client.model.Certificate;
 import org.einnovator.devops.client.model.Cluster;
+import org.einnovator.devops.client.model.ConfigMap;
 import org.einnovator.devops.client.model.Connector;
 import org.einnovator.devops.client.model.CredentialsType;
 import org.einnovator.devops.client.model.CronJob;
@@ -40,6 +42,7 @@ import org.einnovator.devops.client.model.ReplicaSet;
 import org.einnovator.devops.client.model.Repository;
 import org.einnovator.devops.client.model.Resources;
 import org.einnovator.devops.client.model.Route;
+import org.einnovator.devops.client.model.Secret;
 import org.einnovator.devops.client.model.Solution;
 import org.einnovator.devops.client.model.Space;
 import org.einnovator.devops.client.model.VarCategory;
@@ -54,6 +57,8 @@ import org.einnovator.devops.client.modelx.CatalogFilter;
 import org.einnovator.devops.client.modelx.CatalogOptions;
 import org.einnovator.devops.client.modelx.ClusterFilter;
 import org.einnovator.devops.client.modelx.ClusterOptions;
+import org.einnovator.devops.client.modelx.ConfigMapFilter;
+import org.einnovator.devops.client.modelx.ConfigMapOptions;
 import org.einnovator.devops.client.modelx.CronJobFilter;
 import org.einnovator.devops.client.modelx.CronJobOptions;
 import org.einnovator.devops.client.modelx.DeploymentFilter;
@@ -71,6 +76,8 @@ import org.einnovator.devops.client.modelx.PodOptions;
 import org.einnovator.devops.client.modelx.RegistryFilter;
 import org.einnovator.devops.client.modelx.RegistryOptions;
 import org.einnovator.devops.client.modelx.ReplicaSetFilter;
+import org.einnovator.devops.client.modelx.SecretFilter;
+import org.einnovator.devops.client.modelx.SecretOptions;
 import org.einnovator.devops.client.modelx.SolutionFilter;
 import org.einnovator.devops.client.modelx.SolutionOptions;
 import org.einnovator.devops.client.modelx.SpaceFilter;
@@ -272,10 +279,12 @@ public class Devops extends CommandRunnerBase {
 		c("pod", "pods", "instance", "instances"),
 		c("replicaset", "replicasets", "rs"),
 		c("volumeclaim", "volumeclaims", "volc"),
+		c("configmap", "configmaps"),
+		c("secret", "secrets"),
 		c("route", "routes"),
 		c("mount", "mounts"),
 		c("env", "var", "vars"),
-		c("binding", "bindings"),
+		c("binding", "bindings", "bind"),
 		c("connector", "connectors"),
 		c("domain", "domains"),
 		c("registry", "registries", "reg"),
@@ -376,6 +385,10 @@ public class Devops extends CommandRunnerBase {
 				c("schema", "meta"), c("help")));	
 		map.put("volumeclaim", c(c("ls", "list"), c("get"), c("schema", "meta"), 
 				c("create", "add"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("configmap", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+				c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
+		map.put("secret", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+				c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), c("help")));
 		map.put("build", c(c("ls", "list"), c("get"),
 				c("create"),
 				c("kill", "delete", "del", "remove", "rm"),
@@ -501,6 +514,12 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "replicaset": case "replicasets": case "rs":
 			replicaset(cmds, options);
+			break;
+		case "configmap": case "configmaps":
+			configmap(cmds, options);
+			break;
+		case "secret": case "secrets":
+			secret(cmds, options);
 			break;
 		case "build": case "builds":
 			build(cmds, options);
@@ -1431,6 +1450,408 @@ public class Devops extends CommandRunnerBase {
 		devopsClient.deleteVolumeClaim(spaceId, volcId, options_);
 		if (isEcho()) {
 			volumeclaimList(spaceId, options);
+		}
+	}
+
+
+	//
+	// Space ConfigMaps
+	//
+	
+	public void configmap(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage1();
+			break;
+		case "ls": case "list": {
+			configmapList(cmds, options);
+			break;
+		}
+		case "get": {
+			configmapGet(cmds, options);
+			break;
+		}
+		case "add": case "create": {
+			configmapCreate(cmds, options);
+			break;
+		}
+		case "update": {
+			configmapUpdate(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			configmapDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp2()) {
+				return;
+			}
+			schema(ConfigMap.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+	public void configmapList(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		configmapList(spaceId, options);
+	}
+
+	public void configmapList(String spaceId, Map<String, Object> options) {
+		ConfigMapFilter filter = convert(options, ConfigMapFilter.class);
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("ConfigMaps: %s %s %s", spaceId,filter, options_);		
+		List<ConfigMap> configmaps = devopsClient.listConfigMaps(spaceId, filter);			
+		print(configmaps);
+	}
+	
+	public void configmapGet(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String configmapId = argId(op, cmds);
+		configmapGet(spaceId, configmapId, options);
+	}
+	
+	public void configmapGet(String spaceId, String configmapId, Map<String, Object> options) {
+		debug("Space ConfigMap: %s %s", spaceId, configmapId);		
+		ConfigMapOptions options_ = convert(options, ConfigMapOptions.class);
+		ConfigMap configmap = devopsClient.getConfigMap(spaceId, configmapId, options_);			
+		printObj(configmap);
+	}
+
+	public void configmapCreate(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String configmapId = argId(op, cmds);
+		ConfigMap configmap = makeConfigMap(options);
+		if (configmap==null) {
+			return;
+		}
+		configmap.setName(configmapId);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Add ConfigMap: %s %s %s", spaceId, configmap, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		URI uri = devopsClient.createConfigMap(spaceId, configmap, options_);
+		if (isEcho()) {
+			String configmapId2 = extractId(uri);
+			configmapGet(spaceId, configmapId2, options);
+		}
+	}
+
+	private ConfigMap makeConfigMap(Map<String, Object> options) {
+		ConfigMap configmap = convert(options, ConfigMap.class);
+		
+		String sdata = (String)options.get("data");
+		if (sdata==null) {
+			sdata = (String)options.get("items");
+		}
+		if (sdata!=null) {
+			Map<String, String> data = new LinkedHashMap<>();
+			if (!makeConfigmapData(sdata, data)) {
+				error("Invalid data: %s", sdata);
+				exit(-1);
+				return null;
+			}
+			configmap.setData(data);
+		}
+		
+		return configmap;
+	}
+	
+	private boolean makeConfigmapData(String sdata, Map<String, String> data ) {
+		if (sdata==null) {
+			return false;
+		}
+		sdata = sdata.trim();
+		if (sdata.isEmpty()) {
+			return false;
+		}
+		String[] values = sdata.split(",");
+		for (String kv: values) {
+			if (kv==null || kv.isEmpty()) {
+				return false;
+			}
+			String[] a;
+			if (kv.indexOf(":")>0) {
+				a = kv.split(":");				
+			} else if (kv.indexOf("=")>0) {
+				a = kv.split("=");				
+			} else {
+				return false;
+			}
+			String key = a[0];
+			String value = a.length>1 ? a[1] : "";
+			data.put(key, value);
+		}
+		return true;
+	}
+	
+	public void configmapUpdate(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String configmapId = argId(op, cmds);
+		ConfigMap configmap = makeConfigMap(options);
+		configmap.setName(configmapId);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Update ConfigMap: %s %s %s", spaceId, configmap, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		URI uri = devopsClient.createConfigMap(spaceId, configmap, options_);
+		if (isEcho()) {
+			String configmapId2 = extractId(uri);
+			configmapGet(spaceId, configmapId2, options);
+		}
+	}
+	
+	public void configmapDelete(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = arg1(op, cmds, false);
+		String configmapId = arg2(op, cmds, false);
+		if (!StringUtil.hasText(configmapId)) {
+			configmapId = spaceId;
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(configmapId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Delete ConfigMap: %s %s %s", spaceId, configmapId, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		devopsClient.deleteConfigMap(spaceId, configmapId, options_);
+		if (isEcho()) {
+			configmapList(spaceId, options);
+		}
+	}
+	
+	//
+	// Space Secret
+	//
+	
+	public void secret(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage1();
+			break;
+		case "ls": case "list": {
+			secretList(cmds, options);
+			break;
+		}
+		case "get": {
+			secretGet(cmds, options);
+			break;
+		}
+		case "add": case "create": {
+			secretCreate(cmds, options);
+			break;
+		}
+		case "update": {
+			secretUpdate(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			secretDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp2()) {
+				return;
+			}
+			schema(Secret.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+
+	public void secretList(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		secretList(spaceId, options);
+	}
+
+	public void secretList(String spaceId, Map<String, Object> options) {
+		SecretFilter filter = convert(options, SecretFilter.class);
+		PageOptions options_ = convert(options, PageOptions.class);
+		debug("Secret: %s %s %s", spaceId,filter, options_);		
+		List<Secret> secrets = devopsClient.listSecrets(spaceId, filter);			
+		print(secrets);
+	}
+	
+	public void secretGet(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String secretId = argId(op, cmds);
+		secretGet(spaceId, secretId, options);
+	}
+	
+	public void secretGet(String spaceId, String secretId, Map<String, Object> options) {
+		debug("Space Secret: %s %s", spaceId, secretId);		
+		SecretOptions options_ = convert(options, SecretOptions.class);
+		Secret secret = devopsClient.getSecret(spaceId, secretId, options_);			
+		printObj(secret);
+	}
+
+	public void secretCreate(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String secretId = argId(op, cmds);
+		Secret secret = makeSecret(options);
+		secret.setName(secretId);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Add Secret: %s %s %s", spaceId, secret, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		URI uri = devopsClient.createSecret(spaceId, secret, options_);
+		if (isEcho()) {
+			String secretId2 = extractId(uri);
+			secretGet(spaceId, secretId2, options);
+		}
+	}
+
+	private Secret makeSecret(Map<String, Object> options) {
+		Secret secret = convert(options, Secret.class);
+		String sdata = (String)options.get("data");
+		if (sdata==null) {
+			sdata = (String)options.get("items");
+		}
+		if (sdata!=null) {
+			Map<String, String> data = new LinkedHashMap<>();
+			if (!makeSecretData(sdata, data)) {
+				error("Invalid data: %s", sdata);
+				exit(-1);
+				return null;
+			}
+			secret.setData(data);
+		}
+		return secret;
+	}
+	
+	private boolean makeSecretData(String sdata, Map<String, String> data) {
+		Map<String, String> data2 = new LinkedHashMap<>();
+		if (!makeConfigmapData(sdata, data2)) {
+			return false;
+		}
+		for (Map.Entry<String, String> e: data.entrySet()) {
+			String value = e.getValue();
+			value = new String(Base64.getEncoder().encode(value.getBytes()));
+			data.put(e.getKey(), value);			
+		}
+		return true;
+	}
+
+	
+	public void secretUpdate(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options);
+		if (spaceId==null) {
+			missingSpaceId();
+			exit(-1);
+			return;
+		}
+		String secretId = argId(op, cmds);
+		Secret secret = makeSecret(options);
+		secret.setName(secretId);
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Update Secret: %s %s %s", spaceId, secret, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		URI uri = devopsClient.createSecret(spaceId, secret, options_);
+		if (isEcho()) {
+			String secretId2 = extractId(uri);
+			secretGet(spaceId, secretId2, options);
+		}
+	}
+	
+	public void secretDelete(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = arg1(op, cmds, false);
+		String secretId = arg2(op, cmds, false);
+		if (!StringUtil.hasText(secretId)) {
+			secretId = spaceId;
+			spaceId = space;			
+		}
+		if (!StringUtil.hasText(spaceId) || !StringUtil.hasText(secretId)) {
+			missingResourceId();
+			exit(-1);
+			return;
+		}
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		debug("Delete Secret: %s %s %s", spaceId, secretId, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		devopsClient.deleteSecret(spaceId, secretId, options_);
+		if (isEcho()) {
+			secretList(spaceId, options);
 		}
 	}
 

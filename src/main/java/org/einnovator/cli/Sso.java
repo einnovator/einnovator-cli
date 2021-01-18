@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.function.Function;
 
 import org.einnovator.sso.client.SsoClient;
 import org.einnovator.sso.client.config.SsoClientConfiguration;
@@ -42,6 +43,7 @@ import org.einnovator.util.PathUtil;
 import org.einnovator.util.StringUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.client.support.BasicAuthorizationInterceptor;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -50,6 +52,7 @@ import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1336,13 +1339,43 @@ public class Sso extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
-		String userId = argId(op, cmds);
 		UserOptions options_ = convert(options, UserOptions.class);
-		debug("Deleting User: %s %s", userId, options_);
-		if (isDryrun()) {
+
+		String f = (String)options.get("f");
+		if (f!=null) {
+			Integer field = parseInt((String)options.get("field"));
+			List<String> ids = readUserIds(f, field!=null && field>=0 ? field : -1);
+			if (ids==null) {
+				return;
+			}
+			for (String userId: ids) {
+				if (isDryrun()) {
+					continue;
+				}
+				debug("Deleting User: %s %s", userId, options_);
+				try {
+					ssoClient.deleteUser(userId, options_);										
+				} catch (HttpStatusCodeException e) {
+					if (e.getStatusCode()==HttpStatus.NOT_FOUND) {
+						error(String.format("User not found: %s", userId));
+					}		
+				}
+			}
+			if (isEcho()) {
+				listUsers(cmds, options);
+			}
 			return;
 		}
-		ssoClient.deleteUser(userId, options_);	
+		
+		String ids_ = argId(op, cmds);
+		String[] ids = ids_.split(",");
+		for (String userId: ids) {
+			debug("Deleting User: %s %s", userId, options_);
+			if (isDryrun()) {
+				return;
+			}
+			ssoClient.deleteUser(userId, options_);				
+		}
 		if (isEcho()) {
 			listUsers(cmds, options);
 		}
@@ -1811,6 +1844,39 @@ public class Sso extends CommandRunnerBase {
 		}
 		return super.getWideFormat(type);
 	}
+
+	public List<String> readUserIds(String file, int field) {
+		return readFieldFromFile(file, field, new Function<String, String>() {
+			public String apply(String value) {
+				return normalizeUserId(value);
+			}
+		});
+	}
+	
+	public static String normalizeUserId(String id) {
+		return normalizeEmail(id);
+	}
+
+	public static String normalizeEmail(String email) {
+		email = normalizeValue(email);
+		if (email==null) {
+			return null;
+		}
+		if (email.startsWith("<")&& email.length()>1) {
+			email = email.substring(1);
+		}
+		if (email.endsWith(">") && email.length()>1) {
+			email = email.substring(0, email.length()-1);
+		}
+		if (email.startsWith("\"")&& email.length()>1) {
+			email = email.substring(1);
+		}
+		if (email.endsWith("\"") && email.length()>1) {
+			email = email.substring(0, email.length()-1);
+		}
+		return email;
+	}
+	
 	
 	
 }

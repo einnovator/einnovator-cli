@@ -5,6 +5,9 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.einnovator.devops.client.model.NamedEntity;
 import org.einnovator.util.MapUtil;
@@ -1949,5 +1953,62 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			Thread.sleep(ms);
 		} catch (InterruptedException e) {
 		}
+	}
+
+	public List<String> readIds(String file, int field) {
+		return readFieldFromFile(file, field, new Function<String, String>() {
+			public String apply(String value) {
+				return normalizeValue(value);
+			}
+		});
+	}
+	
+	public List<String> readFieldFromFile(String file, int field, Function<String, String> processor) {
+		try {
+			List<String> out = new ArrayList<>();
+			List<String> lines = Files.readAllLines(Paths.get(file), StandardCharsets.UTF_8);
+			if (field<0) {
+				field = 0;
+			}
+			for (String line: lines) {
+				line = line.trim();
+				if (line.startsWith("#")) {
+					continue;
+				}
+				String value = line;
+				String[] fields = line.split(",");
+				if (field>=fields.length) {
+					continue;
+				}
+				value = fields[field];
+				if (value==null) {
+					continue;
+				}
+				if (processor!=null) {
+					value = processor.apply(value);
+				}
+				if (value==null || value.isEmpty()) {
+					continue;
+				}
+				out.add(value);
+			}
+			return out;
+		} catch (IOException e) {
+			error("Error reading file: %s", file);
+			exit(-1);
+			return null;
+		}
+	}
+	
+
+	public static String normalizeValue(String value) {
+		if (value==null || value.isEmpty()) {
+			return null;
+		}
+		value = value.trim();
+		if (value.isEmpty()) {
+			return null;
+		}
+		return value;
 	}
 }
