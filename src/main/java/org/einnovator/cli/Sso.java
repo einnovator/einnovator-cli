@@ -732,9 +732,8 @@ public class Sso extends CommandRunnerBase {
 			return;
 		}
 		allEndpoints = endpoints;
-		if (endpoints!=null) {
-			writeConfig(api, endpoints, null, options);
-		}		
+		this.api = api;
+		writeConfig(api, endpoints, null, options);
 		if (ssoClient==null) {
 			initInternal(cmds, options);			
 		}
@@ -1375,6 +1374,7 @@ public class Sso extends CommandRunnerBase {
 				return;
 			}
 			ssoClient.deleteUser(userId, options_);				
+
 		}
 		if (isEcho()) {
 			listUsers(cmds, options);

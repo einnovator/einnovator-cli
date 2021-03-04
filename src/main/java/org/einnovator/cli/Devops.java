@@ -35,6 +35,8 @@ import org.einnovator.devops.client.model.JobStatus;
 import org.einnovator.devops.client.model.KeyPath;
 import org.einnovator.devops.client.model.Mount;
 import org.einnovator.devops.client.model.MountType;
+import org.einnovator.devops.client.model.Node;
+import org.einnovator.devops.client.model.NodePool;
 import org.einnovator.devops.client.model.Pod;
 import org.einnovator.devops.client.model.Port;
 import org.einnovator.devops.client.model.Registry;
@@ -71,6 +73,10 @@ import org.einnovator.devops.client.modelx.InstallOptions;
 import org.einnovator.devops.client.modelx.JobFilter;
 import org.einnovator.devops.client.modelx.JobOptions;
 import org.einnovator.devops.client.modelx.LogOptions;
+import org.einnovator.devops.client.modelx.NodeFilter;
+import org.einnovator.devops.client.modelx.NodeOptions;
+import org.einnovator.devops.client.modelx.NodePoolFilter;
+import org.einnovator.devops.client.modelx.NodePoolOptions;
 import org.einnovator.devops.client.modelx.PodFilter;
 import org.einnovator.devops.client.modelx.PodOptions;
 import org.einnovator.devops.client.modelx.RegistryFilter;
@@ -117,6 +123,12 @@ public class Devops extends CommandRunnerBase {
 	private static final String CLUSTER_DEFAULT_FORMAT = "id,name,displayName,provider,region";
 	private static final String CLUSTER_WIDE_FORMAT = "id,name,displayName,provider,region,enabled,master";
 
+	private static final String NODE_DEFAULT_FORMAT = "uuid,name";
+	private static final String NODE_WIDE_FORMAT = "uuid,name";
+
+	private static final String NODEPOOL_DEFAULT_FORMAT = "uuid,name";
+	private static final String NODEPOOL_WIDE_FORMAT = "uuid,name";
+
 	private static final String SPACE_DEFAULT_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 	private static final String SPACE_WIDE_FORMAT = "id,name,displayName,cluster.name:cluster,cluster.provider:provider,cluster.region:region";
 
@@ -159,8 +171,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String CONNECTOR_DEFAULT_FORMAT = "id,name,spec";
 	private static final String CONNECTOR_WIDE_FORMAT = "id,name,spec,meta";
 
-	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain.dns:domain,tls";
-	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls,primary";
+	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain.dns:domain,tls,ingress";
+	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls,primary,ingress,sharedIngress:shared";
 
 	private static final String MOUNT_DEFAULT_FORMAT = "id,name,type,mountPath,size";
 	private static final String MOUNT_WIDE_FORMAT = "id,name,type,mountPath,size";
@@ -271,6 +283,8 @@ public class Devops extends CommandRunnerBase {
 
 	static String[][] DEVOPS_COMMANDS = c(
 		c("cluster", "clusters"),
+		c("node", "nodes"),
+		c("nodepool", "nodepools"),
 		c("space", "spaces", "namespace", "namespaces", "ns"),
 		c("deployment", "deploy", "deployments", "deploys"),
 		c("job", "jobs"),
@@ -328,6 +342,11 @@ public class Devops extends CommandRunnerBase {
 			c("create", "add", "import"), c("update"), c("delete", "del", "remove", "rm"),
 			c("set"), c("unset"),
 			c("help")));
+		map.put("node", c(c("ls", "list"),
+				c("help")));
+		map.put("nodepool", c(c("ls", "list"), c("get"), c("schema", "meta"), 
+				c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
+				c("help")));
 		map.put("space", c(c("ls", "list"), c("get"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("sync"), c("attach"),
@@ -502,6 +521,12 @@ public class Devops extends CommandRunnerBase {
 			break;
 		case "cluster": case "clusters": 
 			cluster(cmds, options);
+			break;
+		case "node": case "nodes":
+			node(cmds, options);
+			break;
+		case "nodepool": case "nodepools":
+			nodepool(cmds, options);
 			break;
 		case "space": case "spaces":
 			space(cmds, options);
@@ -806,6 +831,244 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	//
+	// Nodes
+	//
+
+	public void node(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage(type);
+			break;
+		case "get": 
+			getNode(cmds, options);
+			break;
+		case "ls": case "list":
+			listNode(cmds, options);
+			break;
+		case "schema": case "meta":
+			schemaNode(cmds, options);
+			break;
+		default: 
+			invalidOp(type, op);
+			break;
+		}		
+	}
+
+	
+	public void listNode(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String q = argId(op, cmds, false);
+		listNode(q, options);
+	}
+	
+	public void listNode(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		NodeFilter filter = convert(options, NodeFilter.class);
+		if (StringUtil.hasText(q)) {
+			filter.setQ(q);
+		}
+		debug("Nodes: %s %s", filter, pageable);
+		Page<Node> nodes = devopsClient.listNodes(clusterId, filter, pageable);
+		print(nodes, Node.class);
+	}
+		
+	public void getNode(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		String nodeId = argId(op, cmds);
+		if (nodeId==null) {
+			return;
+		}
+		NodeOptions options_ = convert(options, NodeOptions.class);
+		debug("Node: %s", nodeId);
+		Node node = devopsClient.getNode(clusterId, nodeId, options_);
+		printObj(node);
+	}
+	
+	public void schemaNode(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		schema(Node.class, NodeFilter.class, NodeOptions.class, options);
+	}
+
+
+
+	//
+	// NodePools
+	//
+
+	public void nodepool(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage(type);
+			break;
+		case "get": 
+			getNodePool(cmds, options);
+			break;
+		case "ls": case "list":
+			listNodePool(cmds, options);
+			break;
+		case "schema": case "meta":
+			schemaNodePool(cmds, options);
+			break;
+		case "create": case "add": 
+			createNodePool(cmds, options);
+			break;
+		case "update": 
+			updateNodePool(cmds, options);
+			break;
+		case "delete": case "del": case "rm":
+			deleteNodePool(cmds, options);
+			break;
+		default: 
+			invalidOp(type, op);
+			break;
+		}		
+	}
+
+	
+	public void listNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String q = argId(op, cmds, false);
+		listNodePool(q, options);
+	}
+	
+	public void listNodePool(String q, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
+		NodePoolFilter filter = convert(options, NodePoolFilter.class);
+		if (StringUtil.hasText(q)) {
+			filter.setQ(q);
+		}
+		debug("NodePools: %s %s", filter, pageable);
+		Page<NodePool> nodepools = devopsClient.listNodePools(clusterId, filter, pageable);
+		print(nodepools, NodePool.class);
+	}
+		
+	public void getNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		String nodepoolId = argId(op, cmds);
+		if (nodepoolId==null) {
+			return;
+		}
+		NodePoolOptions options_ = convert(options, NodePoolOptions.class);
+		debug("NodePool: %s", nodepoolId);
+		NodePool nodepool = devopsClient.getNodePool(clusterId, nodepoolId, options_);
+		printObj(nodepool);
+	}
+	
+	public void schemaNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		schema(NodePool.class, NodePoolFilter.class, NodePoolOptions.class, options);
+	}
+
+
+	public void createNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		NodePool nodepool = convert(options, NodePool.class);
+		String name = argId(op, cmds);
+		String clusterId = null;
+		int i = name.indexOf("/");
+		if (i<0) {
+			clusterId = this.cluster;
+		} else if (i==name.length()-1) {
+			error("Invalid NodePool name");
+			exit(-1);
+			return;
+		} else if (i==0) {
+			clusterId = this.cluster;
+			name = name.substring(i+1);
+		} else {
+			clusterId = name.substring(0, i);
+			name = name.substring(i+1);			
+		}
+		if (!StringUtil.hasText(clusterId)) {
+			error("Missing cluster id");
+			exit(-1);
+			return;
+		}
+		nodepool.setName(name);
+		debug("Creating NodePool: %s", nodepool);
+		if (isDryrun()) {
+			return;
+		}
+		URI uri = devopsClient.createNodePool(clusterId, nodepool, null);
+		if (isEcho()) {
+			debug("NodePool URI: %s", uri);
+			String nodepoolId = extractId(uri);
+			NodePool nodepool2 = devopsClient.getNodePool(clusterId, nodepoolId, null);
+			printObj(nodepool2);			
+		}
+	}
+
+	public void updateNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		String nodepoolId = argIdx(op, cmds);
+		NodePool nodepool = convert(options, NodePool.class);
+		NodePoolOptions options_ = convert(options, NodePoolOptions.class);
+		debug("Updating NodePool: %s %s", nodepoolId, nodepool);
+		if (isDryrun()) {
+			return;
+		}
+		devopsClient.updateNodePool(clusterId, nodepoolId, nodepool, options_);
+		if (isEcho()) {
+			NodePool nodepool2 = devopsClient.getNodePool(clusterId, nodepoolId, null);
+			debug("Updated NodePool: %s", nodepoolId);
+			printObj(nodepool2);
+		}
+	}
+	
+	public void deleteNodePool(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String clusterId = this.cluster;
+		String nodepoolId = argIdx(op, cmds);
+		NodePoolOptions options_ = convert(options, NodePoolOptions.class);
+		String[] ids = nodepoolId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Deleting NodePool: %s", id);		
+			if (!isDryrun()) {
+				devopsClient.deleteNodePool(clusterId, id, options_);	
+			}
+		}
+		if (isDryrun()) {
+			return;
+		}
+		if (isEcho()) {
+			listNodePool(cmds, options);
+		}
+	}
+
+
+	//
 	// Spaces
 	//
 
@@ -963,12 +1226,33 @@ public class Devops extends CommandRunnerBase {
 			return;
 		}
 		Space space = convert(options, Space.class);
-		space.setName(argId(op, cmds));
+		String name = argId(op, cmds);
+		String clusterId = null;
+		int i = name.indexOf("/");
+		if (i<0) {
+			clusterId = this.cluster;
+		} else if (i==name.length()-1) {
+			error("Invalid Space name");
+			exit(-1);
+			return;
+		} else if (i==0) {
+			clusterId = this.cluster;
+			name = name.substring(i+1);
+		} else {
+			clusterId = name.substring(0, i);
+			name = name.substring(i+1);			
+		}
+		if (!StringUtil.hasText(clusterId)) {
+			error("Missing cluster id");
+			exit(-1);
+			return;
+		}
+		space.setName(name);
 		debug("Creating Space: %s", space);
 		if (isDryrun()) {
 			return;
 		}
-		URI uri = devopsClient.createSpace(space, null);
+		URI uri = devopsClient.createSpace(clusterId, space, null);
 		if (isEcho()) {
 			debug("Space URI: %s", uri);
 			String spaceId = extractId(uri);
@@ -8991,6 +9275,12 @@ public class Devops extends CommandRunnerBase {
 		if (Cluster.class.equals(type)) {
 			return CLUSTER_DEFAULT_FORMAT;
 		}
+		if (Node.class.equals(type)) {
+			return NODE_DEFAULT_FORMAT;
+		}
+		if (NodePool.class.equals(type)) {
+			return NODEPOOL_DEFAULT_FORMAT;
+		}
 		if (Space.class.equals(type)) {
 			return SPACE_DEFAULT_FORMAT;
 		}
@@ -9064,6 +9354,12 @@ public class Devops extends CommandRunnerBase {
 	protected String getWideFormat(Class<? extends Object> type) {
 		if (Cluster.class.equals(type)) {
 			return CLUSTER_WIDE_FORMAT;
+		}
+		if (Node.class.equals(type)) {
+			return NODE_WIDE_FORMAT;
+		}
+		if (NodePool.class.equals(type)) {
+			return NODEPOOL_WIDE_FORMAT;
 		}
 		if (Space.class.equals(type)) {
 			return SPACE_WIDE_FORMAT;
