@@ -869,18 +869,18 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			return;
 		}
 		if (n>0) {
-			System.out.print(String.format("%" + (n+1) + "s%s", "", format(obj)));			
+			System.out.print(String.format("%" + (n+1) + "s%s", "", format(obj, isBlock())));			
 		} else {
-			System.out.print(format(obj));
+			System.out.print(format(obj, isBlock()));
 		}
 	}
 
 	void printW(Object obj, int n) {
-		System.out.print(String.format("%" + (n>1 ? "-" + n : "") + "s", formatSimple(obj)));		
+		System.out.print(String.format("%" + (n>1 ? "-" + n : "") + "s", formatSimple(obj, isBlock())));		
 	}
 
 	void print(Page<?> page, Class<?> type) {
-		print(page, type, false);
+		print(page, type, isBlock());
 	}
 
 
@@ -917,7 +917,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			printTabular(it);
 		} else {
 			for (Object obj: it) {
-				String s = format(obj);
+				String s = format(obj, isBlock());
 				print(s);
 			}
 		}
@@ -933,7 +933,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			if (fmt==null) {
 				fmt = getCols(o);
 			}
-			List<String> row = getFields(o, fmt);
+			List<String> row = getFields(o, fmt, false);
 			table.add(row);
 		}
 		int[] widths = getColsWidth(table);
@@ -993,7 +993,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			if (i>0) {
 				System.out.println();				
 			}
-			List<String> row = getFields(o, cols_);
+			List<String> row = getFields(o, cols_, true);
 			for (int j = 0; j<cols.length; j++) {
 				String col = formatColName(cols[j]);
 				printW(col, width+3);
@@ -1027,7 +1027,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected void printTabular(Object obj, boolean header) {
 		String cols = getCols(obj);
-		List<String> values = getFields(obj, cols);
+		List<String> values = getFields(obj, cols, false);
 		String[] cols2 = getFormatCols(cols);
 		int[] widths = new int[Math.max(values.size(), cols2.length)];
 		for (int i=0; i<widths.length; i++) {
@@ -1051,7 +1051,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected void printBlock(Object obj) {
 		String cols = getCols(obj);
-		List<String> values = getFields(obj, cols);
+		List<String> values = getFields(obj, cols, true);
 		String[] cols2 = getFormatCols(cols);
 		int width = 0;
 		for (int i=0; i<cols2.length; i++) {
@@ -1171,7 +1171,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return cols;
 	}
 
-	String format(Object obj) {
+	String format(Object obj, boolean block) {
 		if (obj==null) {
 			return "";
 		}
@@ -1206,12 +1206,12 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 						sb.append(" ");						
 					}
 					Object value = MapUtil.resolve(s, map);
-					sb.append(formatSimple(value));						
+					sb.append(formatSimple(value, block));						
 				}
 			}
 			return sb.toString();
 		} else {
-			return formatSimple(obj);			
+			return formatSimple(obj, block);			
 		}
 	}
 
@@ -1243,14 +1243,14 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return sb.toString();
 	}
 	
-	List<String> getFields(Object obj, String cols) {
+	List<String> getFields(Object obj, String cols, boolean block) {
 		List<String> values = new ArrayList<>();
 		Map<String, Object> map = MappingUtils.toMap(obj);
 		if (map==null) {
 		} else if ("all".equals(cols)) {
 			for (Map.Entry<String, Object> e: map.entrySet()) {
-				Object value = getPropertyValue(obj, e.getKey());
-				values.add(formatSimple(value));						
+				Object value = getPropertyValue(obj, e.getKey(), block);
+				values.add(formatSimple(value, block));						
 			}
 		} else {
 			String[] props = getFormatProps(cols);
@@ -1259,8 +1259,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					String ss[] = s.split("/");
 					StringBuilder sb = new StringBuilder();
 					for (String s1: ss) {
-						Object value = getPropertyValue(obj, s1);
-						String svalue = formatSimple(value, ss.length>1 ? "0" : EMPTY_VALUE);
+						Object value = getPropertyValue(obj, s1, block);
+						String svalue = formatSimple(value, ss.length>1 ? "0" : EMPTY_VALUE, block);
 						if (svalue!=null && !svalue.isEmpty()) {
 							svalue = svalue.trim();
 							if (!svalue.isEmpty()) {
@@ -1278,7 +1278,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		return values;
 	}
 
-	public Object getPropertyValue(Object obj, String name) {
+	public Object getPropertyValue(Object obj, String name, boolean block) {
 		if (obj==null) {
 			return null;
 		}
@@ -1298,8 +1298,8 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		if (obj_ instanceof Iterable) {
 			StringBuilder sb = new StringBuilder();
 			for (Object it: (Iterable<?>)obj_) {
-				Object value = getPropertyValue(it, name.substring(i+1)); //consume and recurse		
-				String s = formatSimple(value);
+				Object value = getPropertyValue(it, name.substring(i+1), block); //consume and recurse		
+				String s = formatSimple(value, block);
 				if (sb.length()>0) {
 					sb.append(",");
 				}
@@ -1307,16 +1307,16 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 			}
 			return sb.toString();
 		}
-		return getPropertyValue(obj_, name.substring(i+1)); //consume and recurse
+		return getPropertyValue(obj_, name.substring(i+1), block); //consume and recurse
 	}
 
 	public static final int MAX_COL_SIZE = 32;
 
-	private String formatSimple(Object value) {
-		return formatSimple(value, EMPTY_VALUE);
+	private String formatSimple(Object value, boolean block) {
+		return formatSimple(value, EMPTY_VALUE, block);
 	}
 
-	private String formatSimple(Object value, String defaultValue) {
+	private String formatSimple(Object value, String defaultValue, boolean block) {
 		if (value==null) {
 			return defaultValue;
 		}
@@ -1346,13 +1346,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				if (sb.length()>0) {
 					sb.append(",");
 				}
-				String s = formatSimple(item, null);
+				String s = formatSimple(item, null, block);
 				if (s==null || s.isEmpty()) {
 					continue;
 				}
-				if (i>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
-					sb.append("...");
-					break;
+				if (!block) {
+					if (i>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
+						sb.append("...");
+						break;
+					}					
 				}
 				i++;
 				if (s!=null && !s.isEmpty()) {
@@ -1371,13 +1373,15 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 					sb.append(",");
 				}
 				Object item = Array.get(a, i);
-				String s = formatSimple(item, null);
+				String s = formatSimple(item, null, block);
 				if (s==null || s.isEmpty()) {
 					continue;
 				}
-				if (j>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
-					sb.append("...");
-					break;
+				if (!block) {
+					if (j>0 && sb.length()+s.length()+3>=MAX_COL_SIZE) {
+						sb.append("...");
+						break;
+					}					
 				}
 				j++;
 				if (s!=null && !s.isEmpty()) {

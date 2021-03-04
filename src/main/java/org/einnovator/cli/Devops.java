@@ -17,6 +17,7 @@ import org.einnovator.devops.client.model.Binding;
 import org.einnovator.devops.client.model.Build;
 import org.einnovator.devops.client.model.Catalog;
 import org.einnovator.devops.client.model.Certificate;
+import org.einnovator.devops.client.model.CicdRuntime;
 import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.ConfigMap;
 import org.einnovator.devops.client.model.Connector;
@@ -47,6 +48,7 @@ import org.einnovator.devops.client.model.Route;
 import org.einnovator.devops.client.model.Secret;
 import org.einnovator.devops.client.model.Solution;
 import org.einnovator.devops.client.model.Space;
+import org.einnovator.devops.client.model.Tools;
 import org.einnovator.devops.client.model.VarCategory;
 import org.einnovator.devops.client.model.Variable;
 import org.einnovator.devops.client.model.Vcs;
@@ -123,8 +125,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String CLUSTER_DEFAULT_FORMAT = "id,name,displayName,provider,region";
 	private static final String CLUSTER_WIDE_FORMAT = "id,name,displayName,provider,region,enabled,master";
 
-	private static final String NODE_DEFAULT_FORMAT = "uuid,name";
-	private static final String NODE_WIDE_FORMAT = "uuid,name";
+	private static final String NODE_DEFAULT_FORMAT = "uuid,name,ips:addrs";
+	private static final String NODE_WIDE_FORMAT = "uuid,name,ips:addrs";
 
 	private static final String NODEPOOL_DEFAULT_FORMAT = "uuid,name";
 	private static final String NODEPOOL_WIDE_FORMAT = "uuid,name";
@@ -743,9 +745,10 @@ public class Devops extends CommandRunnerBase {
 		if (isHelp2()) {
 			return;
 		}
+		processClusterOptions(options);
 		Cluster cluster = convert(options, Cluster.class);
 		boolean required = true;
-		makeClusterConfigOption(cluster, options);
+		makeClusterConfigOptions(cluster, options);
 		if (StringUtil.hasText(cluster.getKubeconfig())) {
 			required = false;
 		}
@@ -766,7 +769,25 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
-	void makeClusterConfigOption(Cluster cluster, Map<String, Object> options) {
+	void processClusterOptions(Map<String, Object> options) {
+		String ingress = (String)options.get("ingress");
+		if (ingress!=null) {
+			options.remove("ingress");
+			options.put("ingress.install", true);
+		}
+		String cicd = (String)options.get("cicd");
+		if (cicd!=null) {
+			options.remove("cicd");
+			options.put("cicd.install", true);
+		}
+		String tools = (String)options.get("tools");
+		if (tools!=null) {
+			options.remove("tools");
+			options.put("tools.install", true);
+		}
+	}
+
+	void makeClusterConfigOptions(Cluster cluster, Map<String, Object> options) {
 		String file = (String)options.get("f");
 		if (StringUtil.hasText(file)) {
 			if (!file.startsWith("http:") && !file.startsWith("https:")) {
@@ -786,15 +807,18 @@ public class Devops extends CommandRunnerBase {
 				cluster.setKubeconfig(file);				
 			}
 		}
+
 	}
+	
 	public void updateCluster(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
 		}
 		String clusterId = argId(op, cmds);
+		processClusterOptions(options);
 		Cluster cluster = convert(options, Cluster.class);
 		ClusterOptions options_ = convert(options, ClusterOptions.class);
-		makeClusterConfigOption(cluster, options);
+		makeClusterConfigOptions(cluster, options);
 		debug("Updating Cluster: %s %s", clusterId, cluster);
 		if (isDryrun()) {
 			return;
@@ -874,7 +898,7 @@ public class Devops extends CommandRunnerBase {
 			filter.setQ(q);
 		}
 		debug("Nodes: %s %s", filter, pageable);
-		Page<Node> nodes = devopsClient.listNodes(clusterId, filter, pageable);
+		List<Node> nodes = devopsClient.listNodes(clusterId, filter, pageable);
 		print(nodes, Node.class);
 	}
 		
@@ -955,7 +979,7 @@ public class Devops extends CommandRunnerBase {
 			filter.setQ(q);
 		}
 		debug("NodePools: %s %s", filter, pageable);
-		Page<NodePool> nodepools = devopsClient.listNodePools(clusterId, filter, pageable);
+		List<NodePool> nodepools = devopsClient.listNodePools(clusterId, filter, pageable);
 		print(nodepools, NodePool.class);
 	}
 		
