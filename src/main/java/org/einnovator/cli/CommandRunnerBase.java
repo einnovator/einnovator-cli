@@ -862,6 +862,14 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 		System.out.println();
 	}
 
+	void println() {
+		System.out.println();
+	}
+
+	void println(String s) {
+		System.out.println(s);
+	}
+
 	@SuppressWarnings("rawtypes")
 	void print(Object obj, int n) {
 		if (obj instanceof Iterable) {

@@ -17,7 +17,6 @@ import org.einnovator.devops.client.model.Binding;
 import org.einnovator.devops.client.model.Build;
 import org.einnovator.devops.client.model.Catalog;
 import org.einnovator.devops.client.model.Certificate;
-import org.einnovator.devops.client.model.CicdRuntime;
 import org.einnovator.devops.client.model.Cluster;
 import org.einnovator.devops.client.model.ConfigMap;
 import org.einnovator.devops.client.model.Connector;
@@ -48,7 +47,6 @@ import org.einnovator.devops.client.model.Route;
 import org.einnovator.devops.client.model.Secret;
 import org.einnovator.devops.client.model.Solution;
 import org.einnovator.devops.client.model.Space;
-import org.einnovator.devops.client.model.Tools;
 import org.einnovator.devops.client.model.VarCategory;
 import org.einnovator.devops.client.model.Variable;
 import org.einnovator.devops.client.model.Vcs;
@@ -2051,7 +2049,32 @@ public class Devops extends CommandRunnerBase {
 	public void secretGet(String spaceId, String secretId, Map<String, Object> options) {
 		debug("Space Secret: %s %s", spaceId, secretId);		
 		SecretOptions options_ = convert(options, SecretOptions.class);
-		Secret secret = devopsClient.getSecret(spaceId, secretId, options_);			
+		Secret secret = devopsClient.getSecret(spaceId, secretId, options_);	
+		String d = (String)options.get("d");
+		if (d!=null) {
+			Map<String, String> data = secret.getData();
+			String value = null;
+			if (data!=null) {
+				value = data.get(d);
+			}
+			if (data==null || value==null) {
+				error("Secret data not found:", d);
+				exit(-1);
+				return;
+			}
+			String decode = (String)options.get("decode");
+			if (decode!=null) {
+				try {
+					value = new String(Base64.getDecoder().decode(value));					
+				} catch (IllegalArgumentException e) {
+					error("Secret value decoding error:", d);
+					exit(-1);
+					return;
+				}
+			}
+			println(value);
+			return;
+		}
 		printObj(secret);
 	}
 
@@ -2889,21 +2912,41 @@ public class Devops extends CommandRunnerBase {
 		}
 		Pageable pageable = convert(options, PageOptions.class).toPageRequest();
 		DeploymentFilter filter = convert(options, DeploymentFilter.class);
-		String spaceId = argNS(options);
-		if (spaceId==null) {
+		String id_ = argNS(options);
+		if (id_==null) {
 			missingArg("-n");
 			return;
 		}
-		String q = argId(op, cmds, false);
+		String q = arg0(op, cmds, false);
 		if (q!=null) {
 			filter.setQ(q);
 		}
 		if (options.get("r")!=null) {
 			filter.setStatus(DeploymentStatus.RUNNING);
 		}		
-		debug("Deployments: %s %s %s", spaceId, filter, pageable);
-		Page<Deployment> deployments = devopsClient.listDeployments(spaceId, filter, pageable);
-		print(deployments, Deployment.class);
+		String[] a = id_.split(",");
+		int j = 0;
+		for (String id: a) {
+			if (!StringUtil.hasText(id)) {
+				continue;
+			}
+			int i = id.indexOf("/");
+			if (i<0) {
+				if (i==0 && i<id.length()-1) {
+					id = id.substring(1);
+				}
+				if (!(isUuid(id) || parseUuid(id)!=null) && cluster!=null && !cluster.isEmpty()) {					
+					id = cluster + "/" + id;
+				}
+			}
+			if (j>0) {
+				println();
+			}
+			debug("Deployments: %s %s %s", id, filter, pageable);
+			Page<Deployment> deployments = devopsClient.listDeployments(id, filter, pageable);
+			print(deployments, Deployment.class);
+			j++;
+		}
 	}
 	
 	public void getDeployment(String deployId, Map<String, Object> options) {
@@ -3764,8 +3807,7 @@ public class Devops extends CommandRunnerBase {
 	
 	private ExecOptions makeExecOptions(String[] cmds, String[] extra, Map<String, Object> options) {
 		ExecOptions options_ = convert(options, ExecOptions.class);
-		String cmd = String.join(" ", extra);
-		options_.setCmd(cmd);
+		options_.setCmd(extra);
 		String pod = arg1(op, cmds, false);
 		if (pod==null) {
 			pod = (String)options.get("pod");			
@@ -5001,7 +5043,7 @@ public class Devops extends CommandRunnerBase {
 
 	public void bindingDeploymentAdd(String deployId, String selector, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		Binding binding = convert(options, Binding.class);
+		Binding binding = makeBinding(options);
 		if (StringUtil.hasText(selector)) {
 			binding.setSelector(selector);			
 		}
@@ -5014,6 +5056,18 @@ public class Devops extends CommandRunnerBase {
 			String bindingId = extractId(uri);
 			bindingDeploymentGet(deployId, bindingId, cmds, options);
 		}
+	}
+
+	private Binding makeBinding(Map<String, Object> options) {
+		String spec = (String)options.get("spec");
+		Map<String, Object> specMap = null;
+		if (spec!=null) {
+			specMap = makeSpec(spec);
+			options.remove("spec");			
+		}		
+		Binding binding = convert(options, Binding.class);
+		binding.setSpec(specMap);
+		return binding;
 	}
 
 	public void bindingDeploymentUpdate(String[] cmds, Map<String, Object> options) {
@@ -5286,24 +5340,60 @@ public class Devops extends CommandRunnerBase {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private Connector makeConnector(Map<String, Object> options) {
 		String spec = (String)options.get("spec");
 		Map<String, Object> specMap = null;
-		if (StringUtil.hasText(spec)) {
-			specMap = MappingUtils.fromJson(spec, Map.class);
-			if (specMap==null) {
-				error("spec value is not valid JSON");
-				exit(-1);
-				return null;
-			}
+		if (spec!=null) {
+			specMap = makeSpec(spec);
+			options.remove("spec");			
 		}
-		options.remove("spec");
 		Connector connector = convert(options, Connector.class);
 		connector.setSpec(specMap);
 		return connector;
 	}
 	
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> makeSpec(String spec) {
+		if (!StringUtil.hasText(spec)) {
+			return null;
+		}
+		spec = spec.trim();
+		if (spec.startsWith("{")) {
+			try {
+				Map<String, Object> specMap = MappingUtils.fromJson(spec, Map.class);
+				if (specMap==null) {
+					error("spec value is not valid JSON: %s", spec);
+					exit(-1);
+					return null;
+				}
+				return specMap;
+			} catch (RuntimeException e) {
+				error("spec value is not valid JSON: %s %s", e, spec);
+				exit(-1);
+				return null;
+			}				
+		} 
+		Map<String, Object> specMap = new LinkedHashMap<String, Object>();
+		String a[] = spec.split(",");
+		for (String s: a) {
+			if (s==null || s.isEmpty()) {
+				continue;
+			}
+			int i = s.indexOf(":");
+			if (i<0) {
+				i = s.indexOf("=");						
+			}
+			if (i==0 || i==s.length()-1) {
+				error("spec value is not valid: %s %s", spec);
+				exit(-1);
+				return null;
+			}
+			Object value = s.substring(i+1);
+			s = s.substring(0, i);
+			specMap.put(s, value);
+		}
+		return specMap;
+	}
 	public void connectorDeploymentUpdate(String[] cmds, Map<String, Object> options) {
 		String op2 = cmds.length>0 ? cmds[0] : "";
 		if (isHelp3(op2)) {
@@ -6567,7 +6657,7 @@ public class Devops extends CommandRunnerBase {
 
 	public void bindingJobAdd(String jobId, String selector, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		Binding binding = convert(options, Binding.class);
+		Binding binding = makeBinding(options);
 		if (StringUtil.hasText(selector)) {
 			binding.setSelector(selector);			
 		}
@@ -7818,7 +7908,7 @@ public class Devops extends CommandRunnerBase {
 	
 	public void bindingCronJobAdd(String cronjobId, String selector, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		Binding binding = convert(options, Binding.class);
+		Binding binding = makeBinding(options);
 		if (StringUtil.hasText(selector)) {
 			binding.setSelector(selector);			
 		}
