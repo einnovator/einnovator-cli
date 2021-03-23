@@ -1551,31 +1551,28 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				Member member = MetaUtil.getPropertyMember(type, prop, false, false);
 				if (member!=null) {
 					prop = MetaUtil.getPropertyName(member);
-					if (value!=null) {
-						String svalue = value.toString();
-						if (!svalue.isEmpty()) {
-							Class<?> propType = MetaUtil.getPropertyType(type, prop);
-							if (propType!=null) {
-								if (propType.isEnum()) {
-									String s = value.toString();
-									Method parse = MetaUtil.getMethod(propType, "parse", 1, true);
-									if (parse!=null) {
-										Object out = MetaUtil.invoke(null, parse, new Object[] {s});
-										if (out!=null) {
-											value = out;
-										}
-									} else {
-										value = parseEnum2(propType, s);
+					if (value!=null && !value.toString().isEmpty()) {
+						Class<?> propType = MetaUtil.getPropertyType(type, prop);
+						if (propType!=null) {
+							if (propType.isEnum()) {
+								String s = value.toString();
+								Method parse = MetaUtil.getMethod(propType, "parse", 1, true);
+								if (parse!=null) {
+									Object out = MetaUtil.invoke(null, parse, new Object[] {s});
+									if (out!=null) {
+										value = out;
 									}
 								} else {
-									if (conversionService.canConvert(value.getClass(), propType)) {
-										try {
-											value = conversionService.convert(value, propType);											
-										} catch (ConversionException e_) {											
-										}
+									value = parseEnum2(propType, s);
+								}
+							} else {
+								if (conversionService.canConvert(value.getClass(), propType)) {
+									try {
+										value = conversionService.convert(value, propType);											
+									} catch (ConversionException e_) {											
 									}
 								}
-							}							
+							}
 						}
 					} else {
 						Class<?> propType = MetaUtil.getPropertyType(type, prop);

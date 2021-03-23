@@ -169,8 +169,8 @@ public class Devops extends CommandRunnerBase {
 	private static final String BINDING_DEFAULT_FORMAT = "id,selector,spec";
 	private static final String BINDING_WIDE_FORMAT = "id,selector,spec,meta";
 
-	private static final String CONNECTOR_DEFAULT_FORMAT = "id,name,spec";
-	private static final String CONNECTOR_WIDE_FORMAT = "id,name,spec,meta";
+	private static final String CONNECTOR_DEFAULT_FORMAT = "id,name,type,tags,spec";
+	private static final String CONNECTOR_WIDE_FORMAT = "id,name,type,tags,spec,meta";
 
 	private static final String ROUTE_DEFAULT_FORMAT = "id,host,dns,domain.dns:domain,tls,ingress";
 	private static final String ROUTE_WIDE_FORMAT = "id,host,dns,domain.dns:domain,tls,primary,ingress,sharedIngress:shared";
@@ -4646,11 +4646,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void mountDeploymentDelete(String deployId, String mountId, String[] cmds, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Deployment Mount: %s %s", deployId, mountId);		
-		if (isDryrun()) {
-			return;
+		String[] ids = mountId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Deployment Mount: %s %s", deployId, id);		
+			if (!isDryrun()) {
+				devopsClient.removeMount(deployId, id, options_);
+			}
 		}
-		devopsClient.removeMount(deployId, mountId, options_);
 		if (isEcho()) {
 			mountDeploymentList(cmds, options);
 		}
@@ -4890,11 +4895,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void envDeploymentDelete(String deployId, String varId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Var: %s %s %s", deployId, varId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = varId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Var: %s %s %s", deployId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeVariable(deployId, id, options_);
+			}
 		}
-		devopsClient.removeVariable(deployId, varId, options_);
 		if (isEcho()) {
 			envDeploymentList(cmds, options);
 		}
@@ -5171,13 +5181,268 @@ public class Devops extends CommandRunnerBase {
 	
 	public void bindingDeploymentDelete(String deployId, String bindingId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Binding: %s %s %s", deployId, bindingId, options_);		
+		String[] ids = bindingId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Binding: %s %s %s", deployId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeBinding(deployId, id, options_);
+			}
+		}
+		if (isEcho()) {
+			bindingDeploymentList(cmds, options);
+		}
+	}
+
+	//
+	// Connectors
+	//
+
+	public void connectors(String[] cmds, Map<String, Object> options) {
+		if (options.get("x")!=null || options.get("external")!=null) {
+			connectorSpace0(cmds, options);
+		} else {
+			connectorDeployment0(cmds, options);
+		}
+	}
+	
+	//
+	// Space Connector
+	//
+
+	public void connectorSpace0(String[] cmds, Map<String, Object> options) {
+		switch (op) {
+		case "help": case "":
+			printUsage1();
+			break;
+		case "ls": case "list": {
+			connectorSpaceList0(cmds, options);
+			break;
+		}
+		case "get": {
+			connectorSpaceGet0(cmds, options);
+			break;
+		}
+		case "add": case "create": {
+			connectorSpaceAdd0(cmds, options);
+			break;
+		}
+		case "update": {
+			connectorSpaceUpdate0(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			connectorSpaceDelete0(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp2()) {
+				return;
+			}
+			schema(Connector.class);
+		default:
+			invalidOp();
+			printUsage1();
+			break;
+		}
+	}
+
+	public void connectorSpace(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		switch (op2) {
+		case "help": case "":
+			printUsage2();
+			break;
+		case "ls": case "list": {
+			connectorSpaceList(cmds, options);
+			break;
+		}
+		case "get": {
+			connectorSpaceGet(cmds, options);
+			break;
+		}
+		case "add": case "create": {
+			connectorSpaceAdd(cmds, options);
+			break;
+		}
+		case "update": {
+			connectorSpaceUpdate(cmds, options);
+			break;
+		}
+		case "remove": 	case "rm": case "delete": case "del": {
+			connectorSpaceDelete(cmds, options);
+			break;
+		}
+		case "schema": case "meta":
+			if (isHelp3(op2)) {
+				return;
+			}
+			schema(Connector.class);
+		default:
+			invalidOp();
+			printUsage2();
+			break;
+		}
+	}
+	
+	public void connectorSpaceList(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		connectorSpaceList(spaceId, options);
+	}
+
+	public void connectorSpaceList0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		connectorSpaceList(spaceId, options);
+	}
+
+	public void connectorSpaceList(String spaceId, Map<String, Object> options) {
+		debug("Space (X)Connectors: %s", spaceId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		List<Connector> connectors = devopsClient.listXConnectors(spaceId, options_);			
+		print(connectors);
+	}
+	
+	public void connectorSpaceGet(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg1(op, cmds);
+		connectorSpaceGet(spaceId, connectorId, cmds, options);
+	}
+	
+	public void connectorSpaceGet0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg0(op, cmds);
+		connectorSpaceGet(spaceId, connectorId, cmds, options);
+	}
+	
+	public void connectorSpaceGet(String spaceId, String connectorId, String[] cmds, Map<String, Object> options) {
+		debug("Space (X)Connector: %s %s", spaceId, connectorId);		
+		SpaceOptions options_ = convert(options, SpaceOptions.class);
+		Connector connector = devopsClient.getXConnector(spaceId, connectorId, options_);			
+		printObj(connector);
+	}
+	
+	public void connectorSpaceAdd(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String name = arg1(op, cmds);
+		connectorSpaceAdd(spaceId, name, options);
+	}
+	
+	
+	public void connectorSpaceAdd0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String name = arg0(op, cmds);
+		connectorSpaceAdd(spaceId, name, options);
+	}
+	
+	public void connectorSpaceAdd(String spaceId, String name, Map<String, Object> options) {
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		Connector connector = makeConnector(options);
+		if (connector==null) {
+			return;
+		}
+		connector.setName(name);
+		debug("Add (X)Connector: %s %s %s", spaceId, connector, options_);		
 		if (isDryrun()) {
 			return;
 		}
-		devopsClient.removeBinding(deployId, bindingId, options_);
+		URI uri = devopsClient.addXConnector(spaceId, connector, options_);
 		if (isEcho()) {
-			bindingDeploymentList(cmds, options);
+			String connectorId = extractId(uri);
+			connectorSpaceGet(spaceId, connectorId, cmds, options);
+		}
+	}
+
+	public void connectorSpaceUpdate(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg1(op2, cmds);
+		connectorSpaceUpdate(spaceId, connectorId, options);
+	}
+
+	public void connectorSpaceUpdate0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg0(op, cmds);
+		connectorSpaceUpdate(spaceId, connectorId, options);
+	}
+
+	public void connectorSpaceUpdate(String spaceId, String connectorId, Map<String, Object> options) {
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		Connector connector = makeConnector(options);
+		if (connector==null) {
+			return;
+		}
+		debug("Update (X)Connector: %s %s %s %s", spaceId, connectorId, connector, options_);		
+		if (isDryrun()) {
+			return;
+		}
+		devopsClient.updateXConnector(spaceId, connectorId, connector, options_);
+		if (isEcho()) {
+			connectorSpaceGet(spaceId, connectorId, cmds, options);
+		}
+	}
+
+	public void connectorSpaceDelete(String[] cmds, Map<String, Object> options) {
+		String op2 = cmds.length>0 ? cmds[0] : "";
+		if (isHelp3(op2)) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg1(op2, cmds);
+		connectorSpaceDelete(spaceId, connectorId, options);
+	}
+
+	public void connectorSpaceDelete0(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String spaceId = argNS(options, true);
+		String connectorId = arg0(op, cmds);
+		connectorSpaceDelete(spaceId, connectorId, options);		
+	}
+
+	public void connectorSpaceDelete(String spaceId, String connectorId, Map<String, Object> options) {
+		RequestOptions options_ = convert(options, RequestOptions.class);
+		String[] ids = connectorId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove (X)Connector: %s %s %s", spaceId, connectorId, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeConnector(spaceId, connectorId, options_);
+			}
+		}
+		if (isEcho()) {
+			connectorSpaceList(cmds, options);
 		}
 	}
 
@@ -5186,6 +5451,14 @@ public class Devops extends CommandRunnerBase {
 	//
 
 	public void connector(String[] cmds, Map<String, Object> options) {
+		if (options.get("x")!=null || options.get("external")!=null) {
+			connectorSpace0(cmds, options);
+		} else {
+			connectorDeployment0(cmds, options);
+		}
+	}
+	
+	public void connectorDeployment0(String[] cmds, Map<String, Object> options) {
 		switch (op) {
 		case "help": case "":
 			printUsage1();
@@ -5497,11 +5770,16 @@ public class Devops extends CommandRunnerBase {
 
 	public void connectorDeploymentDelete(String deployId, String connectorId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Connector: %s %s %s", deployId, connectorId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = connectorId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Connector: %s %s %s", deployId, connectorId, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeConnector(deployId, connectorId, options_);
+			}
 		}
-		devopsClient.removeConnector(deployId, connectorId, options_);
 		if (isEcho()) {
 			connectorDeploymentList(cmds, options);
 		}
@@ -6298,11 +6576,16 @@ public class Devops extends CommandRunnerBase {
 
 	public void mountJobDelete(String jobId, String mountId, String[] cmds, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Job Mount: %s %s %s", jobId, mountId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = mountId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Job Mount: %s %s %s", jobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeMount(jobId, id, options_);
+			}
 		}
-		devopsClient.removeMount(jobId, mountId, options_);
 		if (isEcho()) {
 			mountJobList(cmds, options);
 		}
@@ -6527,11 +6810,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void envJobDelete(String jobId, String varId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Var: %s %s %s", jobId, varId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = varId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Var: %s %s %s", jobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeVariable(jobId, id, options_);
+			}
 		}
-		devopsClient.removeVariable(jobId, varId, options_);
 		if (isEcho()) {
 			envJobList(cmds, options);
 		}
@@ -6786,11 +7074,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void bindingJobDelete(String jobId, String bindingId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Binding: %s %s %s", jobId, bindingId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = bindingId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Binding: %s %s %s", jobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeBinding(jobId, id, options_);
+			}
 		}
-		devopsClient.removeBinding(jobId, bindingId, options_);
 		if (isEcho()) {
 			bindingJobList(cmds, options);
 		}
@@ -7563,11 +7856,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void mountCronJobDelete(String cronjobId, String mountId, String[] cmds, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove CronJob Mount: %s %s %s", cronjobId, mountId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = mountId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove CronJob Mount: %s %s %s", cronjobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeMount(cronjobId, id, options_);
+			}
 		}
-		devopsClient.removeMount(cronjobId, mountId, options_);
 		if (isEcho()) {
 			mountCronJobList(cmds, options);
 		}
@@ -7792,11 +8090,16 @@ public class Devops extends CommandRunnerBase {
 
 	public void envCronJobDelete(String cronjobId, String varId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Var: %s %s %s", cronjobId, varId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = varId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Var: %s %s %s", cronjobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeVariable(cronjobId, id, options_);
+			}
 		}
-		devopsClient.removeVariable(cronjobId, varId, options_);
 		if (isEcho()) {
 			envCronJobList(cmds, options);
 		}
@@ -8051,11 +8354,16 @@ public class Devops extends CommandRunnerBase {
 	
 	public void bindingCronJobDelete(String cronjobId, String bindingId, Map<String, Object> options) {
 		RequestOptions options_ = convert(options, RequestOptions.class);
-		debug("Remove Binding: %s %s %s", cronjobId, bindingId, options_);		
-		if (isDryrun()) {
-			return;
+		String[] ids = bindingId.split(",");
+		for (String id: ids) {
+			if (id.isEmpty()) {
+				continue;
+			}
+			debug("Remove Binding: %s %s %s", cronjobId, id, options_);		
+			if (!isDryrun()) {
+				devopsClient.removeBinding(cronjobId, id, options_);
+			}
 		}
-		devopsClient.removeBinding(cronjobId, bindingId, options_);
 		if (isEcho()) {
 			bindingCronJobList(cmds, options);
 		}
