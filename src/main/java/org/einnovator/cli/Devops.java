@@ -73,6 +73,7 @@ import org.einnovator.devops.client.modelx.InstallOptions;
 import org.einnovator.devops.client.modelx.JobFilter;
 import org.einnovator.devops.client.modelx.JobOptions;
 import org.einnovator.devops.client.modelx.LogOptions;
+import org.einnovator.devops.client.modelx.ManifestOptions;
 import org.einnovator.devops.client.modelx.NodeFilter;
 import org.einnovator.devops.client.modelx.NodeOptions;
 import org.einnovator.devops.client.modelx.NodePoolFilter;
@@ -353,7 +354,7 @@ public class Devops extends CommandRunnerBase {
 			c("set"), c("unset"),
 			c("auth", "collaborator"),
 			c("help")));
-		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
+		map.put("deployment", c(c("ls", "list", "ps"), c("get"), c("manifest"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), c("delete", "del", "remove", "rm"), 
 			c("scale"), c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
 			c("build"),
@@ -365,7 +366,7 @@ public class Devops extends CommandRunnerBase {
 			c("binding", "bindings"),
 			c("connector", "connectors"),
 			c("help")));
-		map.put("job", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
+		map.put("job", c(c("ls", "list", "ps"), c("get"), c("manifest"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"), 
 			c("resources", "rscale"), c("start"), c("stop"), c("restart"), c("sync"), c("attach"), c("exec"), c("logs", "log"),
@@ -375,7 +376,7 @@ public class Devops extends CommandRunnerBase {
 			c("env", "var", "vars"),
 			c("binding", "bindings"),
 			c("help")));
-		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("view"), c("schema", "meta"), 
+		map.put("cronjob", c(c("ls", "list", "ps"), c("get"), c("manifest"), c("view"), c("schema", "meta"), 
 			c("create", "add"), c("update"), 
 			c("delete", "del", "remove", "rm"),
 			c("resources", "rscale"), c("start"), c("stop"), c("suspend"), c("restart"), c("sync"), c("attach"), 
@@ -2825,6 +2826,9 @@ public class Devops extends CommandRunnerBase {
 		case "get": 
 			getDeployment(cmds, options);
 			break;
+		case "manifest": 
+			manifestDeployment(cmds, options);
+			break;
 		case "view": 
 			viewDeployment(cmds, options);
 			break;
@@ -2967,6 +2971,18 @@ public class Devops extends CommandRunnerBase {
 		printObj(deployment);
 	}
 
+	
+	public void manifestDeployment(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String deployId = argIdx(op, cmds);
+		ManifestOptions options_ = convert(options, ManifestOptions.class);
+		debug("Deployment Manifest: %s", deployId);
+		String manifest = devopsClient.getDeploymentManifest(deployId, options_);
+		println(manifest);
+	}
+	
 	public void viewDeployment(String[] cmds, Map<String, Object> options) {
 		if (isHelp2()) {
 			return;
@@ -5506,6 +5522,9 @@ public class Devops extends CommandRunnerBase {
 		case "get": 
 			getJob(cmds, options);
 			break;
+		case "manifest": 
+			manifestJob(cmds, options);
+			break;
 		case "view": 
 			viewJob(cmds, options);
 			break;
@@ -5605,6 +5624,17 @@ public class Devops extends CommandRunnerBase {
 		debug("Get Job: %s", jobId);
 		Job job = devopsClient.getJob(jobId, options_);
 		printObj(job);
+	}
+
+	public void manifestJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String jobId = argIdx(op, cmds);
+		ManifestOptions options_ = convert(options, ManifestOptions.class);
+		debug("Job Manifest: %s", jobId);
+		String manifest = devopsClient.getJobManifest(jobId, options_);
+		println(manifest);
 	}
 
 	public void viewJob(String[] cmds, Map<String, Object> options) {
@@ -6781,6 +6811,9 @@ public class Devops extends CommandRunnerBase {
 		case "get": 
 			getCronJob(cmds, options);
 			break;
+		case "manifest": 
+			manifestCronJob(cmds, options);
+			break;
 		case "view": 
 			viewCronJob(cmds, options);
 			break;
@@ -6879,6 +6912,17 @@ public class Devops extends CommandRunnerBase {
 		debug("CronJob: %s", cronjobId);
 		CronJob cronjob = devopsClient.getCronJob(cronjobId, options_);
 		printObj(cronjob);
+	}
+
+	public void manifestCronJob(String[] cmds, Map<String, Object> options) {
+		if (isHelp2()) {
+			return;
+		}
+		String cronjobId = argIdx(op, cmds);
+		ManifestOptions options_ = convert(options, ManifestOptions.class);
+		debug("CronJob Manifest: %s", cronjobId);
+		String manifest = devopsClient.getCronJobManifest(cronjobId, options_);
+		println(manifest);
 	}
 
 	public void viewCronJob(String[] cmds, Map<String, Object> options) {
@@ -8855,6 +8899,9 @@ public class Devops extends CommandRunnerBase {
 		debug("Creating Catalog: %s %s", catalog, options_);
 		if (isDryrun()) {
 			return;
+		}
+		if (catalog.getEnabled()==null) {
+			catalog.setEnabled(true);
 		}
 		URI uri = devopsClient.createCatalog(catalog, new CatalogOptions());
 		if (isEcho()) {

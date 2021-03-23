@@ -27,6 +27,9 @@ import org.einnovator.util.UriUtils;
 import org.einnovator.util.config.ConnectionConfiguration;
 import org.einnovator.util.meta.MetaUtil;
 import org.einnovator.util.model.EntityBase;
+import org.springframework.core.convert.ConversionException;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.data.domain.Page;
 import org.springframework.security.oauth2.client.DefaultOAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
@@ -63,6 +66,7 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 
 	protected static YAMLFactory yamlFactory = new YAMLFactory();
 
+	protected ConversionService conversionService = new DefaultConversionService();
 	
 	@Override
 	public boolean supports(String cmd) {
@@ -1547,19 +1551,31 @@ public abstract class CommandRunnerBase  extends RunnerBase implements CommandRu
 				Member member = MetaUtil.getPropertyMember(type, prop, false, false);
 				if (member!=null) {
 					prop = MetaUtil.getPropertyName(member);
-					if (value!=null && !value.toString().isEmpty()) {
-						Class<?> propType = MetaUtil.getPropertyType(type, prop);
-						if (propType!=null && propType.isEnum()) {
-							String s = value.toString();
-							Method parse = MetaUtil.getMethod(propType, "parse", 1, true);
-							if (parse!=null) {
-								Object out = MetaUtil.invoke(null, parse, new Object[] {s});
-								if (out!=null) {
-									value = out;
+					if (value!=null) {
+						String svalue = value.toString();
+						if (!svalue.isEmpty()) {
+							Class<?> propType = MetaUtil.getPropertyType(type, prop);
+							if (propType!=null) {
+								if (propType.isEnum()) {
+									String s = value.toString();
+									Method parse = MetaUtil.getMethod(propType, "parse", 1, true);
+									if (parse!=null) {
+										Object out = MetaUtil.invoke(null, parse, new Object[] {s});
+										if (out!=null) {
+											value = out;
+										}
+									} else {
+										value = parseEnum2(propType, s);
+									}
+								} else {
+									if (conversionService.canConvert(value.getClass(), propType)) {
+										try {
+											value = conversionService.convert(value, propType);											
+										} catch (ConversionException e_) {											
+										}
+									}
 								}
-							} else {
-								value = parseEnum2(propType, s);
-							}
+							}							
 						}
 					} else {
 						Class<?> propType = MetaUtil.getPropertyType(type, prop);

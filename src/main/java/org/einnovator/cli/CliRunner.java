@@ -52,6 +52,7 @@ public class CliRunner extends RunnerBase {
 
 	
 	public static void main(String[] args) {
+		JavaUtil.disableAccessWarnings();
 		Map<String, Object> options = makeArgsMap(args, null, null, false);
 		t0 = System.currentTimeMillis();
 		String t = (String)options.get("t");
