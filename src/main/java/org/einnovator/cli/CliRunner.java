@@ -22,6 +22,7 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.CommandLineRunner;
+//import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -62,7 +63,7 @@ public class CliRunner extends RunnerBase {
 		}
 		boolean boot = START_WITH_BOOT;
 		if (boot) {
-			new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false).run(args);			
+			new SpringApplicationBuilder(CliRunner.class).bannerMode(Mode.OFF).logStartupInfo(false).web(false /*WebApplicationType.NONE*/).run(args);			
 		} else {
 			CliRunner cli = new CliRunner();
 			String[] loggers = { "org.apache.commons.beanutils.converters.ArrayConverter"};

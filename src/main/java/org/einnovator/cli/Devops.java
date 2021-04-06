@@ -1873,12 +1873,16 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	private ConfigMap makeConfigMap(Map<String, Object> options) {
-		ConfigMap configmap = convert(options, ConfigMap.class);
-		
 		String sdata = (String)options.get("data");
-		if (sdata==null) {
+		if (sdata!=null) {
+			options.remove("data");
+		} else {
 			sdata = (String)options.get("items");
+			if (sdata!=null) {
+				options.remove("items");
+			}
 		}
+		ConfigMap configmap = convert(options, ConfigMap.class);
 		if (sdata!=null) {
 			Map<String, String> data = new LinkedHashMap<>();
 			if (!makeConfigmapData(sdata, data)) {
@@ -1903,7 +1907,7 @@ public class Devops extends CommandRunnerBase {
 		String[] values = sdata.split(",");
 		for (String kv: values) {
 			if (kv==null || kv.isEmpty()) {
-				return false;
+				continue;
 			}
 			String[] a;
 			if (kv.indexOf(":")>0) {
@@ -2105,14 +2109,20 @@ public class Devops extends CommandRunnerBase {
 	}
 
 	private Secret makeSecret(Map<String, Object> options) {
-		Secret secret = convert(options, Secret.class);
 		String sdata = (String)options.get("data");
-		if (sdata==null) {
-			sdata = (String)options.get("items");
-		}
 		if (sdata!=null) {
+			options.remove("data");
+		} else {
+			sdata = (String)options.get("items");
+			if (sdata!=null) {
+				options.remove("items");
+			}
+		}
+		Secret secret = convert(options, Secret.class);
+		if (sdata!=null) {
+			boolean encode = options.get("encode")!=null;
 			Map<String, String> data = new LinkedHashMap<>();
-			if (!makeSecretData(sdata, data)) {
+			if (!makeSecretData(sdata, data, encode)) {
 				error("Invalid data: %s", sdata);
 				exit(-1);
 				return null;
@@ -2122,15 +2132,19 @@ public class Devops extends CommandRunnerBase {
 		return secret;
 	}
 	
-	private boolean makeSecretData(String sdata, Map<String, String> data) {
-		Map<String, String> data2 = new LinkedHashMap<>();
-		if (!makeConfigmapData(sdata, data2)) {
+	private boolean makeSecretData(String sdata, Map<String, String> data, boolean encode) {
+		Map<String, String> data_ = new LinkedHashMap<>();
+		if (!makeConfigmapData(sdata, data_)) {
 			return false;
 		}
-		for (Map.Entry<String, String> e: data.entrySet()) {
-			String value = e.getValue();
-			value = new String(Base64.getEncoder().encode(value.getBytes()));
-			data.put(e.getKey(), value);			
+		if (encode) {
+			for (Map.Entry<String, String> e: data_.entrySet()) {
+				String value = e.getValue();
+				value = new String(Base64.getEncoder().encode(value.getBytes()));
+				data.put(e.getKey(), value);			
+			}			
+		} else {
+			data.putAll(data_);
 		}
 		return true;
 	}
